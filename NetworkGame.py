@@ -165,6 +165,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     bhist = zeros((histlen,) + resWb.shape)
     nethist = zeros((histlen,3))
 
+
     #4/19/21, EG
     #adding population arrays, creating dict of genotypes and array of genotype indices
     genotypes_dict = {int(0) : [resWm, resWb]}
