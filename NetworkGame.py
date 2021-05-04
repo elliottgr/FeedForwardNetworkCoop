@@ -183,36 +183,27 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     wmhist[0] = resWm
     bhist[0] = resWb
     nethist[0] = nout
-    # introduce a mutant by changing an element at random in Wm and b
     ninvas = 0
+    # introduce a mutant by changing an element at random in Wm and b
+
 
 
     #4/19/21, EG
     #adding population arrays, creating dict of genotypes and array of genotype indices
     genotypes_dict = {int(0) : [resWm, resWb]}
     population_array = [[0] * population_size]
-
     n_genotypes = 1
-    new_pop_frequency_hist = []
     w_max_history = [[0],[0],[0],[0]]
     fit_dict = {}
+    previous_resident = int32(0)
     
     for i in range(Tmax):
         if i % 50 == 0:
             print(i)
-        #4/19/21, EG
-        #can add p = [ ... ] argument to weight selection of individuals based on fitnesses
-        interactions = interactions_calc(population_array[-1], n_genotypes)
-
         w_max = [0,0,0,0]
         for n1 in set(population_array[-1]):
-            wf_temp_fitness = 0
-            E_offspring = 0
-
             for n2 in set(population_array[-1]):
                 invas_out = invasion(genotypes_dict[n2][0], genotypes_dict[n2][1], initIn, genotypes_dict[n1][0], genotypes_dict[n1][1], initIn,invasDemogFunc, fitFunc )
-                # Ws = invas_out[2]
-                # E_offspring += (Ws[0] * interactions[n1,n1]) + (Ws[1] * interactions[n1,n2]) + (Ws[2] * interactions[n2,n1]) + (Ws[3] * interactions[n2,n2])
                 for w in range(len(w_max)):
                     if invas_out[2][w] > w_max[w]:
                         w_max[w] = invas_out[2][w]
@@ -224,43 +215,13 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
             w_max_history[w].append(w_max[w])
 
 
-        #4/21/21, EG
-        #Creates a per spot probability frequency from above 
-        #calculated fitnesses per genotype, then normalizes
-        #so it sums to 1
-        # new_pop_frequency = [fit_dict[population_array[-1][n]] for n in range(population_size)]
-        # new_pop_frequency /= sum(new_pop_frequency)
-        # new_pop_array = population_array[-1].copy()
-        # for n in range(population_size):
-        #     new_pop_array[n] = random.choice(population_array[-1], size = 1, p = new_pop_frequency)[0]
-        #     if random.random() <= mu:
-        #         #4/21/21, EG
-        #         #going to just do an iterating index for new mutants
-        #         #if lineages are needed, the dict to create em
-        #         #will need data from this part
-        #         mutationw = triu(random.binomial(1,mutlink,(matDim,matDim))
-        #                  *(random.normal(0,mutsize, (matDim,matDim))))
-        #         mutWm = genotypes_dict[new_pop_array[n]][0] + mutationw
-        #         mutationb = random.binomial(1,mutlink,matDim)*random.normal(0, mutsize, matDim)
-        #         mutWb = genotypes_dict[new_pop_array[n]][1] + mutationb
-        #         new_pop_array[n] = n_genotypes
-        #         genotypes_dict[n_genotypes] = [mutWm, mutWb]
-        #         n_genotypes += 1
-        # print(population_pair_calc(population_array[-1]))
         shuffled_population = population_array[-1].copy()
         shuffle(shuffled_population)
         new_pop_array = population_array[-1].copy()
         i = 0
         for n1, n2 in zip(population_array[-1], shuffled_population):
-            # invas_out = invasion(genotypes_dict[n2][0], genotypes_dict[n2][1], initIn, genotypes_dict[n1][0], genotypes_dict[n1][1], initIn,invasDemogFunc, fitFunc )
             invas_out = fit_dict[n1][n2]
-            Ws = invas_out[2]
-            probabilities = [Ws[1]/(Ws[1]+Ws[2]), Ws[2]/(Ws[1]+Ws[2])]
-            for n in probabilities:
-                if n < 0 :
-                    print(probabilities)
-                    print(Ws)
-            new_pop_array[i] = random.choice([n1, n2], p = probabilities)
+            new_pop_array[i] = random.choice([n1, n2], p = [invas_out[2][1]/(invas_out[2][1]+invas_out[2][2]), invas_out[2][2]/(invas_out[2][1]+invas_out[2][2])])
             if len(set(new_pop_array)) < 2:
                 if random.random() <= mu:
                     #4/21/21, EG
@@ -275,42 +236,31 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
                     new_pop_array[i] = n_genotypes
                     genotypes_dict[n_genotypes] = [mutWm, mutWb]
                     n_genotypes += 1
-            
             i += 1
-        
-        
-        # new_pop_frequency_hist.append(new_pop_frequency)
+            
+        #updating output arrays
+        current_resident = max(set(population_array[-1]), key=population_array[-1].count)
+
+        if current_resident != previous_resident:
+            wmhist[ninvas] = genotypes_dict[current_resident][0]
+            bhist[ninvas] = genotypes_dict[current_resident][1]
+            fithistory[ninvas] = fit_dict[current_resident][current_resident][2][0]
+            nethist[ninvas] = fit_dict[current_resident][current_resident][3]
+            ninvas += 1
+            previous_resident = current_resident
         population_array.append(new_pop_array.copy())
-        # reciprocal invasion conditions (mr: mutant invading resident, rm: resident invading mutant)
-        # [invcondmr, invcondrm, w, nout]  = invasion(mutWm, mutWb, initIn,
-        #                                                 resWm, resWb, initIn,
-        #                                                 invasDemogFunc, fitFunc)
- 
-        # mutant invades when it has a higher fixation probability
+
         print('net out (Δmm, Δmr, rr)  : ({:.5f}, {:.5f}, {:.5f})'.format(nout[0]-nout[2], nout[1]-nout[2], nout[2])) if verbose == 2 else None
 
-        # if invcondmr > invcondrm:
-        #     print('*mutant invaded with fit: {:.5f}. net out (Δmm, Δmr, rr): ({:.5f}, {:.5f}, {:.5f})'.format(w[0], nout[0]-nout[2], nout[1]-nout[2], nout[2])) if verbose else None
-        #     resWm = mutWm
-        #     resWb = mutWb
-        #     #the issue here
-        #     invashist[ninvas] = i+1
-        #     ninvas+=1
-        #     fithistory[ninvas] = w[0]
-        #     wmhist[ninvas] = resWm
-        #     bhist[ninvas] = resWb
-        #     nethist[ninvas] = nout
-
-    # return {'n_invas': ninvas,
-    #         'invas_hist': invashist[0:ninvas],
-    #         'fit_hist': fithistory[0:ninvas+1],
-    #         'wm_hist': wmhist[0:ninvas+1],
-    #         'b_hist': bhist[0:ninvas+1],
-    #         'net_hist': nethist[0:ninvas+1]
-    #         }
-    return {'n_mutants' : n_genotypes,
-            'fit_hist' : w_max_history,
-            'timesteps' : range(Tmax)}
+    return {'n_invas' : ninvas,
+            'n_mutants' : n_genotypes,
+            'w_max_hist' : w_max_history,
+            'timesteps' : Tmax,
+            'invas_hist' : range(Tmax),
+            'fit_hist' : fithistory[0:i],
+            'wm_hist' : wmhist[0:i],
+            'b_hist' : bhist[0:i],
+            'net_hist' : nethist[0:i]}
 
 # Plot network with igraph
 def plotNetwork(wm):
@@ -405,16 +355,17 @@ def main():
         print('{}: replicate {} done'.format(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), t+1))
 
         outputdump = simoutput
+    plotNetwork(simoutput["wm_hist"][0])
     # create hdf5 to save data
     file = h5py.File(args.outputfile, "w")
 
     # save data to hdf5 file
-    # for key in data.keys():
-    #     file.create_dataset(key, data=data[key])
+    for key in data.keys():
+        file.create_dataset(key, data=data[key])
 
-    # # save parameter values as attributes
-    # for par in set(vars(args).keys()) - {'verbose'}:
-    #     file.attrs[par] = getattr(args, par)
+    # save parameter values as attributes
+    for par in set(vars(args).keys()) - {'verbose'}:
+        file.attrs[par] = getattr(args, par)
 
     # file.close()
     return outputdump
@@ -422,11 +373,12 @@ def main():
 # Run main function
 if __name__ == "__main__":
     output = main()
+    print(output['n_invas'])
+
     fig, ax = plt.subplots()
-    # print(output['fit_hist'])
-    # for x in range(4):
     for w in range(4):        
-        ax.scatter(output["timesteps"], output['fit_hist'][w][1:], label = w)
+        ax.scatter(output["invas_hist"], output['w_max_hist'][w][1:], label = w)
+
     plt.xlabel('Timesteps')
     plt.ylabel("fitness")
     ax.legend()
