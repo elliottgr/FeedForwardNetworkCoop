@@ -73,34 +73,7 @@ def fitnessOutcome (b, c, d, rounds, mutWm, mutWb, mutInit, resWm, resWb, resIni
     return [[wmm, wmr, wrm, wrr], [mmOut, mrOut, rrOut]]
 
 
-#4/19/2021, EG
-#Adding a function to parse the number of genotypes and return the interaction frequencies
-def interactions_calc (population_array, n_genotypes):
-    if n_genotypes > 1:
-        interactions_output = zeros((n_genotypes, n_genotypes))
-        for n1 in set(population_array):
-            for n2 in set(population_array):
-                interactions_output[n1,n2] = (population_array.count(n1)/len(population_array)) * (population_array.count(n2)/len(population_array))
-    else:
-        interactions_output = zeros((2,2))
-        interactions_output[0,0] = 1
-    return interactions_output
 
-def pop_random (population_array_indices):
-    i = random.randint(0, len(population_array_indices))
-    print(i)
-    population_array_indices = list(range(len(population_array_indices)))
-    return population_array_indices.pop(i)
-
-def population_pair_calc (population_array):
-    population_array_indices = list(range(len(population_array)))
-    pairs = []
-    while population_array_indices:
-        member_1 = pop_random(population_array_indices)
-        member_2 = pop_random(population_array_indices)
-        pair = member_1, member_2
-        pairs.append(pair) 
-    return pairs
 
 ##
 ## calulate resident-mutant fitness matrix from contributions throughout the game history,
@@ -185,8 +158,6 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     nethist[0] = nout
     ninvas = 0
     # introduce a mutant by changing an element at random in Wm and b
-
-
 
     #4/19/21, EG
     #adding population arrays, creating dict of genotypes and array of genotype indices
