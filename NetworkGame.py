@@ -118,17 +118,18 @@ def invasion (mutWm, mutWb, mutInit, resWm, resWb, resInit, invasDemogFunc, fitF
 
 
 def pairwise_fitness(population_array, genotypes_dict, fit_dict, initIn, invasDemogFunc, fitFunc, w_max):
+    w_max_copy = w_max.copy()
     for n1 in set(population_array[-1]):
         for n2 in set(population_array[-1]):
             invas_out = invasion(genotypes_dict[n2][0], genotypes_dict[n2][1], initIn, genotypes_dict[n1][0], genotypes_dict[n1][1], initIn,invasDemogFunc, fitFunc )
             for w in range(len(w_max)):
                 if invas_out[2][w] > w_max[w]:
-                    w_max[w] = invas_out[2][w]
+                    w_max_copy[w] = invas_out[2][w]
             try:
                 fit_dict[n1][n2] = invas_out
             except KeyError:
                 fit_dict[n1] = {n2 : invas_out}
-    return fit_dict, w_max
+    return fit_dict, w_max_copy
 
 
 # the main simulation code, iterating the sequential mutation and invasion process
@@ -181,56 +182,47 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     genotypes_dict = {int(0) : [resWm, resWb]}
     population_array = [[0] * population_size]
     n_genotypes = 1
-    w_max_history = [[0],[0],[0],[0]]
+    w_max_history = []
     fit_dict = {}
     previous_resident = int32(0)
-    
+    w_max = [0,0,0,0]
     for i in range(Tmax):
-        if i % 50 == 0:
-            print(i)
-        w_max = [0,0,0,0]
+        
+        #calculate the pairwise payoff of each genotype created
+        #only runs when new genotypes are added
         if n_genotypes != len(fit_dict.keys()):
             fit_dict, w_max = pairwise_fitness(population_array, genotypes_dict, fit_dict, initIn, invasDemogFunc, fitFunc, w_max)
-        # for n1 in set(population_array[-1]):
-        #     for n2 in set(population_array[-1]):
-        #         invas_out = invasion(genotypes_dict[n2][0], genotypes_dict[n2][1], initIn, genotypes_dict[n1][0], genotypes_dict[n1][1], initIn,invasDemogFunc, fitFunc )
-        #         for w in range(len(w_max)):
-        #             if invas_out[2][w] > w_max[w]:
-        #                 w_max[w] = invas_out[2][w]
-        #         try:
-        #             fit_dict[n1][n2] = invas_out
-        #         except KeyError:
-        #             fit_dict[n1] = {n2 : invas_out}
-        for w in range(len(w_max)):
-            w_max_history[w].append(w_max[w])
-
-
+        w_max_history.append(w_max)
+        
+        #creates a copy of the population array, shuffles it
+        #then compares element-wise to the original to determine
+        #offspring of each index in the offspring array
         shuffled_population = population_array[-1].copy()
         shuffle(shuffled_population)
         new_pop_array = population_array[-1].copy()
-        i = 0
+        pop_array_iter_var = 0
         for n1, n2 in zip(population_array[-1], shuffled_population):
             invas_out = fit_dict[n1][n2]
-            new_pop_array[i] = random.choice([n1, n2], p = [invas_out[2][1]/(invas_out[2][1]+invas_out[2][2]), invas_out[2][2]/(invas_out[2][1]+invas_out[2][2])])
+            new_pop_array[pop_array_iter_var] = random.choice([n1, n2], p = [invas_out[2][1]/(invas_out[2][1]+invas_out[2][2]), invas_out[2][2]/(invas_out[2][1]+invas_out[2][2])])
             if len(set(new_pop_array)) < 2:
-                if random.random() <= mu:
                     #4/21/21, EG
                     #going to just do an iterating index for new mutants
                     #if lineages are needed, the dict to create em
                     #will need data from this part
-                    mutationw = triu(random.binomial(1,mutlink,(matDim,matDim))
-                              *(random.normal(0,mutsize, (matDim,matDim))))
-                    mutWm = genotypes_dict[new_pop_array[i]][0] + mutationw
-                    mutationb = random.binomial(1,mutlink,matDim)*random.normal(0, mutsize, matDim)
-                    mutWb = genotypes_dict[new_pop_array[i]][1] + mutationb
-                    new_pop_array[i] = n_genotypes
-                    genotypes_dict[n_genotypes] = [mutWm, mutWb]
-                    n_genotypes += 1
-            i += 1
+                mutationw = triu(random.binomial(1,mutlink,(matDim,matDim))
+                          *(random.normal(0,mutsize, (matDim,matDim))))
+                mutWm = genotypes_dict[new_pop_array[pop_array_iter_var]][0] + mutationw
+                mutationb = random.binomial(1,mutlink,matDim)*random.normal(0, mutsize, matDim)
+                mutWb = genotypes_dict[new_pop_array[pop_array_iter_var]][1] + mutationb
+                new_pop_array[pop_array_iter_var] = n_genotypes
+                genotypes_dict[n_genotypes] = [mutWm, mutWb]
+                n_genotypes += 1
+            pop_array_iter_var += 1
             
         #updating output arrays
+        #resident is just whichever genotype has the
+        #largest frequency in the population
         current_resident = max(set(population_array[-1]), key=population_array[-1].count)
-
         if current_resident != previous_resident:
             wmhist[ninvas] = genotypes_dict[current_resident][0]
             bhist[ninvas] = genotypes_dict[current_resident][1]
@@ -281,7 +273,7 @@ def main():
             'discount', 'seed', 'outputfile']
 
     parsdefault = dict(zip(pars,
-                           [1, 1000, 10, 100, 0.01, 2, 1, 1, 0.0, 6, 0.1, 1, 0.1, 0.5,
+                           [2, 1000, 10, 100, 0.01, 2, 1, 1, 0.0, 6, 0.1, 1, 0.1, 0.5,
                             0.9, 0, 'output.h5']))
     
     parstype    = dict(zip(pars,
@@ -343,7 +335,7 @@ def main():
                 data[key] = array(simoutput[key], ndmin=1)
 
         print('{}: replicate {} done'.format(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), t+1))
-
+        print("Number of Invasions: ", simoutput['n_invas'])
         outputdump = simoutput
     plotNetwork(simoutput["wm_hist"][0])
     # create hdf5 to save data
@@ -363,12 +355,11 @@ def main():
 # Run main function
 if __name__ == "__main__":
     output = main()
-    print("Number of Invasions: ", output['n_invas'])
-
+    
+    #plots the final replicate
     fig, ax = plt.subplots()
-    for w, label in zip(range(4), ['rr', 'mr', 'rm', 'mm']):        
-        ax.scatter(output["invas_hist"], output['w_max_hist'][w][1:], label = w)
-
+    for w, label in zip(array(output['w_max_hist']).T.tolist(), ['rr', 'mr', 'rm', 'mm']):
+        ax.scatter(output['invas_hist'], w, label = label)
     plt.xlabel('Timesteps')
     plt.ylabel("fitness")
     ax.legend()
