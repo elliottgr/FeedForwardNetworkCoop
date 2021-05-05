@@ -114,6 +114,23 @@ def invasion (mutWm, mutWb, mutInit, resWm, resWb, resInit, invasDemogFunc, fitF
     # return invasion conditions and mutant-mutant fitness
     return [invasDemogFunc(w), invasDemogFunc(w[::-1]), w, nout]
 
+
+
+
+def pairwise_fitness(population_array, genotypes_dict, fit_dict, initIn, invasDemogFunc, fitFunc, w_max):
+    for n1 in set(population_array[-1]):
+        for n2 in set(population_array[-1]):
+            invas_out = invasion(genotypes_dict[n2][0], genotypes_dict[n2][1], initIn, genotypes_dict[n1][0], genotypes_dict[n1][1], initIn,invasDemogFunc, fitFunc )
+            for w in range(len(w_max)):
+                if invas_out[2][w] > w_max[w]:
+                    w_max[w] = invas_out[2][w]
+            try:
+                fit_dict[n1][n2] = invas_out
+            except KeyError:
+                fit_dict[n1] = {n2 : invas_out}
+    return fit_dict, w_max
+
+
 # the main simulation code, iterating the sequential mutation and invasion process
 def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds, Tmax, mutsize, mutlink, fitFunc):
     """
@@ -172,16 +189,18 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         if i % 50 == 0:
             print(i)
         w_max = [0,0,0,0]
-        for n1 in set(population_array[-1]):
-            for n2 in set(population_array[-1]):
-                invas_out = invasion(genotypes_dict[n2][0], genotypes_dict[n2][1], initIn, genotypes_dict[n1][0], genotypes_dict[n1][1], initIn,invasDemogFunc, fitFunc )
-                for w in range(len(w_max)):
-                    if invas_out[2][w] > w_max[w]:
-                        w_max[w] = invas_out[2][w]
-                try:
-                    fit_dict[n1][n2] = invas_out
-                except KeyError:
-                    fit_dict[n1] = {n2 : invas_out}
+        if n_genotypes != len(fit_dict.keys()):
+            fit_dict, w_max = pairwise_fitness(population_array, genotypes_dict, fit_dict, initIn, invasDemogFunc, fitFunc, w_max)
+        # for n1 in set(population_array[-1]):
+        #     for n2 in set(population_array[-1]):
+        #         invas_out = invasion(genotypes_dict[n2][0], genotypes_dict[n2][1], initIn, genotypes_dict[n1][0], genotypes_dict[n1][1], initIn,invasDemogFunc, fitFunc )
+        #         for w in range(len(w_max)):
+        #             if invas_out[2][w] > w_max[w]:
+        #                 w_max[w] = invas_out[2][w]
+        #         try:
+        #             fit_dict[n1][n2] = invas_out
+        #         except KeyError:
+        #             fit_dict[n1] = {n2 : invas_out}
         for w in range(len(w_max)):
             w_max_history[w].append(w_max[w])
 
@@ -344,10 +363,10 @@ def main():
 # Run main function
 if __name__ == "__main__":
     output = main()
-    print(output['n_invas'])
+    print("Number of Invasions: ", output['n_invas'])
 
     fig, ax = plt.subplots()
-    for w in range(4):        
+    for w, label in zip(range(4), ['rr', 'mr', 'rm', 'mm']):        
         ax.scatter(output["invas_hist"], output['w_max_hist'][w][1:], label = w)
 
     plt.xlabel('Timesteps')
