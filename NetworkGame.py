@@ -183,7 +183,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         #creates a copy of the population array, shuffles it
         #then compares element-wise to the original to determine
         #offspring of each index in the offspring array
-        shuffled_population = shuffle(population_array[-1].copy())
+        shuffled_population = population_array[-1].copy()
         shuffle(shuffled_population)
         new_pop_array = population_array[-1].copy()
         repro_probabilities = [fit_dict[n1][n2][1] for n1, n2 in zip(population_array[-1], shuffled_population)]
