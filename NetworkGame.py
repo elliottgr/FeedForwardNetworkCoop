@@ -97,27 +97,8 @@ def fitnessOutcomeEntireHist (b, c, d, rounds, mutWm, mutWb, mutInit, resWm, res
     return [[wmm, wmr, wrm, wrr], [dot(mmOut, discount)/td, dot(mrOut, discount)/td, dot(rrOut, discount)/td]]
 
 
-## compute invasion condition for finite island model with group selection.
-## first order effect of selection on fixation probability
-## (eq from Mathematica expression from Van Cleve 2015 TPB)
-def islandGroupSel(w, r):
-    C = - (w[1] - w[3])
-    B = w[2] - w[3]
-    D = w[0] - w[3] - B + C
 
-    return (-C + B*r + D/3. * (1 + 2*r)) / (1. - r)
-
-## Compute the game between two networks and then the invasion conditions from Van Cleve 2015 TPB
-def invasion (mutWm, mutWb, mutInit, resWm, resWb, resInit, invasDemogFunc, fitFunc):
-    [w, nout] = fitFunc(mutWm, mutWb, mutInit, resWm, resWb, resInit)
-
-    # return invasion conditions and mutant-mutant fitness
-    return [invasDemogFunc(w), invasDemogFunc(w[::-1]), w, nout]
-
-
-
-
-def pairwise_fitness(population_array, genotypes_dict, fit_dict, initIn, invasDemogFunc, fitFunc, w_max):
+def pairwise_fitness(population_array, genotypes_dict, fit_dict, initIn, fitFunc, w_max):
     w_max_copy = w_max.copy()
     for n1 in set(population_array[-1]):
         for n2 in set(population_array[-1]):
@@ -169,12 +150,10 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
 
 
     # demography function
-    invasDemogFunc = lambda w: islandGroupSel(w, r)
+    # invasDemogFunc = lambda w: islandGroupSel(w, r)
 
     # save initial values
-    [invcond, invcond, w, nout] = invasion(resWm, resWb, initIn,
-                                               resWm, resWb, initIn,
-                                               invasDemogFunc, fitFunc)
+    w, nout = fitFunc(resWm, resWb, initIn, resWm, resWb, initIn)
     fithistory[0] = w[0]
     wmhist[0] = resWm
     bhist[0] = resWb
@@ -198,21 +177,16 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         #calculate the pairwise payoff of each genotype created
         #only runs when new genotypes are added
         if n_genotypes != len(fit_dict.keys()):
-            fit_dict, w_max = pairwise_fitness(population_array, genotypes_dict, fit_dict, initIn, invasDemogFunc, fitFunc, w_max)
+            fit_dict, w_max = pairwise_fitness(population_array, genotypes_dict, fit_dict, initIn, fitFunc, w_max)
         w_max_history.append(w_max)
         
         #creates a copy of the population array, shuffles it
         #then compares element-wise to the original to determine
         #offspring of each index in the offspring array
-        shuffled_population = population_array[-1].copy()
+        shuffled_population = shuffle(population_array[-1].copy())
         shuffle(shuffled_population)
         new_pop_array = population_array[-1].copy()
-        repro_probabilities = zeros(len(new_pop_array))
-        pop_array_iter_var = 0
         repro_probabilities = [fit_dict[n1][n2][1] for n1, n2 in zip(population_array[-1], shuffled_population)]
-        # for pop_array_iter_var, n1, n2 in zip(range(population_size), population_array[-1], shuffled_population):
-        #     repro_probabilities[pop_array_iter_var] = fit_dict[n1][n2][0]
-        # repro_probabilities = repro_probabilities/sum(repro_probabilities)
         new_pop_array = random.choice(population_array[-1], size = shape(population_array[-1]), p = (repro_probabilities/sum(repro_probabilities))).tolist()
 
         #mutation code
