@@ -15,6 +15,7 @@ import h5py
 from datetime import datetime
 import matplotlib.pyplot as plt
 from random import shuffle
+from scipy.stats import mode
 
 ## define the function to generate the output of node j given previous outputs and weights and Wb
 def calcOj (j, prev_out, Wm, Wb):
@@ -106,7 +107,7 @@ def fitnessOutcomeEntireHist (b, c, d, fitness_benefit_scale, rounds, mutWm, mut
 
 def pairwise_fitness(population_array, genotypes_dict, fit_dict, fitFunc, w_max, init_max):
     shuffled_population = population_array.copy()
-    shuffle(shuffled_population)
+    random.shuffle(shuffled_population)
     repro_probabilities = []
     for n1, n2 in zip(population_array, shuffled_population):
         if n1 not in fit_dict.keys():
@@ -123,6 +124,10 @@ def pairwise_fitness(population_array, genotypes_dict, fit_dict, fitFunc, w_max,
 
     return repro_probabilities, fit_dict, w_max, init_max
 
+##################################################################
+#   Mutation function, samples each child in the offspring generation,
+#   and then applies mutation to nodes, edges, and init as below
+##################################################################
 
 def mutation_process(population_size, genotypes_dict, n_genotypes, new_pop_array, matDim, mutlink, mutsize, mu):
     for N in range(population_size):
@@ -179,7 +184,10 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     #4/19/21, EG
     #adding population arrays, creating dict of genotypes and array of genotype indices
     genotypes_dict = {int(0) : [resWm, resWb, initIn]}
-    population_array = [[0] * population_size]
+    # population_array = [[0] * population_size]
+    population_array = [zeros(population_size, dtype = int)]
+    # print((population_array))
+    # print([0]*population_size)
     n_genotypes = 1
 
     fit_dict = {}
@@ -192,13 +200,15 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     
     for i in range(Tmax):
         
-        
         #per time counters
         w_max = [0,0,0,0]
         init_max = float(0)
         if i % 50 == 0:
             print(i)
-        
+
+        ######################
+        #    reproduction    #
+        ######################
 
         repro_probabilities, fit_dict, w_max, init_max = pairwise_fitness(population_array[-1].copy(), genotypes_dict, fit_dict, fitFunc, w_max, init_max)
         new_pop_array = random.choice(population_array[-1], 
@@ -216,8 +226,9 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         #   resident is just whichever genotype has the
         #   largest frequency in the population
         ############################################
-        
-        current_resident = max(set(population_array[-1]), key=population_array[-1].count)
+        # current_resident = mode(new_pop_array)[0][0]
+        current_resident = argmax(bincount(new_pop_array))
+        print(bincount(new_pop_array))
         if current_resident != previous_resident:
             wmhist[ninvas] = genotypes_dict[current_resident][0]
             bhist[ninvas] = genotypes_dict[current_resident][1]
