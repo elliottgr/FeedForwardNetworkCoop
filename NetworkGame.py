@@ -62,6 +62,7 @@ def repeatedNetworkGameEntireHist (rounds, mutWm, mutWb, mutInit, resWm, resWb, 
 ##
 ## fitness = 1 + b * (partner) - c * (self) + d * (self) * (partner)
 ####################################################################
+
 def fitnessOutcome (b, c, d, fitness_benefit_scale, rounds, mutWm, mutWb, mutInit, resWm, resWb, resInit):
     [mmOut, mmOut] = repeatedNetworkGame(rounds, mutWm, mutWb, mutInit, mutWm, mutWb, mutInit)
     [rmOut, mrOut] = repeatedNetworkGame(rounds, resWm, resWb, resInit, mutWm, mutWb, mutInit)
@@ -73,9 +74,6 @@ def fitnessOutcome (b, c, d, fitness_benefit_scale, rounds, mutWm, mutWb, mutIni
     wrr = 1 + (((b - c) * rrOut + d * rrOut**2)*fitness_benefit_scale)
 
     return [[wmm, wmr, wrm, wrr], [mmOut, mrOut, rrOut]]
-
-
-
 
 ##################################################################
 ## calulate resident-mutant fitness matrix from contributions throughout the game history,
@@ -109,17 +107,22 @@ def pairwise_fitness(population_array, genotypes_dict, fit_dict, fitFunc, w_max,
     shuffled_population = population_array.copy()
     random.shuffle(shuffled_population)
     repro_probabilities = []
+    
     for n1, n2 in zip(population_array, shuffled_population):
         if n1 not in fit_dict.keys():
             fit_dict[n1] = {}
         if n2 not in fit_dict[n1].keys():
             fit_dict[n1][n2] = fitFunc(genotypes_dict[n2][0], genotypes_dict[n2][1], genotypes_dict[n2][2], genotypes_dict[n1][0], genotypes_dict[n1][1], genotypes_dict[n1][2])[0]
+        
         p = fit_dict[n1][n2]
+        
         for w_i in range(4):
             if p[w_i] > w_max[w_i]:
                 w_max[w_i] = p[w_i]
+                
         if max([genotypes_dict[n1][2], genotypes_dict[n2][2]]) > init_max:
             init_max = max([genotypes_dict[n1][2], genotypes_dict[n2][2]])
+        
         repro_probabilities.append(p[1])
 
     return repro_probabilities, fit_dict, w_max, init_max
@@ -137,11 +140,14 @@ def mutation_process(population_size, genotypes_dict, n_genotypes, new_pop_array
             mutWm = genotypes_dict[new_pop_array[N]][0] + mutationw
             mutationb = random.binomial(1,mutlink,matDim)*random.normal(0, mutsize, matDim)
             mutWb = genotypes_dict[new_pop_array[N]][1] + mutationb
-            mutation_init = random.normal(loc = genotypes_dict[new_pop_array[N]][2], scale = .001)
+            mutation_init = random.normal(0, scale = .001)
             mutInit = genotypes_dict[new_pop_array[N]][2] + mutation_init
+            
             new_pop_array[N] = n_genotypes
             genotypes_dict[n_genotypes] = [mutWm,mutWb,mutInit]
+            
             n_genotypes += 1
+            
     return genotypes_dict, n_genotypes, new_pop_array
 
 ##################################################################
@@ -178,21 +184,20 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     bhist[0] = resWb
     nethist[0] = nout
     ninvas = 0
-    w_max_history = []
-    init_max_history = []
     
-    #4/19/21, EG
-    #adding population arrays, creating dict of genotypes and array of genotype indices
+    ################################################################
+    #   Initializing population arrays, creating dict of genotypes,
+    #   array of genotype indices, dicts for caching game results,
+    #   and arrays for tracking history
+    ################################################################
+    
     genotypes_dict = {int(0) : [resWm, resWb, initIn]}
-    # population_array = [[0] * population_size]
-    population_array = [zeros(population_size, dtype = int)]
-    # print((population_array))
-    # print([0]*population_size)
+    population_array = zeros([Tmax, population_size], dtype = int)
     n_genotypes = 1
-
     fit_dict = {}
     previous_resident = int32(0)
-    
+    w_max_history = zeros((Tmax, 4))
+    init_max_history = zeros(Tmax)
     
     ######################
     #     Time Start     #
@@ -210,9 +215,9 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         #    reproduction    #
         ######################
 
-        repro_probabilities, fit_dict, w_max, init_max = pairwise_fitness(population_array[-1].copy(), genotypes_dict, fit_dict, fitFunc, w_max, init_max)
-        new_pop_array = random.choice(population_array[-1], 
-                                      size = shape(population_array[-1]), 
+        repro_probabilities, fit_dict, w_max, init_max = pairwise_fitness(population_array[i].copy(), genotypes_dict, fit_dict, fitFunc, w_max, init_max)
+        new_pop_array = random.choice(population_array[i], 
+                                      size = shape(population_array[i]), 
                                       p = (repro_probabilities/sum(repro_probabilities))).tolist()
 
         ######################
@@ -222,13 +227,13 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         genotypes_dict, n_genotypes, new_pop_array = mutation_process(population_size, genotypes_dict, n_genotypes, new_pop_array, matDim, mutlink, mutsize, mu)
             
         ############################################
-        #   updating output arrays
-        #   resident is just whichever genotype has the
-        #   largest frequency in the population
+        #   Updating output arrays. Resident is just
+        #   whichever genotype has the largest frequency
+        #   in the population. If more than mode exists,
+        #   it picks the ancestral genotype.
         ############################################
-        # current_resident = mode(new_pop_array)[0][0]
-        current_resident = argmax(bincount(new_pop_array))
-        print(bincount(new_pop_array))
+            
+        current_resident = mode(new_pop_array)[0][0]
         if current_resident != previous_resident:
             wmhist[ninvas] = genotypes_dict[current_resident][0]
             bhist[ninvas] = genotypes_dict[current_resident][1]
@@ -237,10 +242,13 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
             ninvas += 1
             previous_resident = current_resident
         
-        
-        w_max_history.append(w_max)
-        init_max_history.append(init_max)
-        population_array.append(new_pop_array.copy())
+        ##############################
+        # update simulation history  #
+        ##############################
+        w_max_history[i] = w_max
+        init_max_history[i] = init_max
+        if i != Tmax-1:
+            population_array[i+1] = new_pop_array.copy()
 
         print('net out (Δmm, Δmr, rr)  : ({:.5f}, {:.5f}, {:.5f})'.format(nout[0]-nout[2], nout[1]-nout[2], nout[2])) if verbose == 2 else None
 
