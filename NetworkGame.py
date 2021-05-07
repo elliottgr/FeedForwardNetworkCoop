@@ -104,7 +104,7 @@ def fitnessOutcomeEntireHist (b, c, d, fitness_benefit_scale, rounds, mutWm, mut
 # each timepoint.
 ##################################################################
 
-def pairwise_fitness(population_array, genotypes_dict, fit_dict, fitFunc, w_max):
+def pairwise_fitness(population_array, genotypes_dict, fit_dict, fitFunc, w_max, init_max):
     shuffled_population = population_array.copy()
     shuffle(shuffled_population)
     repro_probabilities = []
@@ -117,10 +117,11 @@ def pairwise_fitness(population_array, genotypes_dict, fit_dict, fitFunc, w_max)
         for w_i in range(4):
             if p[w_i] > w_max[w_i]:
                 w_max[w_i] = p[w_i]
-
+        if max([genotypes_dict[n1][2], genotypes_dict[n2][2]]) > init_max:
+            init_max = max([genotypes_dict[n1][2], genotypes_dict[n2][2]])
         repro_probabilities.append(p[1])
 
-    return repro_probabilities, fit_dict, w_max
+    return repro_probabilities, fit_dict, w_max, init_max
 
 
 def mutation_process(population_size, genotypes_dict, n_genotypes, new_pop_array, matDim, mutlink, mutsize, mu):
@@ -199,7 +200,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
             print(i)
         
 
-        repro_probabilities, fit_dict, w_max = pairwise_fitness(population_array[-1].copy(), genotypes_dict, fit_dict, fitFunc, w_max)
+        repro_probabilities, fit_dict, w_max, init_max = pairwise_fitness(population_array[-1].copy(), genotypes_dict, fit_dict, fitFunc, w_max, init_max)
         new_pop_array = random.choice(population_array[-1], 
                                       size = shape(population_array[-1]), 
                                       p = (repro_probabilities/sum(repro_probabilities))).tolist()
@@ -272,7 +273,7 @@ def main():
             'discount', 'seed', 'outputfile']
 
     parsdefault = dict(zip(pars,
-                           [1, 1000, 10, 100, 0.01, 0.5, 2, 1, 1, 0.0, 3, 0.1, 1, 0.1, 0.5,
+                           [1, 1000, 10, 100, 0.01, 0.5, 2, 1, 1, 0.0, 6, 0.1, 1, 0.1, 0.5,
                             0.9, 0, 'output.h5']))
     
     parstype    = dict(zip(pars,
@@ -363,5 +364,6 @@ if __name__ == "__main__":
         ax[0].scatter(output['invas_hist'], w, label = label)
     ax[1].scatter(output['invas_hist'], output['init_max_hist'] )
     plt.xlabel('Timesteps')
-    ax[0].ylabel("fitness")
+    ax[0].set_ylabel("Maximum Fitness")
+    ax[1].set_ylabel("Maximum Initial Offer")
     ax[0].legend()
