@@ -103,12 +103,12 @@ def fitnessOutcomeEntireHist (b, c, d, fitness_benefit_scale, rounds, mutWm, mut
 # each timepoint.
 ##################################################################
 
-def pairwise_fitness(population_array, genotypes_dict, fit_dict, fitFunc, w_max, init_max):
+def pairwise_fitness(population_array, repro_probabilities, genotypes_dict, fit_dict, fitFunc, w_max, init_max):
     shuffled_population = population_array.copy()
     random.shuffle(shuffled_population)
-    repro_probabilities = []
+    # repro_probabilities = []
     
-    for n1, n2 in zip(population_array, shuffled_population):
+    for n1, n2, site in zip(population_array, shuffled_population, range(len(population_array))):
         if n1 not in fit_dict.keys():
             fit_dict[n1] = {}
         if n2 not in fit_dict[n1].keys():
@@ -123,7 +123,7 @@ def pairwise_fitness(population_array, genotypes_dict, fit_dict, fitFunc, w_max,
         if max([genotypes_dict[n1][2], genotypes_dict[n2][2]]) > init_max:
             init_max = max([genotypes_dict[n1][2], genotypes_dict[n2][2]])
         
-        repro_probabilities.append(p[1])
+        repro_probabilities[site] = p[1]
 
     return repro_probabilities, fit_dict, w_max, init_max
 
@@ -206,6 +206,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         #per time counters
         w_max = [0,0,0,0]
         init_max = float(0)
+        repro_probabilities = zeros(population_size)
         if i % 50 == 0:
             print(i)
 
@@ -213,7 +214,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         #    reproduction    #
         ######################
 
-        repro_probabilities, fit_dict, w_max, init_max = pairwise_fitness(population_array[i].copy(), genotypes_dict, fit_dict, fitFunc, w_max, init_max)
+        repro_probabilities, fit_dict, w_max, init_max = pairwise_fitness(population_array[i].copy(), repro_probabilities, genotypes_dict, fit_dict, fitFunc, w_max, init_max)
         new_pop_array = random.choice(population_array[i], 
                                       size = shape(population_array[i]), 
                                       p = (repro_probabilities/sum(repro_probabilities))).tolist()
