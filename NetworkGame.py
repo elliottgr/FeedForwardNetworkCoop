@@ -16,6 +16,8 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 from random import shuffle
 from scipy.stats import mode
+random.seed(100)
+
 
 ## define the function to generate the output of node j given previous outputs and weights and Wb
 def calcOj (j, prev_out, Wm, Wb):
@@ -106,7 +108,6 @@ def fitnessOutcomeEntireHist (b, c, d, fitness_benefit_scale, rounds, mutWm, mut
 def pairwise_fitness(population_array, repro_probabilities, genotypes_dict, fit_dict, fitFunc, w_max, init_max):
     shuffled_population = population_array.copy()
     random.shuffle(shuffled_population)
-    # repro_probabilities = []
     
     for n1, n2, site in zip(population_array, shuffled_population, range(len(population_array))):
         if n1 not in fit_dict.keys():
@@ -196,6 +197,8 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     previous_resident = int32(0)
     w_max_history = zeros((Tmax, 4))
     init_max_history = zeros(Tmax)
+
+    
     
     ######################
     #     Time Start     #
@@ -207,6 +210,8 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         w_max = [0,0,0,0]
         init_max = float(0)
         repro_probabilities = zeros(population_size)
+        current_population_array = population_array[i].copy()
+        
         if i % 50 == 0:
             print(i)
 
@@ -214,9 +219,9 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         #    reproduction    #
         ######################
 
-        repro_probabilities, fit_dict, w_max, init_max = pairwise_fitness(population_array[i].copy(), repro_probabilities, genotypes_dict, fit_dict, fitFunc, w_max, init_max)
-        new_pop_array = random.choice(population_array[i], 
-                                      size = shape(population_array[i]), 
+        repro_probabilities, fit_dict, w_max, init_max = pairwise_fitness(current_population_array, repro_probabilities, genotypes_dict, fit_dict, fitFunc, w_max, init_max)
+        new_pop_array = random.choice(current_population_array, 
+                                      size = shape(current_population_array), 
                                       p = (repro_probabilities/sum(repro_probabilities))).tolist()
 
         ######################
@@ -229,7 +234,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         #   Updating output arrays. Resident is just
         #   whichever genotype has the largest frequency
         #   in the population. If more than mode exists,
-        #   it picks the ancestral genotype.
+        #   it picks the oldest genotype.
         ############################################
             
         current_resident = mode(new_pop_array)[0][0]
@@ -248,7 +253,6 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         init_max_history[i] = init_max
         if i != Tmax-1:
             population_array[i+1] = new_pop_array.copy()
-
         print('net out (Δmm, Δmr, rr)  : ({:.5f}, {:.5f}, {:.5f})'.format(nout[0]-nout[2], nout[1]-nout[2], nout[2])) if verbose == 2 else None
 
     return {'n_invas' : ninvas,
@@ -341,7 +345,6 @@ def main():
 
         initWm = random.normal(0, args.initstddev, (args.nnet, args.nnet))
         initWb = random.normal(0, args.initstddev, (args.nnet))
-
         if args.discount >= 0:
             fitFunc = lambda mutWm, mutWb, mutInit, resWm, resWb, resInit: fitnessOutcomeEntireHist(args.b, args.c, args.d, args.fitness_benefit_scale, args.rounds, mutWm, mutWb, mutInit, resWm, resWb, resInit, args.discount)
         else:
