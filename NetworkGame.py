@@ -14,7 +14,6 @@ from numpy import *
 import h5py
 from datetime import datetime
 import matplotlib.pyplot as plt
-from random import shuffle
 from scipy.stats import mode
 # random.seed(100)
 
@@ -55,7 +54,7 @@ def repeatedNetworkGameEntireHist (rounds, mutWm, mutWb, mutInit, resWm, resWb, 
         [mutInit, resInit] = networkGameRound(mutWm, mutWb, mutInit, resWm, resWb, resInit)
         muthist[i] = mutInit
         resthist[i] = resInit
-
+        
     return [muthist, resthist]
 
 ####################################################################
@@ -104,7 +103,7 @@ def fitnessOutcomeEntireHist (b, c, d, fitness_benefit_scale, rounds, mutWm, mut
 def pairwise_fitness(population_array, repro_probabilities, genotypes_dict, fit_dict, fitFunc, w_max, init_max):
     shuffled_population = population_array.copy()
     random.shuffle(shuffled_population)
-    
+    mean_init = zeros((2*len(population_array)))
     for n1, n2, site in zip(population_array, shuffled_population, range(len(population_array))):
         if n1 not in fit_dict.keys():
             fit_dict[n1] = {}
@@ -116,13 +115,15 @@ def pairwise_fitness(population_array, repro_probabilities, genotypes_dict, fit_
         for w_i in range(2):
             if p[w_i] > w_max[w_i]:
                 w_max[w_i] = p[w_i]
-                
+        
         if max([genotypes_dict[n1][2], genotypes_dict[n2][2]]) > init_max:
             init_max = max([genotypes_dict[n1][2], genotypes_dict[n2][2]])
+        mean_init[site] = genotypes_dict[n1][2]
+        mean_init[site+len(population_array)] = genotypes_dict[n2][2]
         
         repro_probabilities[site] = p[0]
 
-    return repro_probabilities, fit_dict, w_max, init_max
+    return repro_probabilities, fit_dict, w_max, init_max, mean(mean_init)
 
 ##################################################################
 #   Mutation function, samples each child in the offspring generation,
@@ -193,8 +194,8 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     previous_resident = int32(0)
     w_max_history = zeros((Tmax, 4))
     init_max_history = zeros(Tmax)
-
-    
+    mean_fitness_history = zeros(Tmax)
+    mean_init_history = zeros(Tmax)
     
     ######################
     #     Time Start     #
@@ -202,20 +203,19 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     
     for i in range(Tmax):
         
-        #per time counters
+        ######################
+        #  per time counters #
+        ######################
         w_max = [0,0,0,0]
         init_max = float(0)
         repro_probabilities = zeros(population_size)
         current_population_array = population_array[i].copy()
-        
-        if i % 50 == 0:
-            print(i)
 
         ######################
         #    reproduction    #
         ######################
 
-        repro_probabilities, fit_dict, w_max, init_max = pairwise_fitness(current_population_array, repro_probabilities, genotypes_dict, fit_dict, fitFunc, w_max, init_max)
+        repro_probabilities, fit_dict, w_max, init_max, mean_init = pairwise_fitness(current_population_array, repro_probabilities, genotypes_dict, fit_dict, fitFunc, w_max, init_max)
         new_pop_array = random.choice(current_population_array, 
                                       size = shape(current_population_array), 
                                       p = (repro_probabilities/sum(repro_probabilities))).tolist()
@@ -226,27 +226,30 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         
         genotypes_dict, n_genotypes, new_pop_array = mutation_process(population_size, genotypes_dict, n_genotypes, new_pop_array, matDim, mutlink, mutsize, mutinitsize, mu)
             
-        ############################################
-        #   Updating output arrays. Resident is just
-        #   whichever genotype has the largest frequency
-        #   in the population. If more than mode exists,
-        #   it picks the oldest genotype.
-        ############################################
-            
+        
+        ######################################################
+        #   Updating output arrays. Resident is just         #
+        #   whichever genotype has the largest frequency     #
+        #   in the population. If more than mode exists,     #
+        #   it picks the oldest genotype.                    #
+        ######################################################
+
         current_resident = mode(new_pop_array)[0][0]
         if current_resident != previous_resident:
             wmhist[ninvas] = genotypes_dict[current_resident][0]
             bhist[ninvas] = genotypes_dict[current_resident][1]
             fithistory[ninvas] = fit_dict[current_resident][current_resident][0]
-            # nethist[ninvas] = fit_dict[current_resident][current_resident][3]
             ninvas += 1
             previous_resident = current_resident
-        
+
+
         ##############################
         # update simulation history  #
         ##############################
         w_max_history[i] = w_max
         init_max_history[i] = init_max
+        mean_fitness_history[i] = mean(repro_probabilities)
+        mean_init_history[i] = mean_init
         if i != Tmax-1:
             population_array[i+1] = new_pop_array.copy()
         print('net out (Δmm, Δmr, rr)  : ({:.5f}, {:.5f}, {:.5f})'.format(nout[0]-nout[2], nout[1]-nout[2], nout[2])) if verbose == 2 else None
@@ -255,12 +258,14 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
             'n_mutants' : n_genotypes,
             'w_max_hist' : w_max_history,
             'init_max_hist' : init_max_history,
+            'mean_fitness_hist' : mean_fitness_history,
+            'mean_init_hist' : mean_init_history,
             'timesteps' : Tmax,
             'invas_hist' : range(Tmax),
             'fit_hist' : fithistory[0:i],
             'wm_hist' : wmhist[0:i],
             'b_hist' : bhist[0:i]}
-            # 'net_hist' : nethist[0:i]}
+
 
 # Plot network with igraph
 def plotNetwork(wm):
@@ -291,7 +296,7 @@ def main():
             'discount', 'seed', 'outputfile']
 
     parsdefault = dict(zip(pars,
-                           [1, 1000, 10, 100, 0.01, 0.5, 2, 1, 1, 0.0, 6, 0.1, 1, 0.1, 0.01, 0.5,
+                           [1, 1000, 10, 100, 0.01, 0.5, 2, 1, 0, 0 , 1, 0.1, 1, 0.1, 0.01, 0.5,
                             0.9, 0, 'output.h5']))
     
     parstype    = dict(zip(pars,
@@ -378,10 +383,11 @@ if __name__ == "__main__":
     
     #plots the final replicate
     fig, ax = plt.subplots(2,1, sharex=True)
-    for w, label in zip(array(output['w_max_hist']).T.tolist(), ['mr', 'rm']):
-        ax[0].scatter(output['invas_hist'], w, label = label)
-    ax[1].scatter(output['invas_hist'], output['init_max_hist'] )
+    # for w, label in zip(array(output['mean_fitness_hist']).T.tolist(), ['mr', 'rm']):
+        # ax[0].scatter(output['invas_hist'], w, label = label)
+    ax[0].plot(output['invas_hist'], output['mean_fitness_hist'])
+    ax[1].plot(output['invas_hist'], output['mean_init_hist'] )
     plt.xlabel('Timesteps')
-    ax[0].set_ylabel("Maximum Fitness")
-    ax[1].set_ylabel("Maximum Initial Offer")
+    ax[0].set_ylabel("Mean Fitness")
+    ax[1].set_ylabel("Mean Initial Offer")
     ax[0].legend()
