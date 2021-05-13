@@ -16,7 +16,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 from random import shuffle
 from scipy.stats import mode
-random.seed(100)
+# random.seed(100)
 
 
 ## define the function to generate the output of node j given previous outputs and weights and Wb
@@ -70,12 +70,10 @@ def fitnessOutcome (b, c, d, fitness_benefit_scale, rounds, mutWm, mutWb, mutIni
     [rmOut, mrOut] = repeatedNetworkGame(rounds, resWm, resWb, resInit, mutWm, mutWb, mutInit)
     [rrOut, rrOut] = repeatedNetworkGame(rounds, resWm, resWb, resInit, resWm, resWb, resInit)
 
-    wmm = 1 + (((b - c) * mmOut + d * mmOut**2) *fitness_benefit_scale)
     wmr = 1 + ((b * rmOut - c * mrOut + d * rmOut*mrOut)*fitness_benefit_scale)
     wrm = 1 + ((b * mrOut - c * rmOut + d * rmOut*mrOut)*fitness_benefit_scale)
-    wrr = 1 + (((b - c) * rrOut + d * rrOut**2)*fitness_benefit_scale)
-
-    return [[wmm, wmr, wrm, wrr], [mmOut, mrOut, rrOut]]
+   
+    return [[wmr, wrm], [mmOut, mrOut, rrOut]]
 
 ##################################################################
 ## calulate resident-mutant fitness matrix from contributions throughout the game history,
@@ -91,12 +89,10 @@ def fitnessOutcomeEntireHist (b, c, d, fitness_benefit_scale, rounds, mutWm, mut
     discount = exp(-delta*(rounds-1-arange(0,rounds)))
     td = discount.sum()
 
-    wmm = 1 + ((dot(((b - c) * mmOut[:] + d * mmOut**2), discount))*fitness_benefit_scale)
     wmr = 1 + ((dot((b * rmOut - c * mrOut + d * rmOut*mrOut), discount))*fitness_benefit_scale)
     wrm = 1 + ((dot((b * mrOut - c * rmOut + d * rmOut*mrOut), discount))*fitness_benefit_scale)
-    wrr = 1 + ((dot(((b - c) * rrOut + d * rrOut**2), discount))*fitness_benefit_scale)
 
-    return [[wmm, wmr, wrm, wrr], [dot(mmOut, discount)/td, dot(mrOut, discount)/td, dot(rrOut, discount)/td]]
+    return [[ wmr, wrm], [dot(mmOut, discount)/td, dot(mrOut, discount)/td, dot(rrOut, discount)/td]]
 
 
 ##################################################################
@@ -114,17 +110,17 @@ def pairwise_fitness(population_array, repro_probabilities, genotypes_dict, fit_
             fit_dict[n1] = {}
         if n2 not in fit_dict[n1].keys():
             fit_dict[n1][n2] = fitFunc(genotypes_dict[n2][0], genotypes_dict[n2][1], genotypes_dict[n2][2], genotypes_dict[n1][0], genotypes_dict[n1][1], genotypes_dict[n1][2])[0]
-        
+            
         p = fit_dict[n1][n2]
         
-        for w_i in range(4):
+        for w_i in range(2):
             if p[w_i] > w_max[w_i]:
                 w_max[w_i] = p[w_i]
                 
         if max([genotypes_dict[n1][2], genotypes_dict[n2][2]]) > init_max:
             init_max = max([genotypes_dict[n1][2], genotypes_dict[n2][2]])
         
-        repro_probabilities[site] = p[1]
+        repro_probabilities[site] = p[0]
 
     return repro_probabilities, fit_dict, w_max, init_max
 
@@ -242,7 +238,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
             wmhist[ninvas] = genotypes_dict[current_resident][0]
             bhist[ninvas] = genotypes_dict[current_resident][1]
             fithistory[ninvas] = fit_dict[current_resident][current_resident][0]
-            nethist[ninvas] = fit_dict[current_resident][current_resident][3]
+            # nethist[ninvas] = fit_dict[current_resident][current_resident][3]
             ninvas += 1
             previous_resident = current_resident
         
@@ -263,8 +259,8 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
             'invas_hist' : range(Tmax),
             'fit_hist' : fithistory[0:i],
             'wm_hist' : wmhist[0:i],
-            'b_hist' : bhist[0:i],
-            'net_hist' : nethist[0:i]}
+            'b_hist' : bhist[0:i]}
+            # 'net_hist' : nethist[0:i]}
 
 # Plot network with igraph
 def plotNetwork(wm):
@@ -382,7 +378,7 @@ if __name__ == "__main__":
     
     #plots the final replicate
     fig, ax = plt.subplots(2,1, sharex=True)
-    for w, label in zip(array(output['w_max_hist']).T.tolist(), ['rr', 'mr', 'rm', 'mm']):
+    for w, label in zip(array(output['w_max_hist']).T.tolist(), ['mr', 'rm']):
         ax[0].scatter(output['invas_hist'], w, label = label)
     ax[1].scatter(output['invas_hist'], output['init_max_hist'] )
     plt.xlabel('Timesteps')
