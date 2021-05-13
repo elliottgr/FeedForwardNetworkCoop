@@ -65,14 +65,12 @@ def repeatedNetworkGameEntireHist (rounds, mutWm, mutWb, mutInit, resWm, resWb, 
 ####################################################################
 
 def fitnessOutcome (b, c, d, fitness_benefit_scale, rounds, mutWm, mutWb, mutInit, resWm, resWb, resInit):
-    [mmOut, mmOut] = repeatedNetworkGame(rounds, mutWm, mutWb, mutInit, mutWm, mutWb, mutInit)
     [rmOut, mrOut] = repeatedNetworkGame(rounds, resWm, resWb, resInit, mutWm, mutWb, mutInit)
-    [rrOut, rrOut] = repeatedNetworkGame(rounds, resWm, resWb, resInit, resWm, resWb, resInit)
 
     wmr = 1 + ((b * rmOut - c * mrOut + d * rmOut*mrOut)*fitness_benefit_scale)
     wrm = 1 + ((b * mrOut - c * rmOut + d * rmOut*mrOut)*fitness_benefit_scale)
    
-    return [[wmr, wrm], [mmOut, mrOut, rrOut]]
+    return [[wmr, wrm], [rmOut, mrOut]]
 
 ##################################################################
 ## calulate resident-mutant fitness matrix from contributions throughout the game history,
@@ -82,16 +80,14 @@ def fitnessOutcome (b, c, d, fitness_benefit_scale, rounds, mutWm, mutWb, mutIni
 ## fitness = 1 + b * (partner) - c * (self) + d * (self) * (partner)
 ##################################################################
 def fitnessOutcomeEntireHist (b, c, d, fitness_benefit_scale, rounds, mutWm, mutWb, mutInit, resWm, resWb, resInit, delta):
-    [mmOut, mmOut] = repeatedNetworkGameEntireHist(rounds, mutWm, mutWb, mutInit, mutWm, mutWb, mutInit)
     [rmOut, mrOut] = repeatedNetworkGameEntireHist(rounds, resWm, resWb, resInit, mutWm, mutWb, mutInit)
-    [rrOut, rrOut] = repeatedNetworkGameEntireHist(rounds, resWm, resWb, resInit, resWm, resWb, resInit)
     discount = exp(-delta*(rounds-1-arange(0,rounds)))
     td = discount.sum()
 
     wmr = 1 + ((dot((b * rmOut - c * mrOut + d * rmOut*mrOut), discount))*fitness_benefit_scale)
     wrm = 1 + ((dot((b * mrOut - c * rmOut + d * rmOut*mrOut), discount))*fitness_benefit_scale)
 
-    return [[ wmr, wrm], [dot(mmOut, discount)/td, dot(mrOut, discount)/td, dot(rrOut, discount)/td]]
+    return [[wmr, wrm], [dot(rmOut, discount)/td, dot(mrOut, discount)/td]]
 
 
 ##################################################################
@@ -104,13 +100,15 @@ def pairwise_fitness(population_array, repro_probabilities, genotypes_dict, fit_
     shuffled_population = population_array.copy()
     random.shuffle(shuffled_population)
     mean_init = zeros((2*len(population_array)))
+    payoffs = zeros(2*len(population_array))
     for n1, n2, site in zip(population_array, shuffled_population, range(len(population_array))):
         if n1 not in fit_dict.keys():
             fit_dict[n1] = {}
         if n2 not in fit_dict[n1].keys():
-            fit_dict[n1][n2] = fitFunc(genotypes_dict[n2][0], genotypes_dict[n2][1], genotypes_dict[n2][2], genotypes_dict[n1][0], genotypes_dict[n1][1], genotypes_dict[n1][2])[0]
             
-        p = fit_dict[n1][n2]
+            fit_dict[n1][n2] = fitFunc(genotypes_dict[n2][0], genotypes_dict[n2][1], genotypes_dict[n2][2], genotypes_dict[n1][0], genotypes_dict[n1][1], genotypes_dict[n1][2])
+            
+        p = fit_dict[n1][n2][0]
         
         for w_i in range(2):
             if p[w_i] > w_max[w_i]:
@@ -120,10 +118,11 @@ def pairwise_fitness(population_array, repro_probabilities, genotypes_dict, fit_
             init_max = max([genotypes_dict[n1][2], genotypes_dict[n2][2]])
         mean_init[site] = genotypes_dict[n1][2]
         mean_init[site+len(population_array)] = genotypes_dict[n2][2]
-        
+        payoffs[site] = fit_dict[n1][n2][1][0]
+        payoffs[site+len(population_array)] = fit_dict[n1][n2][1][1]
         repro_probabilities[site] = p[0]
 
-    return repro_probabilities, fit_dict, w_max, init_max, mean(mean_init)
+    return repro_probabilities, fit_dict, w_max, init_max, mean(mean_init), mean(payoffs)
 
 ##################################################################
 #   Mutation function, samples each child in the offspring generation,
@@ -171,7 +170,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     fithistory = zeros(histlen)
     wmhist = zeros((histlen,) + resWm.shape)
     bhist = zeros((histlen,) + resWb.shape)
-    nethist = zeros((histlen,3))
+    nethist = zeros((histlen,2))
 
     # save initial values
     w, nout = fitFunc(resWm, resWb, initIn, resWm, resWb, initIn)
@@ -196,6 +195,8 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     init_max_history = zeros(Tmax)
     mean_fitness_history = zeros(Tmax)
     mean_init_history = zeros(Tmax)
+    mean_payoff_history = zeros(Tmax)
+    
     
     ######################
     #     Time Start     #
@@ -215,7 +216,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         #    reproduction    #
         ######################
 
-        repro_probabilities, fit_dict, w_max, init_max, mean_init = pairwise_fitness(current_population_array, repro_probabilities, genotypes_dict, fit_dict, fitFunc, w_max, init_max)
+        repro_probabilities, fit_dict, w_max, init_max, mean_init, mean_payoff = pairwise_fitness(current_population_array, repro_probabilities, genotypes_dict, fit_dict, fitFunc, w_max, init_max)
         new_pop_array = random.choice(current_population_array, 
                                       size = shape(current_population_array), 
                                       p = (repro_probabilities/sum(repro_probabilities))).tolist()
@@ -238,7 +239,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         if current_resident != previous_resident:
             wmhist[ninvas] = genotypes_dict[current_resident][0]
             bhist[ninvas] = genotypes_dict[current_resident][1]
-            fithistory[ninvas] = fit_dict[current_resident][current_resident][0]
+            fithistory[ninvas] = fit_dict[current_resident][current_resident][0][0]
             ninvas += 1
             previous_resident = current_resident
 
@@ -250,6 +251,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         init_max_history[i] = init_max
         mean_fitness_history[i] = mean(repro_probabilities)
         mean_init_history[i] = mean_init
+        mean_payoff_history[i] = mean_payoff
         if i != Tmax-1:
             population_array[i+1] = new_pop_array.copy()
         print('net out (Δmm, Δmr, rr)  : ({:.5f}, {:.5f}, {:.5f})'.format(nout[0]-nout[2], nout[1]-nout[2], nout[2])) if verbose == 2 else None
@@ -296,7 +298,7 @@ def main():
             'discount', 'seed', 'outputfile']
 
     parsdefault = dict(zip(pars,
-                           [1, 1000, 10, 100, 0.01, 0.5, 2, 1, 0, 0 , 1, 0.1, 1, 0.1, 0.01, 0.5,
+                           [1, 1000, 10, 100, 0.01, 0.5, 2, 1, 0, 0 , 5, 0.1, 1, 0.1, 0.01, 0.5,
                             0.9, 0, 'output.h5']))
     
     parstype    = dict(zip(pars,
