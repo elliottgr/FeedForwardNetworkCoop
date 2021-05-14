@@ -13,7 +13,6 @@ from argparse import ArgumentParser
 from numpy import *
 import h5py
 from datetime import datetime
-#import matplotlib.pyplot as plt
 from scipy.stats import mode
 # random.seed(100)
 
@@ -270,24 +269,24 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
 
 
 # Plot network with igraph
-def plotNetwork(wm):
-    """
-    Plot network using igraph package
+# def plotNetwork(wm):
+#     """
+#     Plot network using igraph package
 
-    wm: weight matrix
-    """
-    import igraph as ig
+#     wm: weight matrix
+#     """
+#     import igraph as ig
 
-    # create graph of only upper triangle
-    g = ig.Graph.Weighted_Adjacency(triu(wm,1).tolist())
+#     # create graph of only upper triangle
+#     g = ig.Graph.Weighted_Adjacency(triu(wm,1).tolist())
 
-    # change edge widths and vertex colors
-    g.es["width"] = ig.rescale(g.es["weight"], out_range=(0.0, 4))
-    g.vs['color'] = 'blue'
-    g.vs[0]['color'] = 'green'
-    g.vs[g.vs.indices[-1]]['color'] = 'red'
+#     # change edge widths and vertex colors
+#     g.es["width"] = ig.rescale(g.es["weight"], out_range=(0.0, 4))
+#     g.vs['color'] = 'blue'
+#     g.vs[0]['color'] = 'green'
+#     g.vs[g.vs.indices[-1]]['color'] = 'red'
 
-    return ig.plot(g, "output.png")
+#     return ig.plot(g, "output.png")
 
 
 ## Main function to run simulation
@@ -382,14 +381,3 @@ def main():
 # Run main function
 if __name__ == "__main__":
     main()
-    
-    #plots the final replicate
-    #fig, ax = plt.subplots(2,1, sharex=True)
-    # for w, label in zip(array(output['mean_fitness_hist']).T.tolist(), ['mr', 'rm']):
-        # ax[0].scatter(output['invas_hist'], w, label = label)
-    #ax[0].plot(output['invas_hist'], output['mean_fitness_hist'])
-    #ax[1].plot(output['invas_hist'], output['mean_init_hist'] )
-    #plt.xlabel('Timesteps')
-    #ax[0].set_ylabel("Mean Fitness")
-    #ax[1].set_ylabel("Mean Initial Offer")
-    #ax[0].legend()
