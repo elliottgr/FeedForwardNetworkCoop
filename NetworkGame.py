@@ -13,7 +13,7 @@ from argparse import ArgumentParser
 from numpy import *
 import h5py
 from datetime import datetime
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from scipy.stats import mode
 # random.seed(100)
 
@@ -363,7 +363,7 @@ def main():
         print('{}: replicate {} done'.format(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), t+1))
         print("Number of Invasions: ", simoutput['n_invas'])
         print("Number of mutants: ", simoutput['n_mutants'])
-        outputdump = simoutput
+#        outputdump = simoutput
 
     # create hdf5 to save data
     file = h5py.File(args.outputfile, "w")
@@ -376,20 +376,20 @@ def main():
     for par in set(vars(args).keys()) - {'verbose'}:
         file.attrs[par] = getattr(args, par)
 
-    # file.close()
-    return outputdump
+    file.close()
+ #   return outputdump
 
 # Run main function
 if __name__ == "__main__":
-    output = main()
+    main()
     
     #plots the final replicate
-    fig, ax = plt.subplots(2,1, sharex=True)
+    #fig, ax = plt.subplots(2,1, sharex=True)
     # for w, label in zip(array(output['mean_fitness_hist']).T.tolist(), ['mr', 'rm']):
         # ax[0].scatter(output['invas_hist'], w, label = label)
-    ax[0].plot(output['invas_hist'], output['mean_fitness_hist'])
-    ax[1].plot(output['invas_hist'], output['mean_init_hist'] )
-    plt.xlabel('Timesteps')
-    ax[0].set_ylabel("Mean Fitness")
-    ax[1].set_ylabel("Mean Initial Offer")
-    ax[0].legend()
+    #ax[0].plot(output['invas_hist'], output['mean_fitness_hist'])
+    #ax[1].plot(output['invas_hist'], output['mean_init_hist'] )
+    #plt.xlabel('Timesteps')
+    #ax[0].set_ylabel("Mean Fitness")
+    #ax[1].set_ylabel("Mean Initial Offer")
+    #ax[0].legend()
