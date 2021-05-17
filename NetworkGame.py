@@ -238,7 +238,11 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         if current_resident != previous_resident:
             wmhist[ninvas] = genotypes_dict[current_resident][0]
             bhist[ninvas] = genotypes_dict[current_resident][1]
-            fithistory[ninvas] = fit_dict[current_resident][current_resident][0][0]
+            try:
+                fithistory[ninvas] = fit_dict[current_resident][current_resident][0][0]
+            except KeyError:
+                fit_dict[n1][n2] = fitFunc(genotypes_dict[n2][0], genotypes_dict[n2][1], genotypes_dict[n2][2], genotypes_dict[n1][0], genotypes_dict[n1][1], genotypes_dict[n1][2])
+                fithistory[ninvas] = fit_dict[current_resident][current_resident][0][0]
             ninvas += 1
             previous_resident = current_resident
 
@@ -297,7 +301,7 @@ def main():
             'discount', 'seed', 'outputfile']
 
     parsdefault = dict(zip(pars,
-                           [1, 1000, 10, 100, 0.01, 0.5, 2, 1, 0, 0 , 5, 0.1, 1, 0.1, 0.01, 0.5,
+                           [1, 1000, 10, 100, 0.01, 0.5, 1, 1, 1, 0 , 5, 0.1, 1, 0.1, 0.01, 0.5,
                             0.9, 0, 'output.h5']))
     
     parstype    = dict(zip(pars,
