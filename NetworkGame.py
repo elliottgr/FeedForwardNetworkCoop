@@ -241,7 +241,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
             try:
                 fithistory[ninvas] = fit_dict[current_resident][current_resident][0][0]
             except KeyError:
-                fit_dict[n1][n2] = fitFunc(genotypes_dict[n2][0], genotypes_dict[n2][1], genotypes_dict[n2][2], genotypes_dict[n1][0], genotypes_dict[n1][1], genotypes_dict[n1][2])
+                fit_dict[current_resident][current_resident] = fitFunc(genotypes_dict[current_resident][0], genotypes_dict[current_resident][1], genotypes_dict[current_resident][2], genotypes_dict[current_resident][0], genotypes_dict[current_resident][1], genotypes_dict[current_resident][2])
                 fithistory[ninvas] = fit_dict[current_resident][current_resident][0][0]
             ninvas += 1
             previous_resident = current_resident
