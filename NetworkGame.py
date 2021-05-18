@@ -301,7 +301,7 @@ def main():
             'discount', 'seed', 'outputfile']
 
     parsdefault = dict(zip(pars,
-                           [1, 1000, 10, 100, 0.01, 0.5, 1, 1, 1, 0 , 5, 0.1, 1, 0.1, 0.01, 0.5,
+                           [100, 1000, 10, 100, 0.01, 0.2, 1, 1, 1, 0 , 5, 0.1, 1, 0.1, 0.01, 0.5,
                             0.9, 0, 'output.h5']))
     
     parstype    = dict(zip(pars,
