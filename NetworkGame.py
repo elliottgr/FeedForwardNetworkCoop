@@ -83,9 +83,9 @@ def fitnessOutcomeEntireHist (b, c, d, fitness_benefit_scale, rounds, mutWm, mut
     discount = exp(-delta*(rounds-1-arange(0,rounds)))
     td = discount.sum()
 
-    wmr = 1 + ((dot((b * rmOut - c * mrOut + d * rmOut*mrOut), discount))*fitness_benefit_scale)
-    wrm = 1 + ((dot((b * mrOut - c * rmOut + d * rmOut*mrOut), discount))*fitness_benefit_scale)
-
+    wmr = max([0, 1 + ((dot((b * rmOut - c * mrOut + d * rmOut*mrOut), discount))*fitness_benefit_scale)])
+    wrm = max([0, 1 + ((dot((b * mrOut - c * rmOut + d * rmOut*mrOut), discount))*fitness_benefit_scale)])
+    
     return [[wmr, wrm], [dot(rmOut, discount)/td, dot(mrOut, discount)/td]]
 
 
@@ -302,7 +302,7 @@ def main():
 
     parsdefault = dict(zip(pars,
                            [100, 1000, 10, 100, 0.01, 0.2, 1, 1, 1, 0 , 5, 0.1, 1, 0.1, 0.01, 0.5,
-                            0.9, 0, 'output.h5']))
+                            0, 0, 'output.h5']))
     
     parstype    = dict(zip(pars,
                            [int, int, int, int, float, float, float, float, float, float, int, float, float, float, float, float, float, int, str]))
