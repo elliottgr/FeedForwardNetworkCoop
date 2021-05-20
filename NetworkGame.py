@@ -194,21 +194,20 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     genotypes_dict = {int(0) : [resWm, resWb, initIn]}
     population_array = zeros([Tmax, population_size], dtype = int)
     n_genotypes = 1
-    if init_resident_freq != 1:
+    if init_resident_freq != float(1):
         n_genotypes += 1
-        for n in range(1 - int(init_resident_freq*population_size)):
-            population_array[n] = int(1)
-    genotypes_dict[1] = mutate_genotype(genotypes_dict, 0, mutlink, matDim, mutsize, mutinitsize)
+        for n in range(population_size - int(init_resident_freq*population_size)):
+            population_array[0][n] = int(1)
 
+    genotypes_dict[1] = mutate_genotype(genotypes_dict, 0, mutlink, matDim, mutsize, mutinitsize)
     fit_dict = {}
-    previous_resident = int32(0)
+    previous_resident = mode(population_array[0])[0][0]
     w_max_history = zeros((Tmax, 4))
     init_max_history = zeros(Tmax)
     mean_fitness_history = zeros(Tmax)
     mean_init_history = zeros(Tmax)
     mean_payoff_history = zeros(Tmax)
-    
-    
+    fixation_flag = False
     ######################
     #     Time Start     #
     ######################
@@ -247,7 +246,8 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         ######################################################
 
         current_resident = mode(new_pop_array)[0][0]
-        if current_resident != previous_resident:
+        # if current_resident != previous_resident:
+        if len(set(new_pop_array)) < 2:
             wmhist[ninvas] = genotypes_dict[current_resident][0]
             bhist[ninvas] = genotypes_dict[current_resident][1]
             try:
@@ -257,7 +257,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
                 fithistory[ninvas] = fit_dict[current_resident][current_resident][0][0]
             ninvas += 1
             previous_resident = current_resident
-
+            
 
         ##############################
         # update simulation history  #
@@ -269,8 +269,12 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         mean_payoff_history[i] = mean_payoff
         if i != Tmax-1:
             population_array[i+1] = new_pop_array.copy()
+        
         print('net out (Δmm, Δmr, rr)  : ({:.5f}, {:.5f}, {:.5f})'.format(nout[0]-nout[2], nout[1]-nout[2], nout[2])) if verbose == 2 else None
-
+    if len(set(population_array[-1])) < 2:
+        fixed_genotype = current_resident
+    else:
+        fixed_genotype = -1
     return {'n_invas' : ninvas,
             'n_mutants' : n_genotypes,
             'w_max_hist' : w_max_history,
@@ -281,7 +285,8 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
             'invas_hist' : range(Tmax),
             'fit_hist' : fithistory[0:i],
             'wm_hist' : wmhist[0:i],
-            'b_hist' : bhist[0:i]}
+            'b_hist' : bhist[0:i],
+            'fixed_genotype' : fixed_genotype}
 
 
 # Plot network with igraph
@@ -312,9 +317,13 @@ def main():
     pars = ['nreps', 'tmax', 'rounds', 'population_size', 'mu', 'fitness_benefit_scale', 'b', 'c', 'd', 'r', 'nnet', 'initIn', 'initstddev', 'mutsize', 'mutinitsize', 'mutlink',
             'discount', 'init_resident_freq', 'seed', 'outputfile']
 
+
+    #default args
     parsdefault = dict(zip(pars,
-                           [100, 1000, 10, 100, 0.01, 0.2, 1, 1, 1, 0 , 5, 0.1, 1, 0.1, 0.01, 0.5,
-                            0, .99, 0, 'output.h5']))
+                            [100, 1000, 10, 100, 0.01, 0.2, 1, 1, 1, 0 , 5, 0.1, 1, 0.1, 0.01, 0.5,
+                            0, 1, 0, 'output.h5']))
+    
+
     
     parstype    = dict(zip(pars,
                            [int, int, int, int, float, float, float, float, float, float, int, float, float, float, float, float, float, float, int, str]))
