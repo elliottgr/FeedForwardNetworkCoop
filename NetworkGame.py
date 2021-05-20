@@ -193,11 +193,13 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     
     genotypes_dict = {int(0) : [resWm, resWb, initIn]}
     population_array = zeros([Tmax, population_size], dtype = int)
-    if init_resident_freq != 1:
-        for n in range(int(init_resident_freq*population_size)):
-            population_array[n] = int(1)
-            genotypes_dict = {int(1) : [resWm, resWb, initIn]}
     n_genotypes = 1
+    if init_resident_freq != 1:
+        n_genotypes += 1
+        for n in range(1 - int(init_resident_freq*population_size)):
+            population_array[n] = int(1)
+    genotypes_dict[1] = mutate_genotype(genotypes_dict, 0, mutlink, matDim, mutsize, mutinitsize)
+
     fit_dict = {}
     previous_resident = int32(0)
     w_max_history = zeros((Tmax, 4))
@@ -312,7 +314,7 @@ def main():
 
     parsdefault = dict(zip(pars,
                            [100, 1000, 10, 100, 0.01, 0.2, 1, 1, 1, 0 , 5, 0.1, 1, 0.1, 0.01, 0.5,
-                            0, 1, 0, 'output.h5']))
+                            0, .99, 0, 'output.h5']))
     
     parstype    = dict(zip(pars,
                            [int, int, int, int, float, float, float, float, float, float, int, float, float, float, float, float, float, float, int, str]))
