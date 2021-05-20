@@ -131,24 +131,30 @@ def pairwise_fitness(population_array, repro_probabilities, genotypes_dict, fit_
 def mutation_process(population_size, genotypes_dict, n_genotypes, new_pop_array, matDim, mutlink, mutsize, mutinitsize, mu):
     for N in range(population_size):
         if random.rand() < mu:
-            mutationw = triu(random.binomial(1,mutlink,(matDim,matDim))
-                      *(random.normal(0,mutsize, (matDim,matDim))))
-            mutWm = genotypes_dict[new_pop_array[N]][0] + mutationw
-            mutationb = random.binomial(1,mutlink,matDim)*random.normal(0, mutsize, matDim)
-            mutWb = genotypes_dict[new_pop_array[N]][1] + mutationb
-            mutation_init = random.normal(0, scale = mutinitsize)
-            mutInit = genotypes_dict[new_pop_array[N]][2] + mutation_init
+            genotype = new_pop_array[N]
             new_pop_array[N] = n_genotypes
-            genotypes_dict[n_genotypes] = [mutWm,mutWb,mutInit]
+            genotypes_dict[n_genotypes] = mutate_genotype(genotypes_dict, genotype, mutlink, matDim, mutsize, mutinitsize)
             n_genotypes += 1
             
     return genotypes_dict, n_genotypes, new_pop_array
+
+def mutate_genotype(genotypes_dict, genotype, mutlink, matDim, mutsize, mutinitsize):
+    mutationw = triu(random.binomial(1,mutlink,(matDim,matDim))
+          *(random.normal(0,mutsize, (matDim,matDim))))
+    mutWm = genotypes_dict[genotype][0] + mutationw
+    mutationb = random.binomial(1,mutlink,matDim)*random.normal(0, mutsize, matDim)
+    mutWb = genotypes_dict[genotype][1] + mutationb
+    mutation_init = random.normal(0, scale = mutinitsize)
+    mutInit = genotypes_dict[genotype][2] + mutation_init
+
+    return [mutWm, mutWb, mutInit]
+
 
 ##################################################################
 # the main simulation code, iterating the sequential mutation and invasion process
 ##################################################################
 
-def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds, Tmax, mutsize, mutinitsize, mutlink, fitFunc):
+def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds, Tmax, mutsize, mutinitsize, mutlink, init_resident_freq, fitFunc):
     """
     initWm are the initial network weights
     initWb are the initial node weights
@@ -187,6 +193,10 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     
     genotypes_dict = {int(0) : [resWm, resWb, initIn]}
     population_array = zeros([Tmax, population_size], dtype = int)
+    if init_resident_freq != 1:
+        for n in range(int(init_resident_freq*population_size)):
+            population_array[n] = int(1)
+            genotypes_dict = {int(1) : [resWm, resWb, initIn]}
     n_genotypes = 1
     fit_dict = {}
     previous_resident = int32(0)
@@ -298,14 +308,14 @@ def main():
     parser = ArgumentParser(prog='command', description='Evolution of interacting networks')
 
     pars = ['nreps', 'tmax', 'rounds', 'population_size', 'mu', 'fitness_benefit_scale', 'b', 'c', 'd', 'r', 'nnet', 'initIn', 'initstddev', 'mutsize', 'mutinitsize', 'mutlink',
-            'discount', 'seed', 'outputfile']
+            'discount', 'init_resident_freq', 'seed', 'outputfile']
 
     parsdefault = dict(zip(pars,
                            [100, 1000, 10, 100, 0.01, 0.2, 1, 1, 1, 0 , 5, 0.1, 1, 0.1, 0.01, 0.5,
-                            0, 0, 'output.h5']))
+                            0, 1, 0, 'output.h5']))
     
     parstype    = dict(zip(pars,
-                           [int, int, int, int, float, float, float, float, float, float, int, float, float, float, float, float, float, int, str]))
+                           [int, int, int, int, float, float, float, float, float, float, int, float, float, float, float, float, float, float, int, str]))
 
     parshelp    = dict(zip(pars,
                            ['Number of times to replicate simulation (default: %(default)s)',
@@ -325,6 +335,7 @@ def main():
                             'Size of initial offer mutational steps (std dev) (default: %(default)s)',
                             'Probability weight mutates (default: %(default)s)',
                             'Payoff discount rate (negative value = use last round) (default: %(default)s)',
+                            'sets the frequency of the initial resident population (genotype 0) (default: %(default)s)',
                             'seed for random number generator; if set to zero, use system time (default: %(default)s)',
                             'output file name for .h5 file (default: %(default)s)']))
 
@@ -355,7 +366,7 @@ def main():
             fitFunc = lambda mutWm, mutWb, mutInit, resWm, resWb, resInit: fitnessOutcomeEntireHist(args.b, args.c, args.d, args.fitness_benefit_scale, args.rounds, mutWm, mutWb, mutInit, resWm, resWb, resInit, args.discount)
         else:
             fitFunc = lambda mutWm, mutWb, mutInit, resWm, resWb, resInit: fitnessOutcome(args.b, args.c, args.d, args.fitness_benefit_scale, args.rounds, mutWm, mutWb, mutInit, resWm, resWb, resInit)
-        simoutput = simulation(initWm, initWb, args.initIn, args.population_size, args.mu, args.b, args.c, args.d, args.r, args.rounds, args.tmax, args.mutsize, args.mutinitsize, args.mutlink, fitFunc)
+        simoutput = simulation(initWm, initWb, args.initIn, args.population_size, args.mu, args.b, args.c, args.d, args.r, args.rounds, args.tmax, args.mutsize, args.mutinitsize, args.mutlink, args.init_resident_freq, fitFunc)
 
         for key in simoutput.keys():
             if key in data:
