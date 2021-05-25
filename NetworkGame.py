@@ -193,6 +193,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     
     genotypes_dict = {int(0) : [resWm, resWb, initIn]}
     population_array = zeros([Tmax, population_size], dtype = int)
+    fixation_timestep = 0
     n_genotypes = 1
     if init_resident_freq != float(1):
         n_genotypes += 1
@@ -207,7 +208,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     mean_fitness_history = zeros(Tmax)
     mean_init_history = zeros(Tmax)
     mean_payoff_history = zeros(Tmax)
-    fixation_flag = False
+
     ######################
     #     Time Start     #
     ######################
@@ -257,6 +258,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
                 fithistory[ninvas] = fit_dict[current_resident][current_resident][0][0]
             ninvas += 1
             previous_resident = current_resident
+            fixation_timestep = i
             
 
         ##############################
@@ -286,7 +288,8 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
             'fit_hist' : fithistory[0:i],
             'wm_hist' : wmhist[0:i],
             'b_hist' : bhist[0:i],
-            'fixed_genotype' : fixed_genotype}
+            'fixed_genotype' : fixed_genotype,
+            'fixation_time' : fixation_timestep}
 
 
 # Plot network with igraph
@@ -311,7 +314,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
 
 
 ## Main function to run simulation
-def main():
+def main(alternative_pars):
     parser = ArgumentParser(prog='command', description='Evolution of interacting networks')
 
     pars = ['nreps', 'tmax', 'rounds', 'population_size', 'mu', 'fitness_benefit_scale', 'b', 'c', 'd', 'r', 'nnet', 'initIn', 'initstddev', 'mutsize', 'mutinitsize', 'mutlink',
@@ -319,10 +322,12 @@ def main():
 
 
     #default args
-    parsdefault = dict(zip(pars,
-                            [100, 1000, 10, 100, 0.01, 0.2, 1, 1, 1, 0 , 5, 0.1, 1, 0.1, 0.01, 0.5,
-                            0, 1, 0, 'output.h5']))
-    
+    if len(alternative_pars) != pars:
+        parsdefault = dict(zip(pars,
+                                [100, 1000, 10, 100, 0.01, 0.2, 1, 1, 1, 0 , 5, 0.1, 1, 0.1, 0.01, 0.5,
+                                0, 1, 0, 'output.h5']))
+    else:
+        parsdefault = dict(zip(pars, alternative_pars))
 
     
     parstype    = dict(zip(pars,
