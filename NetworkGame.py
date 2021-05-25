@@ -314,20 +314,17 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
 
 
 ## Main function to run simulation
-def main(alternative_pars):
+def main():
     parser = ArgumentParser(prog='command', description='Evolution of interacting networks')
 
     pars = ['nreps', 'tmax', 'rounds', 'population_size', 'mu', 'fitness_benefit_scale', 'b', 'c', 'd', 'r', 'nnet', 'initIn', 'initstddev', 'mutsize', 'mutinitsize', 'mutlink',
             'discount', 'init_resident_freq', 'seed', 'outputfile']
 
 
-    #default args
-    if len(alternative_pars) != pars:
-        parsdefault = dict(zip(pars,
-                                [100, 1000, 10, 100, 0.01, 0.2, 1, 1, 1, 0 , 5, 0.1, 1, 0.1, 0.01, 0.5,
-                                0, 1, 0, 'output.h5']))
-    else:
-        parsdefault = dict(zip(pars, alternative_pars))
+
+    parsdefault = dict(zip(pars,
+                            [100, 1000, 10, 100, 0.01, 0.2, 1, 1, 1, 0 , 5, 0.1, 1, 0.1, 0.01, 0.5,
+                            0, 1, 0, 'output.h5']))
 
     
     parstype    = dict(zip(pars,
