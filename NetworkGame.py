@@ -258,9 +258,10 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
                 fithistory[ninvas] = fit_dict[current_resident][current_resident][0][0]
             ninvas += 1
             previous_resident = current_resident
-            if fixation_flag == True:
-                fixation_timestep = i
-                fixation_flag = False        
+            if current_resident == 0:
+                if fixation_flag == True:
+                    fixation_timestep = i
+                    fixation_flag = False        
 
         ##############################
         # update simulation history  #
