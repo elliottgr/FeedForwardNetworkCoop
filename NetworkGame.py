@@ -193,7 +193,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     
     genotypes_dict = {int(0) : [resWm, resWb, initIn]}
     population_array = zeros([Tmax, population_size], dtype = int)
-    fixation_timestep = 0
+    fixation_timestep = -1
     n_genotypes = 1
     if init_resident_freq != float(1):
         n_genotypes += 1
@@ -391,7 +391,8 @@ def main():
         print('{}: replicate {} done'.format(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), t+1))
         print("Number of Invasions: ", simoutput['n_invas'])
         print("Number of mutants: ", simoutput['n_mutants'])
-#        outputdump = simoutput
+
+
 
     # create hdf5 to save data
     file = h5py.File(args.outputfile, "w")
