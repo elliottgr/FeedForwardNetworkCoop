@@ -208,7 +208,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
     mean_fitness_history = zeros(Tmax)
     mean_init_history = zeros(Tmax)
     mean_payoff_history = zeros(Tmax)
-
+    fixation_flag = True
     ######################
     #     Time Start     #
     ######################
@@ -258,8 +258,9 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
                 fithistory[ninvas] = fit_dict[current_resident][current_resident][0][0]
             ninvas += 1
             previous_resident = current_resident
-            fixation_timestep = i
-            
+            if fixation_flag == True:
+                fixation_timestep = i
+                fixation_flag = False        
 
         ##############################
         # update simulation history  #
