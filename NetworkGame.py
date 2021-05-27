@@ -95,7 +95,7 @@ def fitnessOutcomeEntireHist (b, c, d, fitness_benefit_scale, rounds, mutWm, mut
 # each timepoint.
 ##################################################################
 
-def pairwise_fitness(population_array, repro_probabilities, genotypes_dict, fit_dict, fitFunc, w_max, init_max):
+def pairwise_fitness(population_array, repro_probabilities, genotypes_dict, resident_neutral_advantage, fit_dict, fitFunc, w_max, init_max):
     shuffled_population = population_array.copy()
     random.shuffle(shuffled_population)
     mean_init = zeros((2*len(population_array)))
@@ -104,11 +104,9 @@ def pairwise_fitness(population_array, repro_probabilities, genotypes_dict, fit_
         if n1 not in fit_dict.keys():
             fit_dict[n1] = {}
         if n2 not in fit_dict[n1].keys():
-            
             fit_dict[n1][n2] = fitFunc(genotypes_dict[n2][0], genotypes_dict[n2][1], genotypes_dict[n2][2], genotypes_dict[n1][0], genotypes_dict[n1][1], genotypes_dict[n1][2])
-            
-        p = fit_dict[n1][n2][0]
         
+        p = fit_dict[n1][n2][0]
         for w_i in range(2):
             if p[w_i] > w_max[w_i]:
                 w_max[w_i] = p[w_i]
@@ -119,7 +117,10 @@ def pairwise_fitness(population_array, repro_probabilities, genotypes_dict, fit_
         mean_init[site+len(population_array)] = genotypes_dict[n2][2]
         payoffs[site] = fit_dict[n1][n2][1][0]
         payoffs[site+len(population_array)] = fit_dict[n1][n2][1][1]
-        repro_probabilities[site] = p[0]
+        if n1 == 0:
+            repro_probabilities[site] = p[0] * (1+resident_neutral_advantage)
+        else:
+            repro_probabilities[site] = p[0]
 
     return repro_probabilities, fit_dict, w_max, init_max, mean(mean_init), mean(payoffs)
 
@@ -154,7 +155,7 @@ def mutate_genotype(genotypes_dict, genotype, mutlink, matDim, mutsize, mutinits
 # the main simulation code, iterating the sequential mutation and invasion process
 ##################################################################
 
-def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds, Tmax, mutsize, mutinitsize, mutlink, init_resident_freq, fitFunc):
+def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds, Tmax, mutsize, mutinitsize, mutlink, init_resident_freq, resident_neutral_advantage, fitFunc):
     """
     initWm are the initial network weights
     initWb are the initial node weights
@@ -227,7 +228,7 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         #    reproduction    #
         ######################
 
-        repro_probabilities, fit_dict, w_max, init_max, mean_init, mean_payoff = pairwise_fitness(current_population_array, repro_probabilities, genotypes_dict, fit_dict, fitFunc, w_max, init_max)
+        repro_probabilities, fit_dict, w_max, init_max, mean_init, mean_payoff = pairwise_fitness(current_population_array, repro_probabilities, genotypes_dict, resident_neutral_advantage, fit_dict, fitFunc, w_max, init_max)
         new_pop_array = random.choice(current_population_array, 
                                       size = shape(current_population_array), 
                                       p = (repro_probabilities/sum(repro_probabilities))).tolist()
@@ -247,7 +248,6 @@ def simulation (initWm, initWb, initIn, population_size, mu, b, c, d, r, rounds,
         ######################################################
 
         current_resident = mode(new_pop_array)[0][0]
-        # if current_resident != previous_resident:
         if len(set(new_pop_array)) < 2:
             wmhist[ninvas] = genotypes_dict[current_resident][0]
             bhist[ninvas] = genotypes_dict[current_resident][1]
@@ -320,17 +320,17 @@ def main():
     parser = ArgumentParser(prog='command', description='Evolution of interacting networks')
 
     pars = ['nreps', 'tmax', 'rounds', 'population_size', 'mu', 'fitness_benefit_scale', 'b', 'c', 'd', 'r', 'nnet', 'initIn', 'initstddev', 'mutsize', 'mutinitsize', 'mutlink',
-            'discount', 'init_resident_freq', 'seed', 'outputfile']
+            'discount', 'init_resident_freq', 'resident_neutral_advantage', 'seed', 'outputfile']
 
 
 
     parsdefault = dict(zip(pars,
                             [100, 1000, 10, 100, 0.01, 0.2, 1, 1, 1, 0 , 5, 0.1, 1, 0.1, 0.01, 0.5,
-                            0, 1, 0, 'output.h5']))
+                            0, 1, 0, 0, 'output.h5']))
 
     
     parstype    = dict(zip(pars,
-                           [int, int, int, int, float, float, float, float, float, float, int, float, float, float, float, float, float, float, int, str]))
+                           [int, int, int, int, float, float, float, float, float, float, int, float, float, float, float, float, float, float, float, int, str]))
 
     parshelp    = dict(zip(pars,
                            ['Number of times to replicate simulation (default: %(default)s)',
@@ -351,6 +351,7 @@ def main():
                             'Probability weight mutates (default: %(default)s)',
                             'Payoff discount rate (negative value = use last round) (default: %(default)s)',
                             'sets the frequency of the initial resident population (genotype 0) (default: %(default)s)',
+                            'additional selection weight applied to the resident (genotype 0)',
                             'seed for random number generator; if set to zero, use system time (default: %(default)s)',
                             'output file name for .h5 file (default: %(default)s)']))
 
@@ -381,7 +382,7 @@ def main():
             fitFunc = lambda mutWm, mutWb, mutInit, resWm, resWb, resInit: fitnessOutcomeEntireHist(args.b, args.c, args.d, args.fitness_benefit_scale, args.rounds, mutWm, mutWb, mutInit, resWm, resWb, resInit, args.discount)
         else:
             fitFunc = lambda mutWm, mutWb, mutInit, resWm, resWb, resInit: fitnessOutcome(args.b, args.c, args.d, args.fitness_benefit_scale, args.rounds, mutWm, mutWb, mutInit, resWm, resWb, resInit)
-        simoutput = simulation(initWm, initWb, args.initIn, args.population_size, args.mu, args.b, args.c, args.d, args.r, args.rounds, args.tmax, args.mutsize, args.mutinitsize, args.mutlink, args.init_resident_freq, fitFunc)
+        simoutput = simulation(initWm, initWb, args.initIn, args.population_size, args.mu, args.b, args.c, args.d, args.r, args.rounds, args.tmax, args.mutsize, args.mutinitsize, args.mutlink, args.init_resident_freq, args.resident_neutral_advantage, fitFunc)
 
         for key in simoutput.keys():
             if key in data:
