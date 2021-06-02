@@ -19,27 +19,44 @@ function iterateNetwork(input::Float64, Wm::Matrix{Float64}, Wb::Vector{Float64}
     return prev_out
 end
 
-function networkGameRound(mutWm, mutWb, mutPrev, resWm, resWb, resPrev)
-    mutOut = iterateNetwork(resPrev, mutWm, mutWb)
-    resOut = iterateNetwork(mutPrev, resWm, resWb)
-    print(mutOut, resOut)
+function networkGameRound(mutWm::Matrix{Float64}, mutWb::Vector{Float64}, mutPrev::Float64, resWm::Matrix{Float64}, resWb::Vector{Float64}, resPrev)
+    mutOut = last(iterateNetwork(resPrev, mutWm, mutWb))
+    resOut = last(iterateNetwork(mutPrev, resWm, resWb))
     return [mutOut, resOut]
+end
+
+function repeatedNetworkGame(rounds, mutWm::Matrix{Float64}, mutWb::Vector{Float64}, mutInit::Float64, resWm::Matrix{Float64}, resWb::Vector{Float64}, resInit::Float64)
+    for i in 1:rounds
+        mutInit, resInit = networkGameRound(mutWm, mutWb, mutInit, resWm, resWb, resInit)
+    end
+    return [mutInit, resInit]
+end
+
+function repeatedNetworkGameHistory(rounds::Int, mutWm, mutWb, mutInit, resWm, resWb, resInit)
+    mutHist = zeros(rounds)
+    resHist = zeros(rounds)
+    for i in 1:rounds
+        mutInit, resInit = networkGameRound(mutWm, mutWb, mutInit, resWm, resWb, resInit)
+        mutHist[i] = mutInit
+        resHist[i] = resInit
+    end
+    return [mutHist, resHist]
 end
 
 ##################
 # Parameters
 ##################
 nnet = 2
-Wm = randn(Float64, (nnet,nnet))
-Wb = randn(Float64, nnet)
-
+# Wm = randn(Float64, (nnet,nnet))
+# Wb = randn(Float64, nnet)
+Wm = transpose(reshape([0.71824181,2.02987316,-0.42858626,0.6634413],2,2))
+Wb = [-0.66332791,1.00430577]
 
 #################
 #Random Test Matrix Values
 #################
 
-Wm = transpose(reshape([0.71824181,2.02987316,-0.42858626,0.6634413],2,2))
-Wb = [-0.66332791,1.00430577]
+
 init = 0.1
-networkGameRound(Wm, Wb, init, Wm, Wb, init)
+repeatedNetworkGameHistory(5, Wm, Wb, init, Wm, Wb, init)
 
