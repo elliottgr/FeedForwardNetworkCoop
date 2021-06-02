@@ -14,13 +14,14 @@ from numpy import *
 import h5py
 from datetime import datetime
 from scipy.stats import mode
-# random.seed(100)
+
 
 
 ## define the function to generate the output of node j given previous outputs and weights and Wb
 def calcOj (j, prev_out, Wm, Wb):
     x = dot(Wm[0:j,j],prev_out[0:j]) + Wb[j]
     return 1-exp(-x*x)
+    
 
 ## iterate over the whole network
 def iterateNetwork (input, Wm, Wb):
