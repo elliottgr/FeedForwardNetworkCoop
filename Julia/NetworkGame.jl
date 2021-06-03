@@ -6,6 +6,21 @@ using LinearAlgebra
 ####################################
 
 mutable struct simulation_parameters
+    ########
+    ## Population Simulation Parameters
+    ########
+    #Maximum number of timesteps
+    tmax::Int64
+    #number of replicates
+    nreps::Int64
+    #population size
+    N::Int64
+    #mutation probability per birth
+    μ::Float64
+
+    ########
+    ## Game Parameters
+    ########
     #number of rounds the game is played between individuals
     rounds::Int64
 
@@ -49,10 +64,12 @@ function networkGameRound(mutNet, resNet)
 end
 
 function repeatedNetworkGame(rounds, mutNet, resNet)
+    mutNet.CurrentOffer = mutNet.InitialOffer
+    resNet.CurrentOffer = resNet.CurrentOffer
     for i in 1:rounds
-        mutInit, resInit = networkGameRound(mutNet, resNet)
+        mutNet.CurrentOffer, resNet.CurrentOffer = networkGameRound(mutNet, resNet)
     end
-    return [mutInit, resInit]
+    return [mutNet.CurrentOffer, resNet.CurrentOffer]
 end
 
 function repeatedNetworkGameHistory(rounds::Int, mutNet, resNet)
@@ -78,40 +95,113 @@ end
 ####################################
 
 function fitnessOutcome(parameters::simulation_parameters,mutNet,resNet)
-    if parameters.δ >= 0 
+
+    if parameters.δ >= 0.0
         rmOut, mrOut = repeatedNetworkGameHistory(parameters.rounds,mutNet,resNet)
-        # print(rmOut.*mrOut)
         discount = exp.(-parameters.δ.*(parameters.rounds.-1 .-range(1,parameters.rounds, step = 1)))
-        # print(discount)
         td = sum(discount)
-        # print(parameters.b * rmOut )
         wmr = max(0, (1 + dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale))
         wrm = max(0, (1 + dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount)*parameters.fitness_benefit_scale))
         return [[wmr, wrm], [dot(rmOut, discount)/td, dot(mrOut, discount)/td]]
-    elseif parameters.δ < 0
+
+    elseif parameters.δ < 0.0
         rmOut, mrOut = repeatedNetworkGame(parameters.rounds, mutNet, resNet)
         wmr = max(0, (1 + ((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
         wrm = max(0, (1 + ((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
-        print(parameters.b * rmOut )
-        print("test")
         return [[wmr, wrm], [rmOut, mrOut]]
+
     end
 end
+
 ##################
 # Parameters
 ##################
+
+
+using ArgParse
+arg_parse_settings = ArgParseSettings()
+@add_arg_table arg_parse_settings begin
+
+    ########
+    ## Population Simulation Parameters
+    ########
+    
+    "--tmax"
+        help = "Maximum number of timesteps"
+        arg_type = Int64
+        default = 1000
+    "--nreps"
+        help = "number of replicates to run"
+        arg_type = Int64
+        default = 100
+    "--nnet"
+        help = "network size"
+        arg_type = Int64
+        default = 2
+    "--N"   
+        help = "population size"
+        arg_type = Int64
+        default = 100
+    "--mu"
+        help = "mutation probability per birth"
+        arg_type = Float64
+        default = 0.0
+
+    ########
+    ## Game Parameters
+    ########
+    "--rounds"
+        help = "number of rounds the game is played between individuals"
+        arg_type = Int64
+        default = 5
+
+    "--fitness_benefit_scale"
+        help = "scales the fitness payout of game rounds by this amount (payoff * scale)"
+        arg_type = Float64
+        default = 1.0
+    #Parameters for fitness payoff of game
+    "--b"
+        help = "payoff benefit"
+        arg_type = Float64
+        default = 0.0
+    "--c"
+        help = "payoff cost"
+        arg_type = Float64 
+        default = 0.0
+    "--d"
+        help = "payoff synergy"
+        arg_type = Float64
+        default = 0.0
+    "--r"
+        help = "relatedness coefficient"
+        arg_type = Float64
+        default = 0.0
+    "--delta"
+        help = "payoff discount, negative values use last round"
+        arg_type = Float64
+        default = 0.0
+end
+parsed_args = parse_args(ARGS, arg_parse_settings)
+
+
 nnet = 2
-# Wm = randn(Float64, (nnet,nnet))
-# Wb = randn(Float64, nnet)
 Wm = transpose(reshape([0.71824181,2.02987316,-0.42858626,0.6634413],2,2))
 Wb = [-0.66332791,1.00430577]
 init = 0.1
-#################
-#Random Test Matrix Values
-#################
-
 a = network(Wm, Wb, init, init)
-params = simulation_parameters(5, 0.0,0.0,0.0,0.0,-0.1)
-repeatedNetworkGameHistory(5, a, a)
-b = fitnessOutcomeEntireHist(params, a,a)
+params = simulation_parameters(parsed_args["tmax"], parsed_args["nreps"], parsed_args["N"], parsed_args["mu"],
+                                parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
+                                parsed_args["c"], parsed_args["d"], parsed_args["delta"])
+
+##################################
+#Random Test Matrix Values
+##################################
+
+
+
+##################################
+#Function Testing Scratch Space
+##################################
+# repeatedNetworkGameHistory(5, a, a)
+b = fitnessOutcome(params, a,a)
 
