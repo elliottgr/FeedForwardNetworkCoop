@@ -63,26 +63,21 @@ function networkGameRound(mutNet, resNet)
     return [mutOut, resOut]
 end
 
-function repeatedNetworkGame(rounds, mutNet, resNet)
-    mutNet.CurrentOffer = mutNet.InitialOffer
-    resNet.CurrentOffer = resNet.CurrentOffer
-    for i in 1:rounds
-        mutNet.CurrentOffer, resNet.CurrentOffer = networkGameRound(mutNet, resNet)
-    end
-    return [mutNet.CurrentOffer, resNet.CurrentOffer]
-end
-
-function repeatedNetworkGameHistory(rounds::Int, mutNet, resNet)
+function repeatedNetworkGameHistory(parameters, mutNet, resNet)
     mutNet.CurrentOffer = mutNet.InitialOffer
     resNet.CurrentOffer = mutNet.InitialOffer
-    mutHist = zeros(rounds)
-    resHist = zeros(rounds)
-    for i in 1:rounds
+    mutHist = zeros(parameters.rounds)
+    resHist = zeros(parameters.rounds)
+    for i in 1:parameters.rounds
         mutNet.CurrentOffer, resNet.CurrentOffer = networkGameRound(mutNet, resNet)
         mutHist[i] = mutNet.CurrentOffer
         resHist[i] = resNet.CurrentOffer
     end
-    return [mutHist, resHist]
+    if parameters.δ >= 0
+        return [mutHist, resHist]
+    elseif parameters.δ < 0
+        return [mutNet.CurrentOffer, resNet.CurrentOffer]
+    end
 end
 
 
@@ -97,7 +92,7 @@ end
 function fitnessOutcome(parameters::simulation_parameters,mutNet,resNet)
 
     if parameters.δ >= 0.0
-        rmOut, mrOut = repeatedNetworkGameHistory(parameters.rounds,mutNet,resNet)
+        rmOut, mrOut = repeatedNetworkGameHistory(parameters,mutNet,resNet)
         discount = exp.(-parameters.δ.*(parameters.rounds.-1 .-range(1,parameters.rounds, step = 1)))
         td = sum(discount)
         wmr = max(0, (1 + dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale))
@@ -105,7 +100,8 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet,resNet)
         return [[wmr, wrm], [dot(rmOut, discount)/td, dot(mrOut, discount)/td]]
 
     elseif parameters.δ < 0.0
-        rmOut, mrOut = repeatedNetworkGame(parameters.rounds, mutNet, resNet)
+        rmOut, mrOut = repeatedNetworkGameHistory(parameters, mutNet, resNet)
+        print(rmOut)
         wmr = max(0, (1 + ((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
         wrm = max(0, (1 + ((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
         return [[wmr, wrm], [rmOut, mrOut]]
@@ -116,7 +112,6 @@ end
 ##################
 # Parameters
 ##################
-
 
 using ArgParse
 arg_parse_settings = ArgParseSettings()
