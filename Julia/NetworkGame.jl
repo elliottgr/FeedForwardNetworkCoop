@@ -1,21 +1,26 @@
  
 using LinearAlgebra
-
+using ArgParse
 ####################################
 # Structs
 ####################################
 
-mutable struct simulation_parameters
+struct simulation_parameters
+    #popgen params
     tmax::Int64
     nreps::Int64
     N::Int64
     μ::Float64
+    #game params
     rounds::Int64
     fitness_benefit_scale::Float64
     b::Float64
     c::Float64
     d::Float64
     δ::Float64
+    #network params
+    nnet::Int64
+
 
 end
 
@@ -25,6 +30,8 @@ mutable struct network
     InitialOffer::Float64
     CurrentOffer::Float64
 end
+
+
 
 ####################################
 # Functions from Python version
@@ -58,7 +65,7 @@ end
 ## constitutes a single game round
 ##############################
 
-function networkGameRound(mutNet, resNet)
+function networkGameRound(mutNet::network, resNet::network)
     mutOut = last(iterateNetwork(resNet.CurrentOffer, mutNet.Wm, mutNet.Wb))
     resOut = last(iterateNetwork(mutNet.CurrentOffer, resNet.Wm, resNet.Wb))
     return [mutOut, resOut]
@@ -69,7 +76,7 @@ end
 ## data types depending on whether a discount needs to be calculated
 ##############################
 
-function repeatedNetworkGame(parameters, mutNet, resNet)
+function repeatedNetworkGame(parameters::simulation_parameters, mutNet::network, resNet::network)
     mutNet.CurrentOffer = mutNet.InitialOffer
     resNet.CurrentOffer = mutNet.InitialOffer
     mutHist = zeros(parameters.rounds)
@@ -95,7 +102,7 @@ end
 ## fitness = 1 + b * (partner) - c * (self) + d * (self) * (partner)
 ####################################
 
-function fitnessOutcome(parameters::simulation_parameters,mutNet,resNet)
+function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet::network)
 
     ############################################################
     ## with discountretrieves the full history and passes it to the
@@ -125,97 +132,101 @@ end
 ###################
 # Simulation Loop #
 ###################
-function simulation(parameters::simulation_parameters, initNetwork::network)
 
+function simulation(parameters::simulation_parameters, initNetwork::network)
+    fitnessOutcome(parameters, initNetwork, initNetwork)
 end
+
 ###################
 #   Parameters    #
 ###################
+function main()
+    arg_parse_settings = ArgParseSettings()
+    @add_arg_table arg_parse_settings begin
 
-using ArgParse
-arg_parse_settings = ArgParseSettings()
-@add_arg_table arg_parse_settings begin
+        ########
+        ## Population Simulation Parameters
+        ########
+        
+        "--tmax"
+            help = "Maximum number of timesteps"
+            arg_type = Int64
+            default = 1000
+        "--nreps"
+            help = "number of replicates to run"
+            arg_type = Int64
+            default = 100
+        "--nnet"
+            help = "network size"
+            arg_type = Int64
+            default = 2
+        "--N"   
+            help = "population size"
+            arg_type = Int64
+            default = 100
+        "--mu"
+            help = "mutation probability per birth"
+            arg_type = Float64
+            default = 0.0
 
-    ########
-    ## Population Simulation Parameters
-    ########
-    
-    "--tmax"
-        help = "Maximum number of timesteps"
-        arg_type = Int64
-        default = 1000
-    "--nreps"
-        help = "number of replicates to run"
-        arg_type = Int64
-        default = 100
-    "--nnet"
-        help = "network size"
-        arg_type = Int64
-        default = 2
-    "--N"   
-        help = "population size"
-        arg_type = Int64
-        default = 100
-    "--mu"
-        help = "mutation probability per birth"
-        arg_type = Float64
-        default = 0.0
+        ########
+        ## Game Parameters
+        ########
+        "--rounds"
+            help = "number of rounds the game is played between individuals"
+            arg_type = Int64
+            default = 5
 
-    ########
-    ## Game Parameters
-    ########
-    "--rounds"
-        help = "number of rounds the game is played between individuals"
-        arg_type = Int64
-        default = 5
+        "--fitness_benefit_scale"
+            help = "scales the fitness payout of game rounds by this amount (payoff * scale)"
+            arg_type = Float64
+            default = 1.0
+        #Parameters for fitness payoff of game
+        "--b"
+            help = "payoff benefit"
+            arg_type = Float64
+            default = 0.0
+        "--c"
+            help = "payoff cost"
+            arg_type = Float64 
+            default = 0.0
+        "--d"
+            help = "payoff synergy"
+            arg_type = Float64
+            default = 0.0
+        "--r"
+            help = "relatedness coefficient"
+            arg_type = Float64
+            default = 0.0
+        "--delta"
+            help = "payoff discount, negative values use last round"
+            arg_type = Float64
+            default = 0.0
+    end
+    parsed_args = parse_args(ARGS, arg_parse_settings)
 
-    "--fitness_benefit_scale"
-        help = "scales the fitness payout of game rounds by this amount (payoff * scale)"
-        arg_type = Float64
-        default = 1.0
-    #Parameters for fitness payoff of game
-    "--b"
-        help = "payoff benefit"
-        arg_type = Float64
-        default = 0.0
-    "--c"
-        help = "payoff cost"
-        arg_type = Float64 
-        default = 0.0
-    "--d"
-        help = "payoff synergy"
-        arg_type = Float64
-        default = 0.0
-    "--r"
-        help = "relatedness coefficient"
-        arg_type = Float64
-        default = 0.0
-    "--delta"
-        help = "payoff discount, negative values use last round"
-        arg_type = Float64
-        default = 0.0
+    ## Test Values 
+
+    nnet = 2
+    initWm = transpose(reshape([0.71824181,2.02987316,-0.42858626,0.6634413],2,2))
+    initWb = [-0.66332791,1.00430577]
+    init = 0.1
+    InitialNetwork = network(initWm, initWb, init, init)
+    parameters = simulation_parameters(parsed_args["tmax"], parsed_args["nreps"], parsed_args["N"], parsed_args["mu"],
+                                    parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
+                                    parsed_args["c"], parsed_args["d"], parsed_args["delta"], parsed_args["nnet"])
+
+    ##################################
+    #Random Matrix Values
+    ##################################
+
+
+
+    ##################################
+    #Function Testing Scratch Space
+    ##################################
+    simulation(parameters, InitialNetwork)
 end
-parsed_args = parse_args(ARGS, arg_parse_settings)
 
-
-nnet = 2
-initWm = transpose(reshape([0.71824181,2.02987316,-0.42858626,0.6634413],2,2))
-initWb = [-0.66332791,1.00430577]
-init = 0.1
-InitialNetwork = network(Wm, Wb, init, init)
-parameters = simulation_parameters(parsed_args["tmax"], parsed_args["nreps"], parsed_args["N"], parsed_args["mu"],
-                                parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
-                                parsed_args["c"], parsed_args["d"], parsed_args["delta"])
-
-##################################
-#Random Test Matrix Values
-##################################
-
-
-
-##################################
-#Function Testing Scratch Space
-##################################
-# repeatedNetworkGameHistory(5, a, a)
-b = fitnessOutcome(params, a,a)
+main()
 
