@@ -1,6 +1,7 @@
  
 using LinearAlgebra
 using ArgParse
+using Random
 ####################################
 # Structs
 ####################################
@@ -141,6 +142,12 @@ end
 #   Parameters    #
 ###################
 function main()
+
+
+    ##########
+    ## Arg Parsing
+    ##########
+
     arg_parse_settings = ArgParseSettings()
     @add_arg_table arg_parse_settings begin
 
@@ -156,10 +163,7 @@ function main()
             help = "number of replicates to run"
             arg_type = Int64
             default = 100
-        "--nnet"
-            help = "network size"
-            arg_type = Int64
-            default = 2
+
         "--N"   
             help = "population size"
             arg_type = Int64
@@ -181,7 +185,7 @@ function main()
             help = "scales the fitness payout of game rounds by this amount (payoff * scale)"
             arg_type = Float64
             default = 1.0
-        #Parameters for fitness payoff of game
+
         "--b"
             help = "payoff benefit"
             arg_type = Float64
@@ -202,26 +206,37 @@ function main()
             help = "payoff discount, negative values use last round"
             arg_type = Float64
             default = 0.0
+        ########
+        ## Network Parameters
+        ########
+        "--nnet"
+            help = "network size"
+            arg_type = Int64
+            default = 5
     end
     parsed_args = parse_args(ARGS, arg_parse_settings)
-
-    ## Test Values 
-
-    nnet = 2
-    initWm = transpose(reshape([0.71824181,2.02987316,-0.42858626,0.6634413],2,2))
-    initWb = [-0.66332791,1.00430577]
-    init = 0.1
-    InitialNetwork = network(initWm, initWb, init, init)
     parameters = simulation_parameters(parsed_args["tmax"], parsed_args["nreps"], parsed_args["N"], parsed_args["mu"],
-                                    parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
-                                    parsed_args["c"], parsed_args["d"], parsed_args["delta"], parsed_args["nnet"])
+                                        parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
+                                        parsed_args["c"], parsed_args["d"], parsed_args["delta"], parsed_args["nnet"])
 
+    ##############
+    ## Test Values for comparing to python implementation
+    ##############
+
+    # nnet = 2
+    # initWm = transpose(reshape([0.71824181,2.02987316,-0.42858626,0.6634413],2,2))
+    # initWb = [-0.66332791,1.00430577]
+    # init = 0.1
+    # InitialNetwork = network(initWm, initWb, init, init)
+    
     ##################################
     #Random Matrix Values
     ##################################
 
-
-
+    initWm = randn((parameters.nnet,parameters.nnet))
+    initWb = randn(parameters.nnet)
+    initialOffer = (1.0 + randn())/2
+    InitialNetwork = network(initWm, initWb, initialOffer, initialOffer)
     ##################################
     #Function Testing Scratch Space
     ##################################
