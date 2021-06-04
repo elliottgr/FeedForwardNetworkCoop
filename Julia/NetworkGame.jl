@@ -32,6 +32,20 @@ mutable struct network
     CurrentOffer::Float64
 end
 
+struct individual
+    network::network
+    genotypeID::Int64
+end
+
+mutable struct population
+    array::Vector{individual}
+    function population(array)
+        if mod(length(array), 2) != 0
+            error("Please provide an even value of N!")
+        end
+        new(array)
+    end
+end
 
 
 ####################################
@@ -131,11 +145,23 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
 end
 
 ###################
+# Julia Pop Funcs #
+###################
+
+function population_construction(N::Int64, resNet::network, mutNets::Vector{individual} = individual[], initFreqs::Vector{Float64} = Float64[])
+    if length(mutNets) == 0 && length(initFreqs) == 0
+        return population(repeat([individual(resNet, 0)], N))
+    end
+end
+
+
+###################
 # Simulation Loop #
 ###################
 
 function simulation(parameters::simulation_parameters, initNetwork::network)
-    fitnessOutcome(parameters, initNetwork, initNetwork)
+    pop_array = population_construction(parameters.N, initNetwork)
+    return
 end
 
 ###################
@@ -235,8 +261,12 @@ function main()
 
     initWm = randn((parameters.nnet,parameters.nnet))
     initWb = randn(parameters.nnet)
+    muWm = randn((parameters.nnet,parameters.nnet))
+    muWb = randn(parameters.nnet)
     initialOffer = (1.0 + randn())/2
+    muInitialOffer = (1.0 + randn())/2
     InitialNetwork = network(initWm, initWb, initialOffer, initialOffer)
+    InitialMutant = network(muWm, muWb, muInitialOffer, muInitialOffer)
     ##################################
     #Function Testing Scratch Space
     ##################################
