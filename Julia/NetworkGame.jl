@@ -148,9 +148,16 @@ end
 # Julia Pop Funcs #
 ###################
 
-function population_construction(N::Int64, resNet::network, mutNets::Vector{individual} = individual[], initFreqs::Vector{Float64} = Float64[])
-    if length(mutNets) == 0 && length(initFreqs) == 0
+## Will be updated to support populations of arbitrary size/genotype frequency
+
+function population_construction(N::Int64, resNet::network, mutNets::Vector{individual} = individual[], initFreqs::Vector{Float64} = [1.0])
+    if length(mutNets) == 0 && initFreqs == 0.0
         return population(repeat([individual(resNet, 0)], N))
+    # elseif length(mutNets) >= 1
+    #     for p in 1:length(initFreqs)
+    #         pop_array = Vector{individual}[]
+    #         append!(pop_array, p*N)
+
     end
 end
 
