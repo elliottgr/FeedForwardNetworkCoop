@@ -6,6 +6,9 @@ using Random
 # Structs
 ####################################
 
+
+## organized by part of the model modified, values set via ArgParse
+
 struct simulation_parameters
     #popgen params
     tmax::Int64
@@ -21,10 +24,9 @@ struct simulation_parameters
     δ::Float64
     #network params
     nnet::Int64
-
-
 end
 
+## smallest type necessary to play a complete round of the game 
 mutable struct network
     Wm
     Wb::Vector{Float64}
@@ -32,11 +34,14 @@ mutable struct network
     CurrentOffer::Float64
 end
 
+## stores information about each networks genotype, not necessary in hindsight
 struct individual
     network::network
     genotypeID::Int64
 end
 
+## prevents the creation of population arrays that won't work with the shuffle reproduction method
+## (those where N mod 2 != 0)
 mutable struct population
     array::Vector{individual}
     function population(array)
@@ -49,7 +54,7 @@ end
 
 
 ####################################
-# Functions from Python version
+# Network Game Functions
 ####################################
 
 
@@ -144,9 +149,14 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
     end
 end
 
-###################
-# Julia Pop Funcs #
-###################
+###############################
+# Population Simulation Funcs #
+###############################
+
+
+##################
+# Pop Construction
+##################
 
 ## Will be updated to support populations of arbitrary size/genotype frequency
 
@@ -194,16 +204,29 @@ function simulation(parameters::simulation_parameters, initNetwork::network)
     ############
     # Sim Loop #
     ############
+
     for t in 1:parameters.tmax
+
+        ## reproduction function
+
+        ## mutation function
+
+        ## update t+1 population array
+
+        ## per-timestep counters, outputs going to disk
         print(t)
+
+
     end
+
+## organize replicate data into appropriate data structure to be returned to main function and saved
+
 end
 
 ###################
 #   Parameters    #
 ###################
 function main()
-
 
     ##########
     ## Arg Parsing
@@ -215,7 +238,6 @@ function main()
         ########
         ## Population Simulation Parameters
         ########
-        
         "--tmax"
             help = "Maximum number of timesteps"
             arg_type = Int64
@@ -275,13 +297,15 @@ function main()
             arg_type = Int64
             default = 5
     end
+    
+    ##passing command line arguments to simulation
     parsed_args = parse_args(ARGS, arg_parse_settings)
     parameters = simulation_parameters(parsed_args["tmax"], parsed_args["nreps"], parsed_args["N"], parsed_args["mu"],
                                         parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
                                         parsed_args["c"], parsed_args["d"], parsed_args["delta"], parsed_args["nnet"])
 
     ##############
-    ## Test Values for comparing to python implementation
+    ## Test Values for comparing to python (or other) implementation
     ##############
 
     # nnet = 2
@@ -291,8 +315,9 @@ function main()
     # InitialNetwork = network(initWm, initWb, init, init)
     
     ##################################
-    #Random Matrix Values
+    #Generation of Random Initial Network
     ##################################
+    ## also generates a random mutant for testing population population_construction
 
     initWm = randn((parameters.nnet,parameters.nnet))
     initWb = randn(parameters.nnet)
@@ -302,10 +327,27 @@ function main()
     muInitialOffer = (1.0 + randn())/2
     InitialNetwork = network(initWm, initWb, initialOffer, initialOffer)
     InitialMutant = network(muWm, muWb, muInitialOffer, muInitialOffer)
-    ##################################
-    #Function Testing Scratch Space
-    ##################################
+
+    ###################
+    # Simulation call #
+    ###################
+
     simulation(parameters, InitialNetwork)
+
+    ###################
+    #   Data Output   #
+    ###################
+
+    ## sim data will be stored in previous section and saved to disk here. 
+
+
+    ###################
+    #     Visuals     #
+    ###################
+    
+    ## should be it's own script eventually. Anything necessary for debugging should be done here
+
+
 end
 
 main()
