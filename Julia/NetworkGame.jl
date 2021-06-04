@@ -150,25 +150,53 @@ end
 
 ## Will be updated to support populations of arbitrary size/genotype frequency
 
-function population_construction(N::Int64, resNet::network, mutNets::Vector{individual} = individual[], initFreqs::Vector{Float64} = [1.0])
-    if length(mutNets) == 0 && initFreqs == 0.0
+function population_construction(N::Int64, resNet::network, mutNets::Vector{individual} = individual[], initFreqs::Vector{Any} = [])
+    if length(mutNets) == 0 && length(initFreqs) == 0
         return population(repeat([individual(resNet, 0)], N))
-    # elseif length(mutNets) >= 1
-    #     for p in 1:length(initFreqs)
-    #         pop_array = Vector{individual}[]
-    #         append!(pop_array, p*N)
-
     end
 end
 
 
-###################
-# Simulation Loop #
-###################
+
+#######################
+# Simulation Function #
+#######################
+
+## following similar format to NetworkGame.py
 
 function simulation(parameters::simulation_parameters, initNetwork::network)
-    pop_array = population_construction(parameters.N, initNetwork)
-    return
+
+############
+# Sim init #
+############
+
+## generation of initial population from parameters
+
+## EG 6/4/21
+## WIP Note: May need to pass a vector of initial networks + corresponding weights if want this to be 
+## generalizable. Trying to do this without touching anything inside the networks struct so that I can plug JVC's
+## julia network code in later.
+
+
+## arrays that track population statistics
+## EG 6/4/21
+## WIP Note: Need to decide on output format, then create an easier to modify workflow for this.
+## some kind of output struct that tracks whole sim statistics, and has vectors of timepoint statistics
+## as well?
+
+
+## dicts for genotype lookup
+## EG 6/4/21
+## WIP Note: Not sure if the dict method used in the python version will be the besto option here.
+## An array based method doesn't seem too difficult, but it has much more memory overhead.
+
+
+    ############
+    # Sim Loop #
+    ############
+    for t in 1:parameters.tmax
+        print(t)
+    end
 end
 
 ###################
