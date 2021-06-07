@@ -1,7 +1,5 @@
  
-using LinearAlgebra
-using ArgParse
-using Random
+using LinearAlgebra, ArgParse, Random
 ####################################
 # Structs
 ####################################
@@ -29,30 +27,27 @@ end
 
 ## smallest type necessary to play a complete round of the game 
 mutable struct network
-    GenotypeID::Int64
+    genotype_id::Int64
     Wm
     Wb::Vector{Float64}
     InitialOffer::Float64
     CurrentOffer::Float64
 end
 
-## stores information about each networks genotype, not necessary in hindsight
-# struct individual
-#     network::network
-#     genotypeID::Int64
-# end
-
 ## prevents the creation of population arrays that won't work with the shuffle reproduction method
 ## (those where N mod 2 != 0)
 mutable struct population
+    parameters::simulation_parameters
     networks::Vector{network}
     genotypes::Vector{Int64}
-    function population(array)
-        if mod(length(array), 2) != 0
-            error("Please provide an even value of N!")
-        end
-        new(array)
-    end
+    fit_dict::Dict{Int64, Dict{Int64, Vector{Float64}}}
+    shuffled_indices::Vector{Int64}
+    ## checks to make sure population size is even
+    # function population(N, networks, genotypes, fit_dict, shuffled_indices)
+        # if mod(N), 2) != 0
+        #     error("Please provide an even value of N!")
+        # end
+        # population(N, network, genotypes, fit_dict, shuffled_indices)
 end
 
 
@@ -61,20 +56,21 @@ end
 ####################################
 
 
-##############################
-## Iterates a single layer of the Feed Forward network
-##############################
+
 function calcOj(j::Int64, prev_out, Wm, Wb::Vector{Float64})
+    ##############################
+    ## Iterates a single layer of the Feed Forward network
+    ##############################
     x = dot(Wm[1:j,j][1:j], prev_out[1:j]) + Wb[j]
     return 1-(exp(x*-x))
 end
 
-##############################
-## Calculates the total output of the network,
-## iterating over calcOj() for each layer
-##############################
-
 function iterateNetwork(input::Float64, Wm, Wb::Vector{Float64})
+    ##############################
+    ## Calculates the total output of the network,
+    ## iterating over calcOj() for each layer
+    ##############################
+
     prev_out = zeros(Float64, length(Wb))
     prev_out[1] = input
     for j in 2:length(Wb)
@@ -83,23 +79,23 @@ function iterateNetwork(input::Float64, Wm, Wb::Vector{Float64})
     return prev_out
 end
 
-##############################
-## Iterates above functions over a pair of networks,
-## constitutes a single game round
-##############################
-
 function networkGameRound(mutNet::network, resNet::network)
+    ##############################
+    ## Iterates above functions over a pair of networks,
+    ## constitutes a single game round
+    ##############################
+
     mutOut = last(iterateNetwork(resNet.CurrentOffer, mutNet.Wm, mutNet.Wb))
     resOut = last(iterateNetwork(mutNet.CurrentOffer, resNet.Wm, resNet.Wb))
     return [mutOut, resOut]
 end
 
-##############################
-## Plays multiple rounds of the network game, returns differing 
-## data types depending on whether a discount needs to be calculated
-##############################
-
 function repeatedNetworkGame(parameters::simulation_parameters, mutNet::network, resNet::network)
+    ##############################
+    ## Plays multiple rounds of the network game, returns differing 
+    ## data types depending on whether a discount needs to be calculated
+    ##############################
+
     mutNet.CurrentOffer = mutNet.InitialOffer
     resNet.CurrentOffer = mutNet.InitialOffer
     mutHist = zeros(parameters.rounds)
@@ -116,19 +112,17 @@ function repeatedNetworkGame(parameters::simulation_parameters, mutNet::network,
     end
 end
 
-
-####################################
-## calulate resident-mutant fitness matrix from contributions throughout the game history. If
-## discount is availible, applied at rate delta going from present to the past in the 
-## repeated cooperative investment game
-##
-## fitness = 1 + b * (partner) - c * (self) + d * (self) * (partner)
-####################################
-
 function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet::network)
 
+    ####################################
+    ## calulate resident-mutant fitness matrix from contributions throughout the game history. If
+    ## discount is availible, applied at rate delta going from present to the past in the 
+    ## repeated cooperative investment game
+    ##
+    ## fitness = 1 + b * (partner) - c * (self) + d * (self) * (partner)
+    ####################################
     ############################################################
-    ## with discountretrieves the full history and passes it to the
+    ## with discount, retrieves the full history and passes it to the
     ##  discount formula before returning final fitness value
     ############################################################
     if parameters.δ >= 0.0
@@ -156,29 +150,71 @@ end
 # Population Simulation Funcs #
 ###############################
 
-
-##################
-# Pop Construction
-##################
-
-## Will be updated to support populations of arbitrary size/genotype frequency
-
-# function population_construction(N::Int64, resNet::network, mutNets::Vector{individual} = individual[], initFreqs::Vector{Any} = [])
-#     if length(mutNets) == 0 && length(initFreqs) == 0
-#         return population(repeat([individual(resNet, 0)], N))
-#     end
-# end
-
-function population_construction(N::Int64, networks::Vector{individual}, initFreqs::Vector{Float64} = [1.0, 0.0])
-    population_array = Vector{network}(undef, 0)
-    genotype_array = Vector{Int64}(undef,0)
-    for (net, p, gen) in zip(networks, initFreqs, 1:length(initfreqs))
-        append!(population_array, repeat([net], Int64(p*N)))
-        append!(genotype_array, repeat([gen], p*N))
-    end
-    return population_array
+function update_population!(pop::population)
+    ## runs functions necessary at every timestep of the simulation
+    ## updates pop struct with new partner indices and genotype ID arrays
+    pop.genotypes = return_genotype_id_array(pop.networks)
+    update_fit_dict!(pop)
 end
 
+function return_genotype_id_array(population_array::Vector{network})
+    ## WIP returns an array of the genotype inside
+    genotype_array = Vector{Int64}(undef, 0)
+    for individual in population_array
+        append!(genotype_array, individual.genotype_id)
+    end
+    return genotype_array
+end
+
+function population_construction(parameters::simulation_parameters)
+    ## constructs a population array when supplied with parameters and a list of networks
+    ## should default to a full array of a randomly chosen resident genotype unless
+    ## instructed otherwise in params
+    initialnetworks = Vector{network}(undef, length(parameters.init_freqs))
+    population_array = Vector{network}(undef, 0)
+    for n in 1:length(parameters.init_freqs)
+        wM = randn((parameters.nnet,parameters.nnet))
+        wB = randn(parameters.nnet)
+        initOffer = (1.0 + randn())/2
+        initialnetworks[n] = network(n, wM, wB, initOffer, initOffer)
+    end
+
+    for (net, p, gen) in zip(initialnetworks, parameters.init_freqs, 1:length(parameters.init_freqs))
+        append!(population_array, repeat([net], Int64(p*parameters.N)))
+    end
+    return population(parameters, population_array, return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Vector{Float64}}}(), shuffle(return_genotype_id_array(population_array)))
+end
+
+##################
+# Pairwise fitness
+##################
+function update_fit_dict!(pop::population)
+    for n1 in Set(pop.genotypes)
+        if n1 ∉ keys(pop.fit_dict)
+            pop.fit_dict[n1] = Dict{Int64, Vector{Float64}}()
+        end
+        for n2 in Set(pop.genotypes)
+            if n2 ∉ keys(pop.fit_dict[n1])
+                fitness_outcome, raw_payoffs = fitnessOutcome(pop.parameters, pop.networks[1], pop.networks[100])
+                pop.fit_dict[n1][n2] = fitness_outcome
+            end
+        end
+    end
+end
+##################
+# Pairwise fitness
+##################
+
+
+function pairwise_fitness_calc!(pop::population)
+    ## shuffles the population array, returns an array of fitness values calculated by
+    ## running the fitness outcome function along both the original and shuffled array
+    ## 
+
+end
+##################
+#  Mutation Function 
+##################
 
 
 #######################
@@ -187,10 +223,10 @@ end
 
 ## following similar format to NetworkGame.py
 
-function simulation(parameters::simulation_parameters, initNetworks::Vector{network})
+function simulation(pop::population)
+    
 
 
-    population(population_construction(parameters.N, initNetworks, parameters.init_freqs))
 ############
 # Sim init #
 ############
@@ -219,11 +255,13 @@ function simulation(parameters::simulation_parameters, initNetworks::Vector{netw
     ############
     # Sim Loop #
     ############
+    for t in 1:pop.parameters.tmax
+        # update population struct 
 
-    for t in 1:parameters.tmax
-        x = 1
+        update_population!(pop)
+
         # reproduction function
-
+        
         # mutation function
 
         # update t+1 population array
@@ -307,7 +345,7 @@ function main()
         "--init_freqs"
             help = "vector of initial genotype frequencies, must sum to 1"
             arg_type = Vector{Float64}
-            default = [0.25, 0.25, .25, .25]
+            default = [0.5,0.5]
         ########
         ## Network Parameters
         ########
@@ -336,25 +374,14 @@ function main()
     ##################################
     #Generation of Random Initial Network
     ##################################
-    ## also generates a random mutant for testing population population_construction
+    ## generates random networks based on simulation parameters
+    init_pop = population_construction(parameters)
 
-    initWm = randn((parameters.nnet,parameters.nnet))
-    initWb = randn(parameters.nnet)
-    muWm = randn((parameters.nnet,parameters.nnet))
-    muWb = randn(parameters.nnet)
-    initialOffer = (1.0 + randn())/2
-    muInitialOffer = (1.0 + randn())/2
-    # InitialNetwork = network(initWm, initWb, initialOffer, initialOffer)
-    initialnetworks = Vector{network}(undef, length(parameters.init_freqs))
-    
-    for n in 1:length(parameters.init_freqs)
-        initialnetworks[n] = network(n, muWm, muWb, muInitialOffer, muInitialOffer)
-    end
     ###################
     # Simulation call #
     ###################
 
-    simulation(parameters, initialnetworks)
+    simulation(init_pop)
 
     ###################
     #   Data Output   #
@@ -372,6 +399,7 @@ function main()
 
 
 end
+
 
 main()
 
