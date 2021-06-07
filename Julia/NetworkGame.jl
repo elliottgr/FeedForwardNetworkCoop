@@ -29,6 +29,7 @@ end
 
 ## smallest type necessary to play a complete round of the game 
 mutable struct network
+    GenotypeID::Int64
     Wm
     Wb::Vector{Float64}
     InitialOffer::Float64
@@ -36,15 +37,16 @@ mutable struct network
 end
 
 ## stores information about each networks genotype, not necessary in hindsight
-struct individual
-    network::network
-    genotypeID::Int64
-end
+# struct individual
+#     network::network
+#     genotypeID::Int64
+# end
 
 ## prevents the creation of population arrays that won't work with the shuffle reproduction method
 ## (those where N mod 2 != 0)
 mutable struct population
-    array::Vector{individual}
+    networks::Vector{network}
+    genotypes::Vector{Int64}
     function population(array)
         if mod(length(array), 2) != 0
             error("Please provide an even value of N!")
@@ -168,9 +170,11 @@ end
 # end
 
 function population_construction(N::Int64, networks::Vector{individual}, initFreqs::Vector{Float64} = [1.0, 0.0])
-    population_array = Vector{individual}(undef, 0)
-    for (net, p ) in zip(networks, initFreqs)
+    population_array = Vector{network}(undef, 0)
+    genotype_array = Vector{Int64}(undef,0)
+    for (net, p, gen) in zip(networks, initFreqs, 1:length(initfreqs))
         append!(population_array, repeat([net], Int64(p*N)))
+        append!(genotype_array, repeat([gen], p*N))
     end
     return population_array
 end
@@ -183,7 +187,7 @@ end
 
 ## following similar format to NetworkGame.py
 
-function simulation(parameters::simulation_parameters, initNetworks::Vector{individual})
+function simulation(parameters::simulation_parameters, initNetworks::Vector{network})
 
 
     population(population_construction(parameters.N, initNetworks, parameters.init_freqs))
@@ -341,10 +345,10 @@ function main()
     initialOffer = (1.0 + randn())/2
     muInitialOffer = (1.0 + randn())/2
     # InitialNetwork = network(initWm, initWb, initialOffer, initialOffer)
-    initialnetworks = Vector{individual}(undef, length(parameters.init_freqs))
+    initialnetworks = Vector{network}(undef, length(parameters.init_freqs))
     
     for n in 1:length(parameters.init_freqs)
-        initialnetworks[n] = individual(network(muWm, muWb, muInitialOffer, muInitialOffer), n)
+        initialnetworks[n] = network(n, muWm, muWb, muInitialOffer, muInitialOffer)
     end
     ###################
     # Simulation call #
