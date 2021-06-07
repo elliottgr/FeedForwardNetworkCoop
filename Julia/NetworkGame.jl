@@ -22,6 +22,7 @@ struct simulation_parameters
     c::Float64
     d::Float64
     δ::Float64
+    init_freqs::Vector{Float64}
     #network params
     nnet::Int64
 end
@@ -160,10 +161,18 @@ end
 
 ## Will be updated to support populations of arbitrary size/genotype frequency
 
-function population_construction(N::Int64, resNet::network, mutNets::Vector{individual} = individual[], initFreqs::Vector{Any} = [])
-    if length(mutNets) == 0 && length(initFreqs) == 0
-        return population(repeat([individual(resNet, 0)], N))
+# function population_construction(N::Int64, resNet::network, mutNets::Vector{individual} = individual[], initFreqs::Vector{Any} = [])
+#     if length(mutNets) == 0 && length(initFreqs) == 0
+#         return population(repeat([individual(resNet, 0)], N))
+#     end
+# end
+
+function population_construction(N::Int64, networks::Vector{individual}, initFreqs::Vector{Float64} = [1.0, 0.0])
+    population_array = Vector{individual}(undef, 0)
+    for (net, p ) in zip(networks, initFreqs)
+        append!(population_array, repeat([net], Int64(p*N)))
     end
+    return population_array
 end
 
 
@@ -174,8 +183,10 @@ end
 
 ## following similar format to NetworkGame.py
 
-function simulation(parameters::simulation_parameters, initNetwork::network)
+function simulation(parameters::simulation_parameters, initNetworks::Vector{individual})
 
+
+    population(population_construction(parameters.N, initNetworks, parameters.init_freqs))
 ############
 # Sim init #
 ############
@@ -206,15 +217,15 @@ function simulation(parameters::simulation_parameters, initNetwork::network)
     ############
 
     for t in 1:parameters.tmax
+        x = 1
+        # reproduction function
 
-        ## reproduction function
+        # mutation function
 
-        ## mutation function
+        # update t+1 population array
 
-        ## update t+1 population array
+        # per-timestep counters, outputs going to disk
 
-        ## per-timestep counters, outputs going to disk
-        print(t)
 
 
     end
@@ -289,6 +300,10 @@ function main()
             help = "payoff discount, negative values use last round"
             arg_type = Float64
             default = 0.0
+        "--init_freqs"
+            help = "vector of initial genotype frequencies, must sum to 1"
+            arg_type = Vector{Float64}
+            default = [0.25, 0.25, .25, .25]
         ########
         ## Network Parameters
         ########
@@ -302,7 +317,7 @@ function main()
     parsed_args = parse_args(ARGS, arg_parse_settings)
     parameters = simulation_parameters(parsed_args["tmax"], parsed_args["nreps"], parsed_args["N"], parsed_args["mu"],
                                         parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
-                                        parsed_args["c"], parsed_args["d"], parsed_args["delta"], parsed_args["nnet"])
+                                        parsed_args["c"], parsed_args["d"], parsed_args["delta"], parsed_args["init_freqs"], parsed_args["nnet"])
 
     ##############
     ## Test Values for comparing to python (or other) implementation
@@ -325,14 +340,17 @@ function main()
     muWb = randn(parameters.nnet)
     initialOffer = (1.0 + randn())/2
     muInitialOffer = (1.0 + randn())/2
-    InitialNetwork = network(initWm, initWb, initialOffer, initialOffer)
-    InitialMutant = network(muWm, muWb, muInitialOffer, muInitialOffer)
-
+    # InitialNetwork = network(initWm, initWb, initialOffer, initialOffer)
+    initialnetworks = Vector{individual}(undef, length(parameters.init_freqs))
+    
+    for n in 1:length(parameters.init_freqs)
+        initialnetworks[n] = individual(network(muWm, muWb, muInitialOffer, muInitialOffer), n)
+    end
     ###################
     # Simulation call #
     ###################
 
-    simulation(parameters, InitialNetwork)
+    simulation(parameters, initialnetworks)
 
     ###################
     #   Data Output   #
@@ -346,6 +364,7 @@ function main()
     ###################
     
     ## should be it's own script eventually. Anything necessary for debugging should be done here
+    ## also, test out passing the files to some graphics function at some point if it becomes an issue
 
 
 end
