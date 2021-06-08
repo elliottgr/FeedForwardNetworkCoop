@@ -1,4 +1,4 @@
-using LinearAlgebra, ArgParse, Random
+using LinearAlgebra, ArgParse, Random, Distributions, HDF5
 
 ####################################
 # Structs
@@ -23,6 +23,9 @@ struct simulation_parameters
     init_freqs::Vector{Float64}
     #network params
     nnet::Int64
+    mutsize::Float64
+    mutinitsize::Float64
+    mutlink::Float64
 end
 
 ## smallest type necessary to play a complete round of the game 
@@ -245,7 +248,24 @@ end
 ##################
 
 function mutate!(pop::population)
-    return pop
+    mutlink = 0.5
+    for i in 1:length(pop.networks)
+        if rand() <= pop.parameters.μ
+            pop.genotypes[i] = maximum(return_genotype_id_array(pop.networks)) + 1
+            mutWm = UpperTriangular(
+                                    rand(Binomial(1, pop.parameters.mutlink), (pop.parameters.nnet,pop.parameters.nnet)) 
+                                    .* rand(Normal(0, pop.parameters.mutsize), (pop.parameters.nnet,pop.parameters.nnet)))
+            mutWb = rand(Binomial(1, pop.parameters.mutlink), pop.parameters.nnet) .* rand(Normal(0, pop.parameters.mutsize),pop.parameters.nnet)
+            mutInit = rand(Normal(0, pop.parameters.mutsize))
+            pop.networks[i] = network((maximum(return_genotype_id_array(pop.networks))+1),
+                                        (pop.networks[i].Wm + mutWm),
+                                        (pop.networks[i].Wb + mutWb),
+                                        (pop.networks[i].InitialOffer + mutInit),
+                                        (pop.networks[i].InitialOffer + mutInit))
+
+
+        end
+    end
 end
 
 #######################
@@ -287,15 +307,18 @@ function simulation(pop::population)
     # Sim Loop #
     ############
     for t in 1:pop.parameters.tmax
+        print(t)
         # update population struct 
 
         update_population!(pop)
 
         # reproduction function
-
+        # print(pop.genotypes)
         reproduce!(pop)
-        # mutation function
 
+        # mutation function
+        # mutate!(pop)
+        # print(pop.genotypes)
         # update t+1 population array
 
         # per-timestep counters, outputs going to disk
@@ -303,8 +326,10 @@ function simulation(pop::population)
 
 
     end
-
+print(pop.genotypes)
 ## organize replicate data into appropriate data structure to be returned to main function and saved
+
+return 
 
 end
 
@@ -326,11 +351,11 @@ function main()
         "--tmax"
             help = "Maximum number of timesteps"
             arg_type = Int64
-            default = 2
+            default = 1000
         "--nreps"
             help = "number of replicates to run"
             arg_type = Int64
-            default = 100
+            default = 3
 
         "--N"   
             help = "population size"
@@ -339,7 +364,7 @@ function main()
         "--mu"
             help = "mutation probability per birth"
             arg_type = Float64
-            default = 0.0
+            default = 0.01
 
         ########
         ## Game Parameters
@@ -385,13 +410,26 @@ function main()
             help = "network size"
             arg_type = Int64
             default = 5
+        "--mutsize"
+            help = "Size of mutant effects on network in Normal Dist. StdDevs"
+            arg_type = Float64
+            default = 0.1
+        "--mutinitsize"
+            help = "Size of mutant effects on initial offers in Normal Dist. StdDevs"
+            arg_type = Float64
+            default = 0.01
+        "--mutlink"
+            help = "Probability that a random edge or node be altered in a mutation event"
+            arg_type = Float64
+            default = 0.5
     end
     
     ##passing command line arguments to simulation
     parsed_args = parse_args(ARGS, arg_parse_settings)
     parameters = simulation_parameters(parsed_args["tmax"], parsed_args["nreps"], parsed_args["N"], parsed_args["mu"],
                                         parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
-                                        parsed_args["c"], parsed_args["d"], parsed_args["delta"], parsed_args["init_freqs"], parsed_args["nnet"])
+                                        parsed_args["c"], parsed_args["d"], parsed_args["delta"], parsed_args["init_freqs"], 
+                                        parsed_args["nnet"], parsed_args["mutsize"], parsed_args["mutinitsize"], parsed_args["mutlink"])
 
     ##############
     ## Test Values for comparing to python (or other) implementation
@@ -420,9 +458,9 @@ function main()
     ###################
     # Simulation call #
     ###################
-
-    simulation(init_pop)
-
+    for rep in 1:length(parameters.nreps)
+        simulation(init_pop)
+    end
     ###################
     #   Data Output   #
     ###################
