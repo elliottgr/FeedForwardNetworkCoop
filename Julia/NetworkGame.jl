@@ -1,5 +1,5 @@
- 
 using LinearAlgebra, ArgParse, Random
+
 ####################################
 # Structs
 ####################################
@@ -65,7 +65,7 @@ function calcOj(j::Int64, prev_out, Wm, Wb::Vector{Float64})
     return 1-(exp(x*-x))
 end
 
-function iterateNetwork(input::Float64, Wm, Wb::Vector{Float64})
+function iterateNetwork(input::Float64, Wm::Matrix{Float64}, Wb::Vector{Float64})
     ##############################
     ## Calculates the total output of the network,
     ## iterating over calcOj() for each layer
@@ -84,7 +84,6 @@ function networkGameRound(mutNet::network, resNet::network)
     ## Iterates above functions over a pair of networks,
     ## constitutes a single game round
     ##############################
-
     mutOut = last(iterateNetwork(resNet.CurrentOffer, mutNet.Wm, mutNet.Wb))
     resOut = last(iterateNetwork(mutNet.CurrentOffer, resNet.Wm, resNet.Wb))
     return [mutOut, resOut]
@@ -97,7 +96,8 @@ function repeatedNetworkGame(parameters::simulation_parameters, mutNet::network,
     ##############################
 
     mutNet.CurrentOffer = mutNet.InitialOffer
-    resNet.CurrentOffer = mutNet.InitialOffer
+    resNet.CurrentOffer = resNet.InitialOffer
+
     mutHist = zeros(parameters.rounds)
     resHist = zeros(parameters.rounds)
     for i in 1:parameters.rounds
@@ -129,6 +129,7 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
         rmOut, mrOut = repeatedNetworkGame(parameters,mutNet,resNet)
         discount = exp.(-parameters.δ.*(parameters.rounds.-1 .-range(1,parameters.rounds, step = 1)))
         td = sum(discount)
+        print("multiplication: ", rmOut.*mrOut)
         wmr = max(0, (1 + dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale))
         wrm = max(0, (1 + dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount)*parameters.fitness_benefit_scale))
         return [[wmr, wrm], [dot(rmOut, discount)/td, dot(mrOut, discount)/td]]
@@ -154,6 +155,7 @@ function update_population!(pop::population)
     ## runs functions necessary at every timestep of the simulation
     ## updates pop struct with new partner indices and genotype ID arrays
     pop.genotypes = return_genotype_id_array(pop.networks)
+    shuffle!(pop.shuffled_indices)
     update_fit_dict!(pop)
 end
 
@@ -173,33 +175,44 @@ function population_construction(parameters::simulation_parameters)
     initialnetworks = Vector{network}(undef, length(parameters.init_freqs))
     population_array = Vector{network}(undef, 0)
     for n in 1:length(parameters.init_freqs)
-        wM = randn((parameters.nnet,parameters.nnet))
-        wB = randn(parameters.nnet)
-        initOffer = (1.0 + randn())/2
-        initialnetworks[n] = network(n, wM, wB, initOffer, initOffer)
-    end
+        Wm = randn((parameters.nnet,parameters.nnet))
 
+        Wb = randn(parameters.nnet)
+        initOffer = (1.0 + randn())/2
+        initialnetworks[n] = network(n, Wm, Wb, initOffer, initOffer)
+    end
     for (net, p, gen) in zip(initialnetworks, parameters.init_freqs, 1:length(parameters.init_freqs))
         append!(population_array, repeat([net], Int64(p*parameters.N)))
     end
-    return population(parameters, population_array, return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Vector{Float64}}}(), shuffle(return_genotype_id_array(population_array)))
+    return population(parameters, population_array, return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Vector{Float64}}}(), shuffle(1:parameters.N))
 end
 
 ##################
 # Pairwise fitness
 ##################
 function update_fit_dict!(pop::population)
-    for n1 in Set(pop.genotypes)
-        if n1 ∉ keys(pop.fit_dict)
-            pop.fit_dict[n1] = Dict{Int64, Vector{Float64}}()
+    g(x) = pop.genotypes[x]
+    for (n1, n2) in zip(1:pop.parameters.N, pop.shuffled_indices)
+        if g(n1) ∉ keys(pop.fit_dict)
+            pop.fit_dict[g(n1)] = Dict{Int64, Vector{Float64}}()
         end
-        for n2 in Set(pop.genotypes)
-            if n2 ∉ keys(pop.fit_dict[n1])
-                fitness_outcome, raw_payoffs = fitnessOutcome(pop.parameters, pop.networks[1], pop.networks[100])
-                pop.fit_dict[n1][n2] = fitness_outcome
-            end
+        if g(n2) ∉ keys(pop.fit_dict[g(n1)])
+            fitness_outcome, raw_payoffs = fitnessOutcome(pop.parameters, pop.networks[n2], pop.networks[n1])
+            pop.fit_dict[g(n1)][g(n2)] = raw_payoffs
         end
     end
+    # print(pop.fit_dict)
+    # for n1 in Set(pop.genotypes)
+    #     if n1 ∉ keys(pop.fit_dict)
+    #         pop.fit_dict[n1] = Dict{Int64, Vector{Float64}}()
+    #     end
+    #     for n2 in Set(pop.genotypes)
+    #         if n2 ∉ keys(pop.fit_dict[n1])
+    #             fitness_outcome, raw_payoffs = fitnessOutcome(pop.parameters, pop.networks[1], pop.networks[100])
+    #             pop.fit_dict[n1][n2] = fitness_outcome
+    #         end
+    #     end
+    # end
 end
 ##################
 # Pairwise fitness
@@ -209,8 +222,30 @@ end
 function pairwise_fitness_calc!(pop::population)
     ## shuffles the population array, returns an array of fitness values calculated by
     ## running the fitness outcome function along both the original and shuffled array
-    ## 
+    repro_array = Vector{Float64}(undef, pop.parameters.N)
+    g(x) = pop.genotypes[x]
+    # for (n1,n2) in zip(1:pop.parameters.N, pop.shuffled_indices)
+    #     repro_array[n1] = pop.fit_dict[g(n1)][g(n2)]
+    # end
 
+    # for (n1, n2) in zip(1:pop.parameters.N, shuffle(1:pop.parameters.N))
+    #     print(g(n1))
+    #     try x = pop.fit_dict[g(n1)][g(n2)][1]
+    #         repro_array[n1] = x
+    #     catch LoadError
+    #         try y = pop.fit_dict[g(n2)][g(n1)][1]
+    #             print(y)
+    #             repro_array[g(n1)] = y
+    #         catch LoadError    
+    #             fitness_outcome, raw_payoffs = fitnessOutcome(pop.parameters, pop.networks[g(n2)], pop.networks[g(n1)])
+    #             print(fitness_outcome)
+    #             pop.fit_dict[g(n1)][g(n2)] = fitness_outcome
+    #             repro_array[n1] = pop.fit_dict[n1][n2][1]
+    #         end
+        
+    #     end
+    # end
+    #  print(repro_array)
 end
 ##################
 #  Mutation Function 
@@ -259,7 +294,7 @@ function simulation(pop::population)
         # update population struct 
 
         update_population!(pop)
-
+        pairwise_fitness_calc!(pop)
         # reproduction function
         
         # mutation function
@@ -294,7 +329,7 @@ function main()
         "--tmax"
             help = "Maximum number of timesteps"
             arg_type = Int64
-            default = 1000
+            default = 2
         "--nreps"
             help = "number of replicates to run"
             arg_type = Int64
@@ -371,17 +406,25 @@ function main()
     # init = 0.1
     # InitialNetwork = network(initWm, initWb, init, init)
     
+    Wm = [0.0 0.0; 0.0 0.0]
+    Wb = [0.0, 0.0]
+    Wm2 = [0.71824181 2.02987316; -0.42858626 0.6634413]
+    Wb2 = [-0.66332791,1.00430577]
+    init = .1
+    initnet1 = network(1, Wm2, Wb2, init, init)
+    initnet2 = network(2, Wm2, Wb2, init, init)
+    (fitnessOutcome(parameters, initnet1, initnet2))
     ##################################
     #Generation of Random Initial Network
     ##################################
     ## generates random networks based on simulation parameters
-    init_pop = population_construction(parameters)
+    # init_pop = population_construction(parameters)
 
     ###################
     # Simulation call #
     ###################
 
-    simulation(init_pop)
+    # simulation(init_pop)
 
     ###################
     #   Data Output   #
