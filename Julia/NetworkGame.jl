@@ -307,7 +307,6 @@ function simulation(pop::population)
     # Sim Loop #
     ############
     for t in 1:pop.parameters.tmax
-        print(t)
         # update population struct 
 
         update_population!(pop)
@@ -402,7 +401,7 @@ function main()
         "--init_freqs"
             help = "vector of initial genotype frequencies, must sum to 1"
             arg_type = Vector{Float64}
-            default = [0.5,0.5]
+            default = [0.99,0.01]
         ########
         ## Network Parameters
         ########
