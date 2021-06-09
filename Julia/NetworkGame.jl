@@ -236,7 +236,7 @@ function reproduce!(pop::population)
             new_networks[res_i] = n(res_i)
         else
             new_genotypes[res_i] = g(mut_i)
-            new_networks[res_i] = n(res_i)
+            new_networks[res_i] = n(mut_i)
         end
     end
     pop.genotypes = new_genotypes
@@ -313,6 +313,7 @@ function simulation(pop::population)
 
         # reproduction function
         # print(pop.genotypes)
+
         reproduce!(pop)
 
         # mutation function
@@ -322,13 +323,15 @@ function simulation(pop::population)
 
         # per-timestep counters, outputs going to disk
 
-
+        # if sum(pop.genotypes) == pop.parameters.N
+        #     print("Resident Fixed")
+        #     print(t)
+        #     break
+        # end
 
     end
 print(pop.genotypes)
 ## organize replicate data into appropriate data structure to be returned to main function and saved
-
-return 
 
 end
 
@@ -350,11 +353,11 @@ function main()
         "--tmax"
             help = "Maximum number of timesteps"
             arg_type = Int64
-            default = 1000
+            default = 500
         "--nreps"
             help = "number of replicates to run"
             arg_type = Int64
-            default = 3
+            default = 1
 
         "--N"   
             help = "population size"
@@ -401,7 +404,7 @@ function main()
         "--init_freqs"
             help = "vector of initial genotype frequencies, must sum to 1"
             arg_type = Vector{Float64}
-            default = [0.99,0.01]
+            default = [0.50,0.5]
         ########
         ## Network Parameters
         ########
@@ -457,7 +460,7 @@ function main()
     ###################
     # Simulation call #
     ###################
-    for rep in 1:length(parameters.nreps)
+    for rep in 1:parameters.nreps
         simulation(init_pop)
     end
     ###################
