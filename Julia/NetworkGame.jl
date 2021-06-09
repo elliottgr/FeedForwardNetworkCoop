@@ -1,4 +1,4 @@
-using LinearAlgebra, ArgParse, Random, Distributions, HDF5
+using LinearAlgebra, ArgParse, Random, Distributions, JLD2
 
 ####################################
 # Structs
@@ -26,6 +26,8 @@ struct simulation_parameters
     mutsize::Float64
     mutinitsize::Float64
     mutlink::Float64
+    #file params
+    filename::String
 end
 
 ## smallest type necessary to play a complete round of the game 
@@ -45,15 +47,24 @@ mutable struct population
     genotypes::Vector{Int64}
     fit_dict::Dict{Int64, Dict{Int64, Vector{Float64}}}
     shuffled_indices::Vector{Int64}
-    ## checks to make sure population size is even
-    # function population(N, networks, genotypes, fit_dict, shuffled_indices)
-        # if mod(N), 2) != 0
-        #     error("Please provide an even value of N!")
-        # end
-        # population(N, network, genotypes, fit_dict, shuffled_indices)
 end
 
+mutable struct simulation_output
+    ## Fixation Stats ##
+    ## time points where an allele becomes 100% of the population
+    fixations::Vector{Int64}
+    ## number of genotypes at each time point
+    n_genotypes::Vector{Int64}
 
+    ## simulation results ##
+    ## mean values of fitness and initial offer over the sim
+    w_mean_history::Vector{Float64}
+    init_mean_history::Vector{Float64}
+
+    ## Output copy of parameters
+    parameters::simulation_parameters
+
+end
 ####################################
 # Network Game Functions
 ####################################
@@ -170,6 +181,17 @@ function return_genotype_id_array(population_array::Vector{network})
     return genotype_array
 end
 
+function output!(t::Int64, pop::population, outputs::simulation_output)
+    ## Updates output arrays
+    if length(Set(pop.genotypes)) == 1
+        outputs.fixations[t] = maximum(Set(pop.genotypes))
+    else
+        outputs.fixations[t] = 0
+    end
+    ## Maximum or length of the set of keys should return the largest genotype index ever present because
+    ## each iteration will guarantee it shows up in fit_dict via the shuffle method
+    outputs.n_genotypes[t] = length(Set(keys(pop.fit_dict)))
+end
 function population_construction(parameters::simulation_parameters)
     ## constructs a population array when supplied with parameters and a list of networks
     ## should default to a full array of a randomly chosen resident genotype unless
@@ -225,6 +247,8 @@ end
 ##################
 
 function reproduce!(pop::population)
+    ## working with new arrays rather than copy of old pop to avoid in-place weirdness with shuffle()
+
     repro_array = pairwise_fitness_calc!(pop)
     new_genotypes = Vector{Int64}(undef, pop.parameters.N)
     new_networks = Vector{network}(undef, pop.parameters.N)
@@ -248,12 +272,10 @@ end
 ##################
 
 function mutate!(pop::population)
-    mutlink = 0.5
     for i in 1:length(pop.networks)
         if rand() <= pop.parameters.μ
             pop.genotypes[i] = maximum(return_genotype_id_array(pop.networks)) + 1
-            mutWm = UpperTriangular(
-                                    rand(Binomial(1, pop.parameters.mutlink), (pop.parameters.nnet,pop.parameters.nnet)) 
+            mutWm = UpperTriangular(rand(Binomial(1, pop.parameters.mutlink), (pop.parameters.nnet,pop.parameters.nnet)) 
                                     .* rand(Normal(0, pop.parameters.mutsize), (pop.parameters.nnet,pop.parameters.nnet)))
             mutWb = rand(Binomial(1, pop.parameters.mutlink), pop.parameters.nnet) .* rand(Normal(0, pop.parameters.mutsize),pop.parameters.nnet)
             mutInit = rand(Normal(0, pop.parameters.mutsize))
@@ -262,11 +284,11 @@ function mutate!(pop::population)
                                         (pop.networks[i].Wb + mutWb),
                                         (pop.networks[i].InitialOffer + mutInit),
                                         (pop.networks[i].InitialOffer + mutInit))
-
-
         end
     end
 end
+
+
 
 #######################
 # Simulation Function #
@@ -275,14 +297,11 @@ end
 ## following similar format to NetworkGame.py
 
 function simulation(pop::population)
-    
-
 
 ############
 # Sim init #
 ############
 
-## generation of initial population from parameters
 
 ## EG 6/4/21
 ## WIP Note: May need to pass a vector of initial networks + corresponding weights if want this to be 
@@ -296,43 +315,35 @@ function simulation(pop::population)
 ## some kind of output struct that tracks whole sim statistics, and has vectors of timepoint statistics
 ## as well?
 
-
-## dicts for genotype lookup
-## EG 6/4/21
-## WIP Note: Not sure if the dict method used in the python version will be the besto option here.
-## An array based method doesn't seem too difficult, but it has much more memory overhead.
-
+outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
+                            zeros(Int64, pop.parameters.tmax),
+                            zeros(Float64, pop.parameters.tmax),
+                            zeros(Float64, pop.parameters.tmax),
+                            pop.parameters)
 
     ############
     # Sim Loop #
     ############
     for t in 1:pop.parameters.tmax
         # update population struct 
-
         update_population!(pop)
 
-        # reproduction function
-        # print(pop.genotypes)
-
+        # reproduction function / produce and save t+1 population array
         reproduce!(pop)
 
-        # mutation function
-        # mutate!(pop)
-        # print(pop.genotypes)
-        # update t+1 population array
+        # mutation function / iterates over population and mutates at chance probability μ
+        mutate!(pop)
 
         # per-timestep counters, outputs going to disk
+        output!(t, pop, outputs)
 
-        # if sum(pop.genotypes) == pop.parameters.N
-        #     print("Resident Fixed")
-        #     print(t)
-        #     break
-        # end
-
+        ## should detect an error in genotype tracking
+        if length(Set(keys(pop.fit_dict))) != maximum(Set(keys(pop.fit_dict)))
+            print("Error in genotype tracking, dictionary of fitness values has missing genotypes")
+        end
     end
-print(pop.genotypes)
 ## organize replicate data into appropriate data structure to be returned to main function and saved
-
+return outputs
 end
 
 ###################
@@ -366,7 +377,7 @@ function main()
         "--mu"
             help = "mutation probability per birth"
             arg_type = Float64
-            default = 0.01
+            default = 0.0
 
         ########
         ## Game Parameters
@@ -424,6 +435,13 @@ function main()
             help = "Probability that a random edge or node be altered in a mutation event"
             arg_type = Float64
             default = 0.5
+        ########
+        ## File Parameters
+        ########
+        "--filename"
+            help = "File to save outputs to"
+            arg_type = String
+            default = "NetworkGameOutput.jld2"
     end
     
     ##passing command line arguments to simulation
@@ -432,6 +450,11 @@ function main()
                                         parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
                                         parsed_args["c"], parsed_args["d"], parsed_args["delta"], parsed_args["init_freqs"], 
                                         parsed_args["nnet"], parsed_args["mutsize"], parsed_args["mutinitsize"], parsed_args["mutlink"])
+
+    ## Necessary sanity checks for params
+    if mod(parameters.N, 2) != 0
+        print("Please supply an even value of N!")
+    end
 
     ##############
     ## Test Values for comparing to python (or other) implementation
@@ -461,8 +484,10 @@ function main()
     # Simulation call #
     ###################
     for rep in 1:parameters.nreps
-        simulation(init_pop)
+        replicate_output = simulation(init_pop)
     end
+
+
     ###################
     #   Data Output   #
     ###################
