@@ -4,7 +4,20 @@
 ## over different initial frequencies. 
 using ArgParse, JLD2
 
-include(NetworkGameFuncs.jl)
+include("NetworkGameFuncs.jl")
+
+function RunReplicates(parameters::simulation_parameters)
+    ## generation of initial network
+    init_pop = population_construction(parameters)
+    rep_outputs = Vector(undef, parameters.nreps)
+    for rep in 1:parameters.nreps
+        if mod(rep, 20) == 0
+            print("Replicate $rep Started", "\n")
+        end
+        rep_outputs[rep] = simulation(init_pop)
+    end
+    return rep_outputs
+end
 
 ###################
 #      main       #
@@ -24,12 +37,11 @@ function main()
         "--tmax"
             help = "Maximum number of timesteps"
             arg_type = Int64
-            default = 100
+            default = 1000
         "--nreps"
             help = "number of replicates to run"
             arg_type = Int64
-            default = 10
-
+            default = 100
         "--N"   
             help = "population size"
             arg_type = Int64
@@ -50,7 +62,7 @@ function main()
         "--fitness_benefit_scale"
             help = "scales the fitness payout of game rounds by this amount (payoff * scale)"
             arg_type = Float64
-            default = 1.0
+            default = 0.0
 
         "--b"
             help = "payoff benefit"
@@ -75,7 +87,7 @@ function main()
         "--init_freqs"
             help = "vector of initial genotype frequencies, must sum to 1"
             arg_type = Vector{Float64}
-            default = [0.50,0.5]
+            default = [0.50, 0.50]
         ########
         ## Network Parameters
         ########
@@ -101,7 +113,7 @@ function main()
         "--filename"
             help = "File to save outputs to"
             arg_type = String
-            default = "NetworkGameOutput.jld2"
+            default = "NetworkGamePopGenTests.jld2"
     end
     
     ##passing command line arguments to simulation
@@ -117,31 +129,31 @@ function main()
         print("Please supply an even value of N!")
     end
 
+    ## setting iterator of population frequency
+    ps = collect(0.0:0.05:1.0)
+    print("Starting replicates")
 
-    ##################################
-    #Generation of Random Initial Network
-    ##################################
-    ## generates random networks based on simulation parameters
-    init_pop = population_construction(parameters)
+    ## initializing output array
+    sim_outputs = Vector(undef, length(collect(0.0:0.05:1.0)))
 
-    ###################
-    # Simulation call #
-    ###################
+    for (p, q, i) in zip(ps, reverse(ps), 1:length(ps))
 
-    ## need to define vectors over sim outputs so I can preallocate some memory :)
-    sim_outputs = Vector(undef, parameters.nreps)
-    for rep in 1:parameters.nreps
-        sim_outputs[rep] = simulation(init_pop)
+        print("p = ", p)
+        parameters.init_freqs = [p, q] 
+    
+        # ###################
+        # # Simulation call #
+        # ###################
+        sim_outputs[i] = RunReplicates(parameters)
+
+    ## end of init_freq iteration loop
     end
+jldsave(parameters.filename; sim_outputs)
+###################
+#   Data Output   #
+###################
 
-
-    ###################
-    #   Data Output   #
-    ###################
-
-    ## sim data will be stored in previous section and saved to disk here. 
-    jldsave(parameters.filename; sim_outputs)
-
+# sim data will be stored in previous section and saved to disk here. 
 
 end
 

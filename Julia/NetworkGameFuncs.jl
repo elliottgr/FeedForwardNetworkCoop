@@ -141,7 +141,7 @@ function population_construction(parameters::simulation_parameters)
         initialnetworks[n] = network(n, Wm, Wb, initOffer, initOffer)
     end
     for (net, p, gen) in zip(initialnetworks, parameters.init_freqs, 1:length(parameters.init_freqs))
-        append!(population_array, repeat([net], Int64(p*parameters.N)))
+        append!(population_array, repeat([net], Int64(trunc(p*parameters.N))))
     end
     return population(parameters, population_array, return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Vector{Float64}}}(), shuffle(1:parameters.N))
 end
@@ -267,14 +267,20 @@ outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
         reproduce!(pop)
 
         # mutation function / iterates over population and mutates at chance probability μ
-        mutate!(pop)
-
+        if pop.parameters.μ > 0
+            mutate!(pop)
+        end
         # per-timestep counters, outputs going to disk
         output!(t, pop, outputs)
 
-        ## should detect an error in genotype tracking
-        if length(Set(keys(pop.fit_dict))) != maximum(Set(keys(pop.fit_dict)))
-            print("Error in genotype tracking, dictionary of fitness values has missing genotypes")
+        ## should detect an error in genotype tracking. Will trip if there is <2 genotypes initially
+        if pop.parameters.init_freqs[1] != 0.0
+            if length(Set(keys(pop.fit_dict))) != maximum(Set(keys(pop.fit_dict)))
+                print("Length: ", length(Set(keys(pop.fit_dict))))
+                print("Max: ", maximum(Set(keys(pop.fit_dict))))
+                print("Error in genotype tracking, dictionary of fitness values has missing genotypes")
+                break
+            end
         end
     end
 ## organize replicate data into appropriate data structure to be returned to main function and saved

@@ -2,7 +2,7 @@
 
 ## organized by part of the model modified, values set via ArgParse
 
-struct simulation_parameters
+mutable struct simulation_parameters
     #popgen params
     tmax::Int64
     nreps::Int64
