@@ -23,7 +23,12 @@ mutable struct simulation_parameters
     mutlink::Float64
     #file params
     filename::String
+
+    ## need to be able to create copies of this struct for data storage
+    # copy(parameters::simulation_parameters) = simulation_parameters(parameters.tmax, parameters.nreps,parameters.N,parameters.μ,parameters.rounds,parameters.fitness_benefit_scale,parameters.b,parameters.c,parameters.d,parameters.δ,parameters.init_freqs,parameters.nnet,parameters.mutsize,parameters.mutinitsize,parameters.mutlink,parameters.filename)
+
 end
+
 
 ## smallest type necessary to play a complete round of the game 
 mutable struct network
