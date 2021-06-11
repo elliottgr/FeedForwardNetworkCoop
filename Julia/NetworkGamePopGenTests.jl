@@ -131,20 +131,23 @@ function main()
 
     ## setting iterator of population frequency
     ps = collect(0.0:0.05:1.0)
-    print("Starting replicates")
+    print("Starting replicates", "\n")
 
     ## initializing output array
-    sim_outputs = Vector(undef, length(collect(0.0:0.05:1.0)))
+    sim_outputs = Vector(undef, 0)
 
-    for (p, q, i) in zip(ps, reverse(ps), 1:length(ps))
+    for (p, q) in zip(ps, reverse(ps))
 
-        print("p = ", p)
+        print("p = ", p, "\n")
+
+        ## creating savable copy of the parameters
         parameters.init_freqs = [p, q] 
-    
+        replicate_parameters = copy(parameters)
         # ###################
         # # Simulation call #
         # ###################
-        sim_outputs[i] = RunReplicates(parameters)
+        push!(sim_outputs, RunReplicates(replicate_parameters))
+
 
     ## end of init_freq iteration loop
     end
