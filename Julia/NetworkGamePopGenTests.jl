@@ -8,9 +8,10 @@ include("NetworkGameFuncs.jl")
 
 function RunReplicates(parameters::simulation_parameters)
     ## generation of initial network
-    init_pop = population_construction(parameters)
+
     rep_outputs = Vector(undef, parameters.nreps)
     for rep in 1:parameters.nreps
+        init_pop = population_construction(parameters)
         if mod(rep, 20) == 0
             print("Replicate $rep Started", "\n")
         end
@@ -41,7 +42,7 @@ function main()
         "--nreps"
             help = "number of replicates to run"
             arg_type = Int64
-            default = 100
+            default = 20
         "--N"   
             help = "population size"
             arg_type = Int64
@@ -146,7 +147,8 @@ function main()
         # ###################
         # # Simulation call #
         # ###################
-        push!(sim_outputs, RunReplicates(replicate_parameters))
+        current_reps = RunReplicates(replicate_parameters)
+        push!(sim_outputs, current_reps)
 
 
     ## end of init_freq iteration loop
