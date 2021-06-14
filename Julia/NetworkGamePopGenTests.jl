@@ -17,6 +17,7 @@ function RunReplicates(parameters::simulation_parameters)
         end
         rep_outputs[rep] = simulation(init_pop)
     end
+    print("Replicates Completed in: ")
     return rep_outputs
 end
 
@@ -42,7 +43,7 @@ function main()
         "--nreps"
             help = "number of replicates to run"
             arg_type = Int64
-            default = 20
+            default = 100
         "--N"   
             help = "population size"
             arg_type = Int64
@@ -147,7 +148,8 @@ function main()
         # ###################
         # # Simulation call #
         # ###################
-        current_reps = RunReplicates(replicate_parameters)
+        @time current_reps = RunReplicates(replicate_parameters)
+
         push!(sim_outputs, current_reps)
 
 

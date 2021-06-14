@@ -10,8 +10,62 @@ using JLD2, Plots, DataFrames, StatsPlots, Statistics
 output = jldopen("NetworkGamePopGenTests.jld2")
 
 
+###############
+## Functions ##
+###############
 
-## Functions
+    ## Theoretical Prediction Funcs ##
+
+# Conditional fixation of an advantageous allele, i.e. drift and selection, no mutation.
+# Based on equation 12, Kimura and Ohta, 1969, written by Daniel Priego Espinosa
+function t_bar(p::Float64,N::Float64,s::Float64)
+    if s==0.0
+        return t_bar(p,N)
+    else
+        u(p) = (1 - exp(-2*s*N*p)) / (1 - exp(-2*s*N))     # \psi(x) = \frac{2 \int_{0}^{1} G(x) dx}{V(x)G(x)}$
+    # with
+    # $G(x) = e^{-\int \frac{2 M(x)}{V(x)} dx}$
+    # $V(x) = \frac{x(1-x)}{N_e}$        psi(x) = (exp(2*N*s*x)*(1 - exp(-2*N*s))) / (s*(1 - x)*x)
+        t_int1(ξ) = psi(ξ)*u(ξ)*(1-u(ξ))
+        t_int2(ξ) = psi(ξ)*u(ξ)^2
+        tbar1_1, err_tbar1_1 = quadgk(t_int1,p,1)
+        tbar1_2, err_tbar1_2 = quadgk(t_int2,0,p)
+        return tbar1_1 + (1 - u(p))/u(p) * tbar1_2
+    end
+end
+
+
+## From Ewens (2004) 3.9
+## approximate time to fixation for a neutral allele
+## adjusted from -4N -> -2N because model is haploid
+function t_bar_star(p::Float64, N::Float64)
+    if p <= 0 
+        return 0
+    elseif p == 1
+        return 0
+    else
+        return (-4 * N / p)*(1-p)*(log(1-p))
+    end
+end
+
+function π_x!(N, selective_advantage, ps)
+    α = 2 * N * (selective_advantage)
+    predicted_values = Vector{Float64}(undef,0)
+    for p in ps
+        if p == 0
+            p_pred = p
+        elseif p == 1
+            p_pred = p
+        else
+            p_pred = (1 - exp(-α * p))/(1 - exp(-α))
+        end
+        push!(predicted_values, ((1 - exp(-α * p))/(1 - exp(-α))))
+    end
+    return predicted_values
+end
+
+    ## File Manipulation Functions ##
+
 ## retrieves the invidividual experiments from the larger data structure
 ## each element in the output["sim_outputs"] vector is a full experiment + replicates
 ## within each experiment vector, elements correspond to simulation_output objects from each replicate
@@ -94,12 +148,20 @@ end
 
 
 ## returns a dataframe for plotting the time to fixation accross replicates as a function of initial frequency
-function plot_t_fix(file, genotype=nothing)
+function plot_t_fix(file, genotype = nothing)
     ps, genotypes, t_fix = get_t_fix(file, genotype)
     df = DataFrame(init_freqs = ps, genotypes = genotypes, t_fix = t_fix)
     return df
 end
 
+function plot_mean_t_fix(file, genotype = nothing)
+    # ps, genotypes, t_fix = get_t_fix(file, genotype)
+    df = plot_t_fix(file, genotype)
+    gdf = groupby(df, [:init_freqs])
+    gdf = combine(gdf, :t_fix => mean)
+    
+    return gdf
+end
 
 ## returns a dataframe for plotting the observed mean of fixation accross replicates
 function plot_π_fix(file, genotype = nothing)
@@ -113,18 +175,25 @@ function plot_π_fix(file, genotype = nothing)
     return df
 end
 
-function create_plots(file, genotype = nothing)
+function create_plots(file, pred_resolution::Float64, genotype = nothing)
     π_fix_df = plot_π_fix(file, genotype)
     t_fix_df = plot_t_fix(file, genotype)
+    t_fix_mean = plot_mean_t_fix(file, genotype)
+    t_bar_pred = Vector{Float64}(undef, 0)
     l = @layout [a;b]
-    p1 = scatter(π_fix_df.init_freqs, π_fix_df.π_x)
-    p2 = scatter(t_fix_df.init_freqs, t_fix_df.t_fix)
-    plot(p1, p1, layout=l)
-end
 
-# df = plot_p_fix(output,2)
-# plot_t_fix(output, 1)
-# @df df scatter(
-#     :init_freqs,
-#     :π_x
-#     )
+    π_plot = scatter(π_fix_df.init_freqs, π_fix_df.π_x, labels = "π(p) (obs)")
+    π_plot = plot!(collect(0.0:pred_resolution:1.0), collect(0.0:pred_resolution:1.0), labels = "π(p) (pred)")
+    t_plot = scatter(t_fix_df.init_freqs, t_fix_df.t_fix, labels = "t_fix (obs)")
+    t_plot = plot!(t_fix_mean.init_freqs, t_fix_mean.t_fix_mean, labels = "t_fix (mean)")
+    for p in collect(0.0:pred_resolution:1.0)
+        push!(t_bar_pred, t_bar(p, 100.0, 0.0))
+    end
+    t_plot = plot!(collect(0.0:pred_resolution:1.0), t_bar_pred, labels = "t_bar (pred)")
+    plt = plot(π_plot, t_plot, layout=(2,1))
+
+end
+# create_plots(output, 0.001, 1)
+savefig(create_plots(output, 0.01, 1), "p_and_t_fix.png")
+
+
