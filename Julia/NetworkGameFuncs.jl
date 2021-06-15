@@ -143,6 +143,15 @@ function population_construction(parameters::simulation_parameters)
     for (net, p, gen) in zip(initialnetworks, parameters.init_freqs, 1:length(parameters.init_freqs))
         append!(population_array, repeat([net], Int64(trunc(p*parameters.N))))
     end
+
+    ## depending on the init_freq_resolution, population size may not match generated array
+    ## in this case, the final genotype is appended until the parameters match
+    while length(population_array) < parameters.N
+        append!(population_array, [last(initialnetworks)])
+    end
+    while length(population_array) > parameters.N
+         pop!(population_array)
+    end
     return population(parameters, population_array, return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Vector{Float64}}}(), shuffle(1:parameters.N))
 end
 
