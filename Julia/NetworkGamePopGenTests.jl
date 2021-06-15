@@ -2,25 +2,35 @@
 ## frequencies without selection to compare the population simulation with theory.
 ## For a given parameter set, it iterates the desired number of replicates/timesteps
 ## over different initial frequencies. 
-using ArgParse, JLD2
 
-include("NetworkGameFuncs.jl")
 
-function RunReplicates(parameters::simulation_parameters)
-    ## generation of initial network
+## Starting distributed computing
 
-    rep_outputs = Vector(undef, parameters.nreps)
-    for rep in 1:parameters.nreps
-        init_pop = population_construction(parameters)
-        if mod(rep, 20) == 0
-            print("Replicate $rep Started", "\n")
+using Distributed
+
+addprocs(4, topology=:master_worker, exeflags="--project=$(Base.active_project())")
+
+@everywhere begin
+    using ArgParse, JLD2
+
+
+    include("NetworkGameFuncs.jl")
+    include("NetworkGameStructs.jl")
+    function RunReplicates(parameters::simulation_parameters)
+        ## generation of initial network
+
+        rep_outputs = Vector(undef, parameters.nreps)
+        for rep in 1:parameters.nreps
+            init_pop = population_construction(parameters)
+            if mod(rep, 20) == 0
+                print("Replicate $rep Started", "\n")
+            end
+            rep_outputs[rep] = simulation(init_pop)
         end
-        rep_outputs[rep] = simulation(init_pop)
+        print("Replicates Completed in: ")
+        return rep_outputs
     end
-    print("Replicates Completed in: ")
-    return rep_outputs
 end
-
 ###################
 #      main       #
 ###################
