@@ -121,12 +121,16 @@ addprocs(4, topology=:master_worker, exeflags="--project=$(Base.active_project()
                 arg_type = Float64
                 default = 0.5
             ########
-            ## File Parameters
+            ## File/Simulation Parameters
             ########
             "--filename"
-                help = "File to save outputs to"
+                help = "Filename to save outputs to (please include .jld2 extension)"
                 arg_type = String
                 default = "NetworkGamePopGenTests.jld2"
+            "--init_freq_resolution"
+                help = "Step-size between initial frequencies if iterating over them"
+                arg_type = Float64
+                default = 0.05
         end
         
         ##passing command line arguments to simulation
@@ -135,7 +139,7 @@ addprocs(4, topology=:master_worker, exeflags="--project=$(Base.active_project()
                                             parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
                                             parsed_args["c"], parsed_args["d"], parsed_args["delta"], parsed_args["init_freqs"], 
                                             parsed_args["nnet"], parsed_args["mutsize"], parsed_args["mutinitsize"], parsed_args["mutlink"],
-                                            parsed_args["filename"])
+                                            parsed_args["filename"], parsed_args["init_freq_resolution"])
 
         ## Necessary sanity checks for params
         if mod(parameters.N, 2) != 0
@@ -143,7 +147,7 @@ addprocs(4, topology=:master_worker, exeflags="--project=$(Base.active_project()
         end
 
         ## setting iterator of population frequency
-        ps = collect(0.0:0.05:1.0)
+        ps = collect(0.0:parameters.init_freq_resolution:1.0)
         print("Starting replicates", "\n")
 
         ## initializing output array

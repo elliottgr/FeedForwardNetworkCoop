@@ -21,14 +21,14 @@ mutable struct simulation_parameters
     mutsize::Float64
     mutinitsize::Float64
     mutlink::Float64
-    #file params
+    #file/simulation params
     filename::String
-
+    init_freq_resolution::Float64
 end
 
 ## need to be able to create copies of the parameters struct when saving to disk
 function Base.copy(parameters::simulation_parameters)
-    return simulation_parameters(parameters.tmax, parameters.nreps,parameters.N,parameters.μ,parameters.rounds,parameters.fitness_benefit_scale,parameters.b,parameters.c,parameters.d,parameters.δ,parameters.init_freqs,parameters.nnet,parameters.mutsize,parameters.mutinitsize,parameters.mutlink,parameters.filename)
+    return simulation_parameters(parameters.tmax, parameters.nreps,parameters.N,parameters.μ,parameters.rounds,parameters.fitness_benefit_scale,parameters.b,parameters.c,parameters.d,parameters.δ,parameters.init_freqs,parameters.nnet,parameters.mutsize,parameters.mutinitsize,parameters.mutlink,parameters.filename, parameters.init_freq_resolution)
 end
 
 ## smallest type necessary to play a complete round of the game 
