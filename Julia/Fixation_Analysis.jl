@@ -20,7 +20,7 @@ output = jldopen("NetworkGamePopGenTests.jld2")
 # Based on equation 12, Kimura and Ohta, 1969, written by Daniel Priego Espinosa
 function t_bar(p::Float64,N::Float64,s::Float64)
     if s==0.0
-        return t_bar(p,N)
+        return t_bar_star(p,N)
     else
         u(p) = (1 - exp(-2*s*N*p)) / (1 - exp(-2*s*N))     # \psi(x) = \frac{2 \int_{0}^{1} G(x) dx}{V(x)G(x)}$
     # with
