@@ -6,7 +6,7 @@ using LinearAlgebra, Random, Distributions
 
 include("NetworkGameStructs.jl")
 
-function calcOj(j::Int64, prev_out, Wm, Wb::Vector{Float64})
+function calcOj(j::Int64, prev_out::Vector{Float64}, Wm::Matrix{Float64}, Wb::Vector{Float64})
     ##############################
     ## Iterates a single layer of the Feed Forward network
     ##############################
@@ -47,8 +47,8 @@ function repeatedNetworkGame(parameters::simulation_parameters, mutNet::network,
     mutNet.CurrentOffer = mutNet.InitialOffer
     resNet.CurrentOffer = resNet.InitialOffer
 
-    mutHist = zeros(parameters.rounds)
-    resHist = zeros(parameters.rounds)
+    mutHist = zeros(Float64, parameters.rounds)
+    resHist = zeros(Float64, parameters.rounds)
     for i in 1:parameters.rounds
         mutNet.CurrentOffer, resNet.CurrentOffer = networkGameRound(mutNet, resNet)
         mutHist[i] = mutNet.CurrentOffer
@@ -74,13 +74,14 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
     ## with discount, retrieves the full history and passes it to the
     ##  discount formula before returning final fitness value
     ############################################################
+
+    ## 6/16 Note: Previous versions of this script returned an array of arrays, it now returns simply the array
     if parameters.δ >= 0.0
         rmOut, mrOut = repeatedNetworkGame(parameters,mutNet,resNet)
         discount = exp.(-parameters.δ.*(parameters.rounds.-1 .-range(1,parameters.rounds, step = 1)))
-        td = sum(discount)
         wmr = max(0, (1 + dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale))
         wrm = max(0, (1 + dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount)*parameters.fitness_benefit_scale))
-        return [[wmr, wrm], [dot(rmOut, discount)/td, dot(mrOut, discount)/td]]
+        return [wmr, wrm]
 
     ############################################################
     ## without discount, retrieves only the final value after all 
@@ -90,7 +91,7 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
         rmOut, mrOut = repeatedNetworkGameHistory(parameters, mutNet, resNet)
         wmr = max(0, (1 + ((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
         wrm = max(0, (1 + ((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
-        return [[wmr, wrm], [rmOut, mrOut]]
+        return [wmr, wrm]
 
     end
 end
@@ -109,7 +110,7 @@ end
 
 function return_genotype_id_array(population_array::Vector{network})
     ## WIP returns an array of the genotype inside
-    genotype_array = Vector{Int64}(undef, 0)
+    genotype_array = zeros(Int64, 0)
     for individual in population_array
         append!(genotype_array, individual.genotype_id)
     end
@@ -133,14 +134,14 @@ function population_construction(parameters::simulation_parameters)
     ## instructed otherwise in params
     initialnetworks = Vector{network}(undef, length(parameters.init_freqs))
     population_array = Vector{network}(undef, 0)
-    for n in 1:length(parameters.init_freqs)
+    for n::Int64 in 1:length(parameters.init_freqs)
         Wm = randn((parameters.nnet,parameters.nnet))
 
         Wb = randn(parameters.nnet)
         initOffer = (1.0 + randn())/2
         initialnetworks[n] = network(n, Wm, Wb, initOffer, initOffer)
     end
-    for (net, p, gen) in zip(initialnetworks, parameters.init_freqs, 1:length(parameters.init_freqs))
+    for (net::network, p::Float64) in zip(initialnetworks, parameters.init_freqs)
         append!(population_array, repeat([net], Int64(trunc(p*parameters.N))))
     end
 
@@ -159,14 +160,12 @@ end
 # Pairwise fitness
 ##################
 function update_fit_dict!(pop::population)
-    g(x) = pop.genotypes[x]
-    for (n1, n2) in zip(1:pop.parameters.N, pop.shuffled_indices)
-        if g(n1) ∉ keys(pop.fit_dict)
-            pop.fit_dict[g(n1)] = Dict{Int64, Vector{Float64}}()
+    for (n1::Int64, n2::Int64) in zip(1:pop.parameters.N, pop.shuffled_indices)
+        if pop.genotypes[n1] ∉ keys(pop.fit_dict)
+            pop.fit_dict[pop.genotypes[n1]] = Dict{Int64, Vector{Float64}}()
         end
-        if g(n2) ∉ keys(pop.fit_dict[g(n1)])
-            fitness_outcome, raw_payoffs = fitnessOutcome(pop.parameters, pop.networks[n2], pop.networks[n1])
-            pop.fit_dict[g(n1)][g(n2)] = fitness_outcome
+        if pop.genotypes[n2] ∉ keys(pop.fit_dict[pop.genotypes[n1]])
+            pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = fitnessOutcome(pop.parameters, pop.networks[n2], pop.networks[n1])
         end
     end
 end
@@ -178,10 +177,9 @@ end
 function pairwise_fitness_calc!(pop::population)
     ## shuffles the population array, returns an array of fitness values calculated by
     ## running the fitness outcome function along both the original and shuffled array
-    repro_array = Vector{Float64}(undef, pop.parameters.N)
-    g(x) = pop.genotypes[x]
+    repro_array = Vector{Float64}(undef, pop.parameters.N::Int64)
     for (n1,n2) in zip(1:pop.parameters.N, pop.shuffled_indices)
-        repro_array[n1] = pop.fit_dict[g(n1)][g(n2)][1]./ sum(pop.fit_dict[g(n1)][g(n2)])
+        repro_array[n1] = pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]][1]./ sum(pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]])
     end
     return repro_array
 end
@@ -196,15 +194,13 @@ function reproduce!(pop::population)
     repro_array = pairwise_fitness_calc!(pop)
     new_genotypes = Vector{Int64}(undef, pop.parameters.N)
     new_networks = Vector{network}(undef, pop.parameters.N)
-    g(x) = pop.genotypes[x]
-    n(x) = pop.networks[x]
     for (res_i, mut_i) in zip(1:length(pop.networks), pop.shuffled_indices)
         if rand() <= repro_array[res_i]
-            new_genotypes[res_i] = g(res_i)
-            new_networks[res_i] = n(res_i)
+            new_genotypes[res_i] = pop.genotypes[res_i]
+            new_networks[res_i] = pop.networks[res_i]
         else
-            new_genotypes[res_i] = g(mut_i)
-            new_networks[res_i] = n(mut_i)
+            new_genotypes[res_i] = pop.genotypes[mut_i]
+            new_networks[res_i] = pop.networks[mut_i]
         end
     end
     pop.genotypes = new_genotypes
@@ -359,112 +355,7 @@ function simulation(pop::population)
 ############
 
 
-function initial_arg_parsing()
-    arg_parse_settings = ArgParseSettings()
-        @add_arg_table arg_parse_settings begin
 
-            ########
-            ## Population Simulation Parameters
-            ########
-            "--tmax"
-                help = "Maximum number of timesteps"
-                arg_type = Int64
-                default = 1000
-            "--nreps"
-                help = "number of replicates to run"
-                arg_type = Int64
-                default = 100
-            "--N"   
-                help = "population size"
-                arg_type = Int64
-                default = 100
-            "--mu"
-                help = "mutation probability per birth"
-                arg_type = Float64
-                default = 0.0
-
-            ########
-            ## Game Parameters
-            ########
-            "--rounds"
-                help = "number of rounds the game is played between individuals"
-                arg_type = Int64
-                default = 5
-
-            "--fitness_benefit_scale"
-                help = "scales the fitness payout of game rounds by this amount (payoff * scale)"
-                arg_type = Float64
-                default = 0.0
-
-            "--b"
-                help = "payoff benefit"
-                arg_type = Float64
-                default = 0.0
-            "--c"
-                help = "payoff cost"
-                arg_type = Float64 
-                default = 0.0
-            "--d"
-                help = "payoff synergy"
-                arg_type = Float64
-                default = 0.0
-            "--r"
-                help = "relatedness coefficient"
-                arg_type = Float64
-                default = 0.0
-            "--delta"
-                help = "payoff discount, negative values use last round"
-                arg_type = Float64
-                default = 0.0
-            "--init_freqs"
-                help = "vector of initial genotype frequencies, must sum to 1"
-                arg_type = Vector{Float64}
-                default = [0.50, 0.50]
-            ########
-            ## Network Parameters
-            ########
-            "--nnet"
-                help = "network size"
-                arg_type = Int64
-                default = 5
-            "--mutsize"
-                help = "Size of mutant effects on network in Normal Dist. StdDevs"
-                arg_type = Float64
-                default = 0.1
-            "--mutinitsize"
-                help = "Size of mutant effects on initial offers in Normal Dist. StdDevs"
-                arg_type = Float64
-                default = 0.01
-            "--mutlink"
-                help = "Probability that a random edge or node be altered in a mutation event"
-                arg_type = Float64
-                default = 0.5
-            ########
-            ## File/Simulation Parameters
-            ########
-            "--filename"
-                help = "Filename to save outputs to (please include .jld2 extension)"
-                arg_type = String
-                default = "NetworkGamePopGenTests.jld2"
-            "--init_freq_resolution"
-                help = "Step-size between initial frequencies if iterating over them"
-                arg_type = Float64
-                default = 0.05
-        end
-        
-        ##passing command line arguments to simulation
-        parsed_args = parse_args(ARGS, arg_parse_settings)
-        parameters = simulation_parameters(parsed_args["tmax"], parsed_args["nreps"], parsed_args["N"], parsed_args["mu"],
-                                            parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
-                                            parsed_args["c"], parsed_args["d"], parsed_args["delta"], parsed_args["init_freqs"], 
-                                            parsed_args["nnet"], parsed_args["mutsize"], parsed_args["mutinitsize"], parsed_args["mutlink"],
-                                            parsed_args["filename"], parsed_args["init_freq_resolution"])
-
-        ## Necessary sanity checks for params
-        if mod(parameters.N, 2) != 0
-            print("Please supply an even value of N!")
-        end
-    end
 
 ## EG 6/4/21
 ## WIP Note: May need to pass a vector of initial networks + corresponding weights if want this to be 

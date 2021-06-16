@@ -8,7 +8,7 @@
 
 using Distributed
 
-addprocs(4, topology=:master_worker, exeflags="--project=$(Base.active_project())")
+addprocs(8, topology=:master_worker, exeflags="--project=$(Base.active_project())")
 @everywhere using ArgParse, JLD2
 @everywhere begin
     #instantiating environment
@@ -72,13 +72,13 @@ addprocs(4, topology=:master_worker, exeflags="--project=$(Base.active_project()
             @time current_reps = RunReplicates(replicate_parameters)
 
             push!(sim_outputs, current_reps)
-
-
+            
         ## end of init_freq iteration loop
         end
+
     jldsave(parameters.filename; sim_outputs)
     ###################
-    #   Data Output   #
+    #   Data Output   #     
     ###################
 
     # sim data will be stored in previous section and saved to disk here. 
