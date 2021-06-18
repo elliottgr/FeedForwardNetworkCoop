@@ -83,23 +83,29 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
     if parameters.δ >= 0.0
         rmOut, mrOut = repeatedNetworkGame(parameters,mutNet,resNet)
         discount = calc_discount(parameters.δ, parameters.rounds)
+        x::Vector{Float64} = (parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut)
+        y::Vector{Float64} = (parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut)
+
         # discount = exp.(-parameters.δ.*(parameters.rounds.-1 .-range(1,parameters.rounds, step = 1)))
-        wmr = max(0.0, (1 + dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale))
-        wrm = max(0.0, (1 + dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount)*parameters.fitness_benefit_scale))
-        
+        # wmr = max(0.0, (1 + dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale))
+        # wrm = max(0.0, (1 + dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount)* parameters.fitness_benefit_scale))
+        wmr = 1 + dot(x, discount) * parameters.fitness_benefit_scale
+        wrm = 1 + dot(y, discount) * parameters.fitness_benefit_scale
+
         ## this will return the frequency of competitions in which
         ## the the resident will outcompete the mutant in the reproduction game
         ## P(mutant) + P(resident) = 1
         return wrm/(wmr+wrm)
-
+        ## Legacy code, changed 6/18/21
+        #return [wmr, wrm]
     ############################################################
     ## without discount, retrieves only the final value after all 
     ## rounds played and returns it as w based on game parameters
     ############################################################
     elseif parameters.δ < 0.0
         rmOut, mrOut = repeatedNetworkGameHistory(parameters, mutNet, resNet)
-        wmr = max(0, (1 + ((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
-        wrm = max(0, (1 + ((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
+        wmr = max(0.0, (1 + ((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
+        wrm = max(0.0, (1 + ((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
         return wrm/(wmr+wrm)
 
     end
@@ -119,10 +125,14 @@ end
 
 function return_genotype_id_array(population_array::Vector{network})
     ## Returns an array of the genotype inside
-    genotype_array = zeros(Int64, 0)
-    for individual in population_array
-        append!(genotype_array, individual.genotype_id)
+    genotype_array = zeros(Int64, length(population_array))
+    for i in 1:length(population_array)
+        genotype_array[i] = population_array[i].genotype_id
     end
+
+    # for individual in population_array
+    #     append!(genotype_array, individual.genotype_id)
+    # end
     return genotype_array
 end
 
@@ -135,13 +145,13 @@ function output!(t::Int64, pop::population, outputs::simulation_output)
     # end
     ## Updates output arrays
     if length(Set(pop.genotypes)) == 1
-        outputs.fixations[t] = maximum(pop.genotypes)
+        outputs.fixations[t] = pop.genotypes[1]
     else
         outputs.fixations[t] = 0
     end
     ## Maximum or length of the set of keys should return the largest genotype index ever present because
     ## each iteration will guarantee it shows up in fit_dict via the shuffle method
-    outputs.n_genotypes[t] = length(Set(keys(pop.fit_dict)))
+    outputs.n_genotypes[t] = pop.n_genotypes
 end
 function population_construction(parameters::simulation_parameters)
     ## constructs a population array when supplied with parameters and a list of networks
@@ -168,7 +178,7 @@ function population_construction(parameters::simulation_parameters)
     while length(population_array) > parameters.N
          pop!(population_array)
     end
-    return population(parameters, population_array, return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Vector{Float64}}}(), shuffle(1:parameters.N))
+    return population(parameters, population_array, return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Float64}}(), shuffle(1:parameters.N), length(parameters.init_freqs))
 end
 
 ##################
@@ -232,12 +242,13 @@ end
 function mutate!(pop::population)
     for i in 1:length(pop.networks)
         if rand() <= pop.parameters.μ
-            pop.genotypes[i] = maximum(return_genotype_id_array(pop.networks)) + 1
+            pop.n_genotypes += 1
+            pop.genotypes[i] = pop.n_genotypes
             mutWm = UpperTriangular(rand(Binomial(1, pop.parameters.mutlink), (pop.parameters.nnet,pop.parameters.nnet)) 
                                     .* rand(Normal(0, pop.parameters.mutsize), (pop.parameters.nnet,pop.parameters.nnet)))
             mutWb = rand(Binomial(1, pop.parameters.mutlink), pop.parameters.nnet) .* rand(Normal(0, pop.parameters.mutsize),pop.parameters.nnet)
             mutInit = rand(Normal(0, pop.parameters.mutsize))
-            pop.networks[i] = network((maximum(return_genotype_id_array(pop.networks))+1),
+            pop.networks[i] = network(pop.n_genotypes,
                                         (pop.networks[i].Wm + mutWm),
                                         (pop.networks[i].Wb + mutWb),
                                         (pop.networks[i].InitialOffer + mutInit),

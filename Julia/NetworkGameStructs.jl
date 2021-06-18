@@ -48,6 +48,7 @@ mutable struct population
     genotypes::Vector{Int64}
     fit_dict::Dict{Int64, Dict{Int64, Float64}}
     shuffled_indices::Vector{Int64}
+    n_genotypes::Int64
 end
 
 mutable struct simulation_output
