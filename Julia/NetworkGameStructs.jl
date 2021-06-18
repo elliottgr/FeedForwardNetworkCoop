@@ -7,7 +7,7 @@ mutable struct simulation_parameters
     tmax::Int64
     nreps::Int64
     N::Int64
-    μ::Float64
+    μ::Float64 
     #game params
     rounds::Int64
     fitness_benefit_scale::Float64
@@ -34,7 +34,7 @@ end
 ## smallest type necessary to play a complete round of the game 
 mutable struct network
     genotype_id::Int64
-    Wm
+    Wm::Matrix{Float64}
     Wb::Vector{Float64}
     InitialOffer::Float64
     CurrentOffer::Float64

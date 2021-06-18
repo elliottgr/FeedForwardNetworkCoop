@@ -8,7 +8,7 @@ using JLD2, Plots, DataFrames, StatsPlots, Statistics
 
 ## need to write generalized import at some point
 output = jldopen("NetworkGamePopGenTests.jld2")
-
+include("NetworkGameStructs.jl")
 
 ###############
 ## Functions ##

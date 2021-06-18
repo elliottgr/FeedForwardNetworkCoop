@@ -1,4 +1,4 @@
-using LinearAlgebra, Random, Distributions
+using LinearAlgebra, Random, Distributions, ArgParse
 
 ####################################
 # Network Game Functions
@@ -61,6 +61,9 @@ function repeatedNetworkGame(parameters::simulation_parameters, mutNet::network,
     end
 end
 
+function calc_discount(δ::Float64, rounds::Int64)
+    return exp.(-δ.*(rounds.-1 .-range(1,rounds, step = 1)))
+end
 function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet::network)
 
     ####################################
@@ -75,10 +78,11 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
     ##  discount formula before returning final fitness value
     ############################################################
 
-    ## 6/16 Note: Previous versions of this script returned an array of arrays, it now returns simply the array
+    ## 6/16 Note: Previous versions of this script returned an array of arrays, it now returns a single array
     if parameters.δ >= 0.0
         rmOut, mrOut = repeatedNetworkGame(parameters,mutNet,resNet)
-        discount = exp.(-parameters.δ.*(parameters.rounds.-1 .-range(1,parameters.rounds, step = 1)))
+        discount = calc_discount(parameters.δ, parameters.rounds)
+        # discount = exp.(-parameters.δ.*(parameters.rounds.-1 .-range(1,parameters.rounds, step = 1)))
         wmr = max(0, (1 + dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale))
         wrm = max(0, (1 + dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount)*parameters.fitness_benefit_scale))
         return [wmr, wrm]
@@ -109,7 +113,7 @@ function update_population!(pop::population)
 end
 
 function return_genotype_id_array(population_array::Vector{network})
-    ## WIP returns an array of the genotype inside
+    ## Returns an array of the genotype inside
     genotype_array = zeros(Int64, 0)
     for individual in population_array
         append!(genotype_array, individual.genotype_id)
@@ -118,9 +122,15 @@ function return_genotype_id_array(population_array::Vector{network})
 end
 
 function output!(t::Int64, pop::population, outputs::simulation_output)
+    ##an attempted optimization trick, not sure if it works or save time over set() method
+    # if sum(pop.genotypes) == (length(pop.genotypes)*maximum(pop.genotypes))
+    #     outputs.fixations[t] = maximum(pop.genotypes)
+    # else
+    #     outputs.fixations[t] = 0
+    # end
     ## Updates output arrays
     if length(Set(pop.genotypes)) == 1
-        outputs.fixations[t] = maximum(Set(pop.genotypes))
+        outputs.fixations[t] = maximum(pop.genotypes)
     else
         outputs.fixations[t] = 0
     end
@@ -177,9 +187,9 @@ end
 function pairwise_fitness_calc!(pop::population)
     ## shuffles the population array, returns an array of fitness values calculated by
     ## running the fitness outcome function along both the original and shuffled array
-    repro_array = Vector{Float64}(undef, pop.parameters.N::Int64)
+    repro_array = Vector{Float64}(undef, 0)
     for (n1,n2) in zip(1:pop.parameters.N, pop.shuffled_indices)
-        repro_array[n1] = pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]][1]./ sum(pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]])
+        push!(repro_array, pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]][1]./ sum(pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]))
     end
     return repro_array
 end
