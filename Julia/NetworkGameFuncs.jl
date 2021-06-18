@@ -64,6 +64,7 @@ end
 function calc_discount(δ::Float64, rounds::Int64)
     return exp.(-δ.*(rounds.-1 .-range(1,rounds, step = 1)))
 end
+
 function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet::network)
 
     ####################################
@@ -83,9 +84,13 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
         rmOut, mrOut = repeatedNetworkGame(parameters,mutNet,resNet)
         discount = calc_discount(parameters.δ, parameters.rounds)
         # discount = exp.(-parameters.δ.*(parameters.rounds.-1 .-range(1,parameters.rounds, step = 1)))
-        wmr = max(0, (1 + dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale))
-        wrm = max(0, (1 + dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount)*parameters.fitness_benefit_scale))
-        return [wmr, wrm]
+        wmr = max(0.0, (1 + dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale))
+        wrm = max(0.0, (1 + dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount)*parameters.fitness_benefit_scale))
+        
+        ## this will return the frequency of competitions in which
+        ## the the resident will outcompete the mutant in the reproduction game
+        ## P(mutant) + P(resident) = 1
+        return wrm/(wmr+wrm)
 
     ############################################################
     ## without discount, retrieves only the final value after all 
@@ -95,7 +100,7 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
         rmOut, mrOut = repeatedNetworkGameHistory(parameters, mutNet, resNet)
         wmr = max(0, (1 + ((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
         wrm = max(0, (1 + ((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
-        return [wmr, wrm]
+        return wrm/(wmr+wrm)
 
     end
 end
@@ -187,9 +192,12 @@ end
 function pairwise_fitness_calc!(pop::population)
     ## shuffles the population array, returns an array of fitness values calculated by
     ## running the fitness outcome function along both the original and shuffled array
-    repro_array = Vector{Float64}(undef, 0)
+    repro_array = zeros(Float64, pop.parameters.N)
     for (n1,n2) in zip(1:pop.parameters.N, pop.shuffled_indices)
-        push!(repro_array, pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]][1]./ sum(pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]))
+        ## legacy code 6/18/21
+        # push!(repro_array, pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]][1]./ sum(pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]))
+        repro_array[n1] = pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]
+
     end
     return repro_array
 end

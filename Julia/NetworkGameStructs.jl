@@ -46,7 +46,7 @@ mutable struct population
     parameters::simulation_parameters
     networks::Vector{network}
     genotypes::Vector{Int64}
-    fit_dict::Dict{Int64, Dict{Int64, Vector{Float64}}}
+    fit_dict::Dict{Int64, Dict{Int64, Float64}}
     shuffled_indices::Vector{Int64}
 end
 
