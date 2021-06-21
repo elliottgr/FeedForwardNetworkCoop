@@ -1,4 +1,4 @@
-using LinearAlgebra, Random, Distributions, ArgParse
+using LinearAlgebra, Random, Distributions, ArgParse, StatsBase
 
 ####################################
 # Network Game Functions
@@ -89,13 +89,13 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
         # discount = exp.(-parameters.δ.*(parameters.rounds.-1 .-range(1,parameters.rounds, step = 1)))
         # wmr = max(0.0, (1 + dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale))
         # wrm = max(0.0, (1 + dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount)* parameters.fitness_benefit_scale))
-        wmr = 1 + dot(x, discount) * parameters.fitness_benefit_scale
-        wrm = 1 + dot(y, discount) * parameters.fitness_benefit_scale
+        wmr = 1 + (dot(x, discount) * parameters.fitness_benefit_scale)
+        wrm = 1 + (dot(y, discount) * parameters.fitness_benefit_scale)
 
         ## this will return the frequency of competitions in which
         ## the the resident will outcompete the mutant in the reproduction game
         ## P(mutant) + P(resident) = 1
-        return wrm/(wmr+wrm)
+        return wrm
         ## Legacy code, changed 6/18/21
         #return [wmr, wrm]
     ############################################################
@@ -106,7 +106,7 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
         rmOut, mrOut = repeatedNetworkGameHistory(parameters, mutNet, resNet)
         wmr = max(0.0, (1 + ((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
         wrm = max(0.0, (1 + ((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
-        return wrm/(wmr+wrm)
+        return wrm
 
     end
 end
@@ -119,7 +119,8 @@ function update_population!(pop::population)
     ## runs functions necessary at every timestep of the simulation
     ## updates pop struct with new partner indices and genotype ID arrays
     pop.genotypes = return_genotype_id_array(pop.networks)
-    shuffle!(pop.shuffled_indices)
+    pop.shuffled_indices = shuffle(collect(1:1:length(pop.genotypes)))
+    # shuffle!(pop.shuffled_indices)
     update_fit_dict!(pop)
 end
 
@@ -129,10 +130,6 @@ function return_genotype_id_array(population_array::Vector{network})
     for i in 1:length(population_array)
         genotype_array[i] = population_array[i].genotype_id
     end
-
-    # for individual in population_array
-    #     append!(genotype_array, individual.genotype_id)
-    # end
     return genotype_array
 end
 
@@ -190,10 +187,15 @@ function update_fit_dict!(pop::population)
             pop.fit_dict[pop.genotypes[n1]] = Dict{Int64, Vector{Float64}}()
         end
         if pop.genotypes[n2] ∉ keys(pop.fit_dict[pop.genotypes[n1]])
-            pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = fitnessOutcome(pop.parameters, pop.networks[n2], pop.networks[n1])
+            if n1 != 1
+                pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = fitnessOutcome(pop.parameters, pop.networks[n2], pop.networks[n1])
+            else 
+                pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = fitnessOutcome(pop.parameters, pop.networks[n2], pop.networks[n1]) * pop.parameters.resident_fitness_scale
+            end
         end
     end
 end
+
 ##################
 # Pairwise fitness
 ##################
@@ -202,6 +204,7 @@ end
 function pairwise_fitness_calc!(pop::population)
     ## shuffles the population array, returns an array of fitness values calculated by
     ## running the fitness outcome function along both the original and shuffled array
+    
     repro_array = zeros(Float64, pop.parameters.N)
     for (n1,n2) in zip(1:pop.parameters.N, pop.shuffled_indices)
         ## legacy code 6/18/21
@@ -209,7 +212,7 @@ function pairwise_fitness_calc!(pop::population)
         repro_array[n1] = pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]
 
     end
-    return repro_array
+    return repro_array./sum(repro_array)
 end
 
 ##################
@@ -222,14 +225,17 @@ function reproduce!(pop::population)
     repro_array = pairwise_fitness_calc!(pop)
     new_genotypes = Vector{Int64}(undef, pop.parameters.N)
     new_networks = Vector{network}(undef, pop.parameters.N)
+
     for (res_i, mut_i) in zip(1:length(pop.networks), pop.shuffled_indices)
-        if rand() <= repro_array[res_i]
-            new_genotypes[res_i] = pop.genotypes[res_i]
-            new_networks[res_i] = pop.networks[res_i]
-        else
-            new_genotypes[res_i] = pop.genotypes[mut_i]
-            new_networks[res_i] = pop.networks[mut_i]
-        end
+        new_genotypes[res_i] = sample(pop.genotypes, Weights(repro_array))
+        new_networks[res_i] = pop.networks[sample(collect(1:1:length(pop.genotypes)), Weights(repro_array))]
+        # if rand() <= repro_array[res_i]
+        #     new_genotypes[res_i] = pop.genotypes[res_i]
+        #     new_networks[res_i] = pop.networks[res_i]
+        # else
+        #     new_genotypes[res_i] = pop.genotypes[mut_i]
+        #     new_networks[res_i] = pop.networks[mut_i]
+        # end
     end
     pop.genotypes = new_genotypes
     pop.networks = new_networks
@@ -287,14 +293,17 @@ function initial_arg_parsing()
             help = "mutation probability per birth"
             arg_type = Float64
             default = 0.0
-
+        "--resident_fitness_scale"
+            help = "scales the initial resident fitness for debugging pop gen funcs"
+            arg_type = Float64
+            default = 1.0
         ########
         ## Game Parameters
         ########
         "--rounds"
             help = "number of rounds the game is played between individuals"
             arg_type = Int64
-            default = 5
+            default = 10
 
         "--fitness_benefit_scale"
             help = "scales the fitness payout of game rounds by this amount (payoff * scale)"
@@ -359,7 +368,7 @@ function initial_arg_parsing()
 
     ##passing command line arguments to simulation
     parsed_args = parse_args(ARGS, arg_parse_settings)
-    parameters = simulation_parameters(parsed_args["tmax"], parsed_args["nreps"], parsed_args["N"], parsed_args["mu"],
+    parameters = simulation_parameters(parsed_args["tmax"], parsed_args["nreps"], parsed_args["N"], parsed_args["mu"], parsed_args["resident_fitness_scale"],
                                         parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
                                         parsed_args["c"], parsed_args["d"], parsed_args["delta"], parsed_args["init_freqs"], 
                                         parsed_args["nnet"], parsed_args["mutsize"], parsed_args["mutinitsize"], parsed_args["mutlink"],

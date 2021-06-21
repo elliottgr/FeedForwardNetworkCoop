@@ -8,7 +8,7 @@
 
 using Distributed
 
-addprocs(8, topology=:master_worker, exeflags="--project=$(Base.active_project())")
+addprocs(4, topology=:master_worker, exeflags="--project=$(Base.active_project())")
 @everywhere using ArgParse, JLD2
 @everywhere begin
     #instantiating environment
@@ -54,7 +54,8 @@ addprocs(8, topology=:master_worker, exeflags="--project=$(Base.active_project()
 
         ## setting iterator of population frequency
         ps = collect(0.0:parameters.init_freq_resolution:1.0)
-        print("Starting replicates", "\n")
+        n_workers = nworkers()
+        print("Starting replicates with $n_workers processes", "\n")
 
         ## initializing output array
         sim_outputs = Vector(undef, 0)
@@ -64,8 +65,9 @@ addprocs(8, topology=:master_worker, exeflags="--project=$(Base.active_project()
             print("p = ", p, "\n")
 
             ## creating savable copy of the parameters
-            parameters.init_freqs = [p, q] 
+
             replicate_parameters = copy(parameters)
+            replicate_parameters.init_freqs = [p, q] 
             # ###################
             # # Simulation call #
             # ###################

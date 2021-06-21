@@ -1,4 +1,4 @@
-using JLD2, Plots, DataFrames, StatsPlots, Statistics
+using JLD2, Plots, DataFrames, StatsPlots, Statistics, QuadGK
 
 
 ## Usage Note: Top-level functions are setup to be called as
@@ -22,18 +22,22 @@ function t_bar(p::Float64,N::Float64,s::Float64)
     if s==0.0
         return t_bar_star(p,N)
     else
-        u(p) = (1 - exp(-2*s*N*p)) / (1 - exp(-2*s*N))     # \psi(x) = \frac{2 \int_{0}^{1} G(x) dx}{V(x)G(x)}$
-    # with
-    # $G(x) = e^{-\int \frac{2 M(x)}{V(x)} dx}$
-    # $V(x) = \frac{x(1-x)}{N_e}$        psi(x) = (exp(2*N*s*x)*(1 - exp(-2*N*s))) / (s*(1 - x)*x)
-        t_int1(ξ) = psi(ξ)*u(ξ)*(1-u(ξ))
-        t_int2(ξ) = psi(ξ)*u(ξ)^2
-        tbar1_1, err_tbar1_1 = quadgk(t_int1,p,1)
-        tbar1_2, err_tbar1_2 = quadgk(t_int2,0,p)
-        return tbar1_1 + (1 - u(p))/u(p) * tbar1_2
+        if 0.0 < p < 1.0
+            u(p) = (1 - exp(-2*s*N*p)) / (1 - exp(-2*s*N))     # \psi(x) = \frac{2 \int_{0}^{1} G(x) dx}{V(x)G(x)}$
+        # with
+        # $G(x) = e^{-\int \frac{2 M(x)}{V(x)} dx}$
+        # $V(x) = \frac{x(1-x)}{N_e}$        
+            psi(x) = (exp(2*N*s*x)*(1 - exp(-2*N*s))) / (s*(1 - x)*x)
+            t_int1(ξ) = psi(ξ)*u(ξ)*(1-u(ξ))
+            t_int2(ξ) = psi(ξ)*u(ξ)^2
+            tbar1_1, err_tbar1_1 = quadgk(t_int1,p,1)
+            tbar1_2, err_tbar1_2 = quadgk(t_int2,0,p)
+            return tbar1_1 + (1 - u(p))/u(p) * tbar1_2
+        else
+            return t_bar(p, N, 0.0)
+        end
     end
 end
-
 
 ## From Ewens (2004) 3.9
 ## approximate time to fixation for a neutral allele
@@ -59,7 +63,7 @@ function π_x!(N, selective_advantage, ps)
         else
             p_pred = (1 - exp(-α * p))/(1 - exp(-α))
         end
-        push!(predicted_values, ((1 - exp(-α * p))/(1 - exp(-α))))
+        push!(predicted_values,p_pred)
     end
     return predicted_values
 end
@@ -112,6 +116,7 @@ end
 ## of ANY genotype fixing. May be useful in later multi-genotype simulations
 function find_π_x(experiment, genotype = nothing)
     experiment_results = Vector{Float64}(undef, 0)
+    fixations = 0
     for replicate in experiment
         t_fix = find_t_fix(replicate, genotype)
 
@@ -181,17 +186,17 @@ function create_plots(file, pred_resolution::Float64, genotype = nothing)
     t_fix_mean = plot_mean_t_fix(file, genotype)
     t_bar_pred = Vector{Float64}(undef, 0)
     l = @layout [a;b]
-
-    π_plot = scatter(π_fix_df.init_freqs, π_fix_df.π_x, labels = "π(p) (obs)")
-    π_plot = plot!(collect(0.0:pred_resolution:1.0), collect(0.0:pred_resolution:1.0), labels = "π(p) (pred)")
+    parameters = get_experiment(file, 1,1).parameters
+    π_plot = scatter(π_fix_df.init_freqs, π_fix_df.π_x, labels = "π(p) (obs)", legend=:bottomright)
+    π_plot = plot!(collect(0.0:pred_resolution:1.0), π_x!(parameters.N, parameters.resident_fitness_scale-1, collect(0.0:pred_resolution:1.0)), labels = "π(p) (pred)")
     t_plot = scatter(t_fix_df.init_freqs, t_fix_df.t_fix, labels = "t_fix (obs)")
     t_plot = plot!(t_fix_mean.init_freqs, t_fix_mean.t_fix_mean, labels = "t_fix (mean)")
     for p in collect(0.0:pred_resolution:1.0)
-        push!(t_bar_pred, t_bar(p, 100.0, 0.0))
+        push!(t_bar_pred, t_bar(p, 100.0, parameters.resident_fitness_scale-1))
     end
     t_plot = plot!(collect(0.0:pred_resolution:1.0), t_bar_pred, labels = "t_bar (pred)")
     plt = plot(π_plot, t_plot, layout=(2,1))
-
+    # close(file)
 end
 # create_plots(output, 0.001, 1)
 savefig(create_plots(output, 0.01, 1), "p_and_t_fix.png")
