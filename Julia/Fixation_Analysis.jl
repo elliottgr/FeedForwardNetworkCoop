@@ -7,7 +7,7 @@ using JLD2, Plots, DataFrames, StatsPlots, Statistics, QuadGK
 ## must be one of the initial genotypes
 
 ## need to write generalized import at some point
-output = jldopen("NetworkGamePopGenTests.jld2")
+
 include("NetworkGameStructs.jl")
 
 ###############
@@ -19,20 +19,21 @@ include("NetworkGameStructs.jl")
 # Conditional fixation of an advantageous allele, i.e. drift and selection, no mutation.
 # Based on equation 12, Kimura and Ohta, 1969, written by Daniel Priego Espinosa
 function t_bar(p::Float64,N::Float64,s::Float64)
+    α = 2*N*s
     if s==0.0
         return t_bar_star(p,N)
     else
         if 0.0 < p < 1.0
-            u(p) = (1 - exp(-2*s*N*p)) / (1 - exp(-2*s*N))     # \psi(x) = \frac{2 \int_{0}^{1} G(x) dx}{V(x)G(x)}$
+            u(p) = (1 - exp(-α*p)) / (1 - exp(-α))     # \psi(x) = \frac{2 \int_{0}^{1} G(x) dx}{V(x)G(x)}$
         # with
         # $G(x) = e^{-\int \frac{2 M(x)}{V(x)} dx}$
         # $V(x) = \frac{x(1-x)}{N_e}$        
-            psi(x) = (exp(2*N*s*x)*(1 - exp(-2*N*s))) / (s*(1 - x)*x)
+            psi(x) = (exp(α*x)*(1 - exp(-α))) / (s*(1 - x)*x)
             t_int1(ξ) = psi(ξ)*u(ξ)*(1-u(ξ))
             t_int2(ξ) = psi(ξ)*u(ξ)^2
             tbar1_1, err_tbar1_1 = quadgk(t_int1,p,1)
             tbar1_2, err_tbar1_2 = quadgk(t_int2,0,p)
-            return tbar1_1 + (1 - u(p))/u(p) * tbar1_2
+            return tbar1_1 + (tbar1_2 *(1 - u(p))/u(p))
         else
             return t_bar(p, N, 0.0)
         end
@@ -48,12 +49,12 @@ function t_bar_star(p::Float64, N::Float64)
     elseif p == 1
         return 0
     else
-        return (-4 * N / p)*(1-p)*(log(1-p))
+        return (-2 * N / p)*(1-p)*(log(1-p))
     end
 end
 
 function π_x!(N, selective_advantage, ps)
-    α = 2 * N * (selective_advantage)
+    α =  N * selective_advantage
     predicted_values = Vector{Float64}(undef,0)
     for p in ps
         if p == 0
@@ -140,12 +141,12 @@ function get_t_fix(file::JLD2.JLDFile, genotype=nothing)
     t_fix = Vector{Int64}(undef, 0)
     for file in get_experiment(file)
         for replicate in file
-            if isnan.(find_t_fix(replicate,genotype)) == [false, false]
-                push!(ps, replicate.parameters.init_freqs[genotype])
-                push!(genotypes, find_t_fix(replicate,genotype)[2])
-                push!(t_fix, find_t_fix(replicate,genotype)[1])
+            # if isnan.(find_t_fix(replicate,genotype)) == [false, false]
+            push!(ps, replicate.parameters.init_freqs[genotype])
+            push!(genotypes, find_t_fix(replicate,genotype)[2])
+            push!(t_fix, find_t_fix(replicate,genotype)[1])
         
-            end
+            # end
         end
     end
     return ps, genotypes, t_fix
@@ -189,16 +190,21 @@ function create_plots(file, pred_resolution::Float64, genotype = nothing)
     parameters = get_experiment(file, 1,1).parameters
     π_plot = scatter(π_fix_df.init_freqs, π_fix_df.π_x, labels = "π(p) (obs)", legend=:bottomright)
     π_plot = plot!(collect(0.0:pred_resolution:1.0), π_x!(parameters.N, parameters.resident_fitness_scale-1, collect(0.0:pred_resolution:1.0)), labels = "π(p) (pred)")
-    t_plot = scatter(t_fix_df.init_freqs, t_fix_df.t_fix, labels = "t_fix (obs)")
+    t_plot = scatter(t_fix_df.init_freqs, t_fix_df.t_fix, markeralpha=0.1, labels = "t_fix (obs)")
     t_plot = plot!(t_fix_mean.init_freqs, t_fix_mean.t_fix_mean, labels = "t_fix (mean)")
     for p in collect(0.0:pred_resolution:1.0)
-        push!(t_bar_pred, t_bar(p, 100.0, parameters.resident_fitness_scale-1))
+        push!(t_bar_pred, t_bar(p, Float64(parameters.N), parameters.resident_fitness_scale-1))
     end
     t_plot = plot!(collect(0.0:pred_resolution:1.0), t_bar_pred, labels = "t_bar (pred)")
     plt = plot(π_plot, t_plot, layout=(2,1))
     # close(file)
 end
 # create_plots(output, 0.001, 1)
-savefig(create_plots(output, 0.01, 1), "p_and_t_fix.png")
+function main()
+    output = jldopen("NetworkGamePopGenTests.jld2")
+    savefig(create_plots(output, 0.01, 1), "p_and_t_fix.png")
+    close(output)
+end
 
+main()
 

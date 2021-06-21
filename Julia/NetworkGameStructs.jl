@@ -27,10 +27,12 @@ mutable struct simulation_parameters
     init_freq_resolution::Float64
 end
 
-## need to be able to create copies of the parameters struct when saving to disk
+## need to be able to create copies of the parameters and networks structs
 function Base.copy(parameters::simulation_parameters)
     return simulation_parameters(parameters.tmax, parameters.nreps,parameters.N,parameters.μ, parameters.resident_fitness_scale, parameters.rounds,parameters.fitness_benefit_scale,parameters.b,parameters.c,parameters.d,parameters.δ,parameters.init_freqs,parameters.nnet,parameters.mutsize,parameters.mutinitsize,parameters.mutlink,parameters.filename, parameters.init_freq_resolution)
 end
+
+
 
 ## smallest type necessary to play a complete round of the game 
 mutable struct network
@@ -41,6 +43,9 @@ mutable struct network
     CurrentOffer::Float64
 end
 
+function Base.copy(net::network)
+    return network(net.genotype_id, net.Wm, net.Wb, net.InitialOffer, net.CurrentOffer)
+end
 ## prevents the creation of population arrays that won't work with the shuffle reproduction method
 ## (those where N mod 2 != 0)
 mutable struct population

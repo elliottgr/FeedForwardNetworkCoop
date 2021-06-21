@@ -226,9 +226,10 @@ function reproduce!(pop::population)
     new_genotypes = Vector{Int64}(undef, pop.parameters.N)
     new_networks = Vector{network}(undef, pop.parameters.N)
 
-    for (res_i, mut_i) in zip(1:length(pop.networks), pop.shuffled_indices)
-        new_genotypes[res_i] = sample(pop.genotypes, Weights(repro_array))
+    for res_i in 1:pop.parameters.N
+
         new_networks[res_i] = pop.networks[sample(collect(1:1:length(pop.genotypes)), Weights(repro_array))]
+        new_genotypes[res_i] = pop.networks[res_i].genotype_id
         # if rand() <= repro_array[res_i]
         #     new_genotypes[res_i] = pop.genotypes[res_i]
         #     new_networks[res_i] = pop.networks[res_i]
