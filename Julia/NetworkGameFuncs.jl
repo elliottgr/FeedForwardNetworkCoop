@@ -135,8 +135,8 @@ end
 
 function output!(t::Int64, pop::population, outputs::simulation_output)
     ##an attempted optimization trick, not sure if it works or save time over set() method
-    # if sum(pop.genotypes) == (length(pop.genotypes)*maximum(pop.genotypes))
-    #     outputs.fixations[t] = maximum(pop.genotypes)
+    # if sum(pop.genotypes) == length(pop.genotypes)*pop.genotypes[1]
+    #     outputs.fixations[t] = pop.genotypes[1]
     # else
     #     outputs.fixations[t] = 0
     # end
@@ -225,18 +225,9 @@ function reproduce!(pop::population)
     repro_array = pairwise_fitness_calc!(pop)
     new_genotypes = Vector{Int64}(undef, pop.parameters.N)
     new_networks = Vector{network}(undef, pop.parameters.N)
-
     for res_i in 1:pop.parameters.N
-
-        new_networks[res_i] = pop.networks[sample(collect(1:1:length(pop.genotypes)), Weights(repro_array))]
+        new_networks[res_i] = copy(pop.networks[sample(collect(1:1:length(pop.genotypes)), Weights(repro_array))])
         new_genotypes[res_i] = pop.networks[res_i].genotype_id
-        # if rand() <= repro_array[res_i]
-        #     new_genotypes[res_i] = pop.genotypes[res_i]
-        #     new_networks[res_i] = pop.networks[res_i]
-        # else
-        #     new_genotypes[res_i] = pop.genotypes[mut_i]
-        #     new_networks[res_i] = pop.networks[mut_i]
-        # end
     end
     pop.genotypes = new_genotypes
     pop.networks = new_networks
