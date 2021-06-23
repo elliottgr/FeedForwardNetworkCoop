@@ -119,7 +119,7 @@ function update_population!(pop::population)
     ## runs functions necessary at every timestep of the simulation
     ## updates pop struct with new partner indices and genotype ID arrays
     pop.genotypes = return_genotype_id_array(pop.networks)
-    pop.shuffled_indices = shuffle(collect(1:1:length(pop.genotypes)))
+    pop.shuffled_indices = shuffle(pop.shuffled_indices)
     # shuffle!(pop.shuffled_indices)
     update_fit_dict!(pop)
 end
@@ -134,12 +134,6 @@ function return_genotype_id_array(population_array::Vector{network})
 end
 
 function output!(t::Int64, pop::population, outputs::simulation_output)
-    ##an attempted optimization trick, not sure if it works or save time over set() method
-    # if sum(pop.genotypes) == length(pop.genotypes)*pop.genotypes[1]
-    #     outputs.fixations[t] = pop.genotypes[1]
-    # else
-    #     outputs.fixations[t] = 0
-    # end
     ## Updates output arrays
     if length(Set(pop.genotypes)) == 1
         outputs.fixations[t] = pop.genotypes[1]
@@ -150,32 +144,47 @@ function output!(t::Int64, pop::population, outputs::simulation_output)
     ## each iteration will guarantee it shows up in fit_dict via the shuffle method
     outputs.n_genotypes[t] = pop.n_genotypes
 end
+
 function population_construction(parameters::simulation_parameters)
     ## constructs a population array when supplied with parameters and a list of networks
     ## should default to a full array of a randomly chosen resident genotype unless
     ## instructed otherwise in params
     initialnetworks = Vector{network}(undef, length(parameters.init_freqs))
-    population_array = Vector{network}(undef, 0)
+    population_array = Vector{network}(undef, parameters.N)
+    scale_freq(p, N) = convert(Int64, round((p*N), digits=0))
     for n::Int64 in 1:length(parameters.init_freqs)
         Wm = randn((parameters.nnet,parameters.nnet))
-
         Wb = randn(parameters.nnet)
         initOffer = (1.0 + randn())/2
         initialnetworks[n] = network(n, Wm, Wb, initOffer, initOffer)
     end
-    for (net::network, p::Float64) in zip(initialnetworks, parameters.init_freqs)
-        append!(population_array, repeat([net], Int64(trunc(p*parameters.N))))
+    pop_iterator = 0
+    for init_freq_i in 1:length(parameters.init_freqs)
+        for n_i in 1:scale_freq(parameters.init_freqs[init_freq_i], parameters.N)
+            pop_iterator += 1
+            population_array[pop_iterator] = initialnetworks[init_freq_i]
+        end
     end
+    # check = count(i->(i==1), return_genotype_id_array(population_array)) 
 
+    ## 6/23/21 
+    ## still running into fixation time bug, going to try rewriting this
+    # for (net::network, p::Float64) in zip(initialnetworks, parameters.init_freqs)
+    #     append!(population_array, repeat([net], Int64(trunc(p*parameters.N))))
+    # end
+    # print(population_array)
     ## depending on the init_freq_resolution, population size may not match generated array
     ## in this case, the final genotype is appended until the parameters match
-    while length(population_array) < parameters.N
-        append!(population_array, [last(initialnetworks)])
+    # while length(population_array) < parameters.N
+    #     append!(population_array, [last(initialnetworks)])
+    # end
+    # while length(population_array) > parameters.N
+    #      pop!(population_array)
+    # end
+    if length(population_array) != parameters.N
+        return error("population array failed to generate $N networks")
     end
-    while length(population_array) > parameters.N
-         pop!(population_array)
-    end
-    return population(parameters, population_array, return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Float64}}(), shuffle(1:parameters.N), length(parameters.init_freqs))
+    return population(parameters, shuffle!(population_array), return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Float64}}(), shuffle(1:parameters.N), length(parameters.init_freqs))
 end
 
 ##################
@@ -190,7 +199,7 @@ function update_fit_dict!(pop::population)
             if n1 != 1
                 pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = fitnessOutcome(pop.parameters, pop.networks[n2], pop.networks[n1])
             else 
-                pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = fitnessOutcome(pop.parameters, pop.networks[n2], pop.networks[n1]) * pop.parameters.resident_fitness_scale
+                pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = fitnessOutcome(pop.parameters, pop.networks[n2], pop.networks[n1])
             end
         end
     end
@@ -202,15 +211,16 @@ end
 
 
 function pairwise_fitness_calc!(pop::population)
-    ## shuffles the population array, returns an array of fitness values calculated by
+    ## shuffles the population array, returns the fitness of the resident at each point calculated by
     ## running the fitness outcome function along both the original and shuffled array
     
     repro_array = zeros(Float64, pop.parameters.N)
     for (n1,n2) in zip(1:pop.parameters.N, pop.shuffled_indices)
-        ## legacy code 6/18/21
-        # push!(repro_array, pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]][1]./ sum(pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]))
-        repro_array[n1] = pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]
-
+        if n1 == 1
+            repro_array[n1] = pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]*pop.parameters.resident_fitness_scale
+        else
+            repro_array[n1] = pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]
+        end
     end
     return repro_array./sum(repro_array)
 end
@@ -223,14 +233,29 @@ function reproduce!(pop::population)
     ## working with new arrays rather than copy of old pop to avoid in-place weirdness with shuffle()
 
     repro_array = pairwise_fitness_calc!(pop)
-    new_genotypes = Vector{Int64}(undef, pop.parameters.N)
-    new_networks = Vector{network}(undef, pop.parameters.N)
-    for res_i in 1:pop.parameters.N
-        new_networks[res_i] = copy(pop.networks[sample(collect(1:1:length(pop.genotypes)), Weights(repro_array))])
-        new_genotypes[res_i] = pop.networks[res_i].genotype_id
+    # new_genotypes = Vector{Int64}(undef, pop.parameters.N)
+    # new_networks = Vector{network}(undef, pop.parameters.N)
+    genotype_i_array = sample(collect(1:1:length(pop.genotypes)), ProbabilityWeights(repro_array), pop.parameters.N, replace=true)
+    old_networks = copy(pop.networks)
+    # old_genotypes = copy(pop.genotypes)
+    for (res_i, offspring_i) in zip(1:pop.parameters.N, genotype_i_array)
+        # g_i = sample(genotype_i_array, Weights(repro_array))
+        # new_networks[res_i] = pop.networks[offspring_i]
+        # new_genotypes[res_i] = pop.networks[offspring_i].genotype_id
+        pop.networks[res_i] = old_networks[offspring_i]
+        # pop.genotypes[res_i] = old_genotypes[offspring_i]
     end
-    pop.genotypes = new_genotypes
-    pop.networks = new_networks
+
+    # pop.genotypes = new_genotypes
+    # if pop.parameters.init_freqs[1] != 0.0
+    #     if pop.parameters.init_freqs[1] != 1.0
+    #         if pop.networks == new_networks
+    #             print(genotype_i_array)
+    #             return error("dang")
+    #         end
+    #     end
+    # end
+    # pop.networks = new_networks
 end
 
 ##################
@@ -410,9 +435,11 @@ outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
     ############
     for t in 1:pop.parameters.tmax
         # update population struct 
+
         update_population!(pop)
 
         # reproduction function / produce and save t+1 population array
+        old_pop = copy(pop.networks)[1:10]
         reproduce!(pop)
 
         # mutation function / iterates over population and mutates at chance probability μ
@@ -422,6 +449,13 @@ outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
         # per-timestep counters, outputs going to disk
         output!(t, pop, outputs)
 
+
+        ## ends the loop if only one genotype exists AND mutation is not enabled
+        if pop.parameters.μ ==  0.0
+            if outputs.fixations[t] != 0
+                return outputs
+            end
+        end
         ## should detect an error in genotype tracking. Will trip if there is <2 genotypes initially
         if pop.parameters.init_freqs[1] != 0.0
             if length(Set(keys(pop.fit_dict))) != maximum(Set(keys(pop.fit_dict)))

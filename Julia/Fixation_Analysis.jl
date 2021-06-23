@@ -69,7 +69,7 @@ end
 ## adjusted from -4N -> -2N because model is haploid
 function t_bar_star(p::Float64, N::Float64)
     if p <= 0 
-        return 1000
+        return 0
     elseif p == 1
         return 0
     else
@@ -124,10 +124,10 @@ function find_t_fix(rep, genotype=nothing)
             if rep.fixations[t] == genotype
                 return [t, rep.fixations[t]]
             end
-        else
-            if rep.fixations[t] != 0
-                return [t, rep.fixations[t]]
-            end
+        # else
+        #     if rep.fixations[t] != 0
+        #         return [t, rep.fixations[t]]
+        #     end
         end
     end
 
@@ -155,7 +155,7 @@ function find_π_x(experiment, genotype = nothing)
             push!(experiment_results, 1)
         end
     end
-    return mean(skipmissing(experiment_results))
+    return mean(filter(!isnan,experiment_results))
 end
 
 function get_t_fix(file::JLD2.JLDFile, genotype=nothing)
