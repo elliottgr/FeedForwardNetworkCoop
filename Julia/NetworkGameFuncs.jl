@@ -86,9 +86,6 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
         x::Vector{Float64} = (parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut)
         y::Vector{Float64} = (parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut)
 
-        # discount = exp.(-parameters.δ.*(parameters.rounds.-1 .-range(1,parameters.rounds, step = 1)))
-        # wmr = max(0.0, (1 + dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale))
-        # wrm = max(0.0, (1 + dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount)* parameters.fitness_benefit_scale))
         wmr = 1 + (dot(x, discount) * parameters.fitness_benefit_scale)
         wrm = 1 + (dot(y, discount) * parameters.fitness_benefit_scale)
 
@@ -120,7 +117,6 @@ function update_population!(pop::population)
     ## updates pop struct with new partner indices and genotype ID arrays
     pop.genotypes = return_genotype_id_array(pop.networks)
     pop.shuffled_indices = shuffle(pop.shuffled_indices)
-    # shuffle!(pop.shuffled_indices)
     update_fit_dict!(pop)
 end
 
@@ -135,7 +131,8 @@ end
 
 function output!(t::Int64, pop::population, outputs::simulation_output)
     ## Updates output arrays
-    if length(Set(pop.genotypes)) == 1
+    if count(i->(i==pop.genotypes[1]), pop.genotypes) == pop.parameters.N
+    # if length(Set(pop.genotypes)) == 1
         outputs.fixations[t] = pop.genotypes[1]
     else
         outputs.fixations[t] = 0
@@ -165,22 +162,6 @@ function population_construction(parameters::simulation_parameters)
             population_array[pop_iterator] = initialnetworks[init_freq_i]
         end
     end
-    # check = count(i->(i==1), return_genotype_id_array(population_array)) 
-
-    ## 6/23/21 
-    ## still running into fixation time bug, going to try rewriting this
-    # for (net::network, p::Float64) in zip(initialnetworks, parameters.init_freqs)
-    #     append!(population_array, repeat([net], Int64(trunc(p*parameters.N))))
-    # end
-    # print(population_array)
-    ## depending on the init_freq_resolution, population size may not match generated array
-    ## in this case, the final genotype is appended until the parameters match
-    # while length(population_array) < parameters.N
-    #     append!(population_array, [last(initialnetworks)])
-    # end
-    # while length(population_array) > parameters.N
-    #      pop!(population_array)
-    # end
     if length(population_array) != parameters.N
         return error("population array failed to generate $N networks")
     end
@@ -230,33 +211,12 @@ end
 ##################
 
 function reproduce!(pop::population)
-    ## working with new arrays rather than copy of old pop to avoid in-place weirdness with shuffle()
-
     repro_array = pairwise_fitness_calc!(pop)
-    # new_genotypes = Vector{Int64}(undef, pop.parameters.N)
-    # new_networks = Vector{network}(undef, pop.parameters.N)
     genotype_i_array = sample(collect(1:1:length(pop.genotypes)), ProbabilityWeights(repro_array), pop.parameters.N, replace=true)
     old_networks = copy(pop.networks)
-    # old_genotypes = copy(pop.genotypes)
-    # print(length(genotype_i_array), "  ", length(Set(genotype_i_array)), "\n")
     for (res_i, offspring_i) in zip(1:pop.parameters.N, genotype_i_array)
-        # g_i = sample(genotype_i_array, Weights(repro_array))
-        # new_networks[res_i] = pop.networks[offspring_i]
-        # new_genotypes[res_i] = pop.networks[offspring_i].genotype_id
         pop.networks[res_i] = old_networks[offspring_i]
-        # pop.genotypes[res_i] = old_genotypes[offspring_i]
     end
-
-    # pop.genotypes = new_genotypes
-    # if pop.parameters.init_freqs[1] != 0.0
-    #     if pop.parameters.init_freqs[1] != 1.0
-    #         if pop.networks == new_networks
-    #             print(genotype_i_array)
-    #             return error("dang")
-    #         end
-    #     end
-    # end
-    # pop.networks = new_networks
 end
 
 ##################
