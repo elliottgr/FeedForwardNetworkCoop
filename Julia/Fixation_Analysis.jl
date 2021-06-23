@@ -18,6 +18,31 @@ include("NetworkGameStructs.jl")
 
 # Conditional fixation of an advantageous allele, i.e. drift and selection, no mutation.
 # Based on equation 12, Kimura and Ohta, 1969, written by Daniel Priego Espinosa
+# function t_bar(p::Float64,N::Float64,s::Float64)
+#     α = 2*N*s
+#     if s==0.0
+#         return t_bar_star(p,N)
+#     else
+#         if 0.0 < p < 1.0
+#             u(p) = (1 - exp(-α*p)) / (1 - exp(-α))     # \psi(x) = \frac{2 \int_{0}^{1} G(x) dx}{V(x)G(x)}$
+#         # with
+#         # $G(x) = e^{-\int \frac{2 M(x)}{V(x)} dx}$
+#         # $V(x) = \frac{x(1-x)}{N_e}$        
+#             psi(x) = (exp(α*x)*(1 - exp(-α))) / (s*(1 - x)*x)
+#             t_int1(ξ) = psi(ξ)*u(ξ)*(1-u(ξ))
+#             t_int2(ξ) = psi(ξ)*u(ξ)^2
+#             tbar1_1, err_tbar1_1 = quadgk(t_int1,p,1)
+#             tbar1_2, err_tbar1_2 = quadgk(t_int2,0,p)
+#             return tbar1_1 + tbar1_2 *(1 - u(p))/u(p)
+#         else
+#             return t_bar(p, N, 0.0)
+#         end
+#     end
+# end
+
+## t_bar rewrite from Jeremy Van Cleve
+## initial implementation would fail the quadgk integration for certain values of N and s
+
 function t_bar(p::Float64,N::Float64,s::Float64)
     α = 2*N*s
     if s==0.0
@@ -28,12 +53,11 @@ function t_bar(p::Float64,N::Float64,s::Float64)
         # with
         # $G(x) = e^{-\int \frac{2 M(x)}{V(x)} dx}$
         # $V(x) = \frac{x(1-x)}{N_e}$        
-            psi(x) = (exp(α*x)*(1 - exp(-α))) / (s*(1 - x)*x)
-            t_int1(ξ) = psi(ξ)*u(ξ)*(1-u(ξ))
-            t_int2(ξ) = psi(ξ)*u(ξ)^2
-            tbar1_1, err_tbar1_1 = quadgk(t_int1,p,1)
-            tbar1_2, err_tbar1_2 = quadgk(t_int2,0,p)
-            return tbar1_1 + (tbar1_2 *(1 - u(p))/u(p))
+            t_int1(ξ) = (2*(coth(N*s*p) - coth(N*s)) * sinh(N*s*ξ)^2)/(s*ξ*(1-ξ))
+            t_int2(ξ) = (2*csch(N*s) * sinh(N*s*(1-ξ)) * sinh(N*s*ξ))/(s*ξ*(1-ξ))
+            tbar1_1, err_tbar1_1 = quadgk(t_int1,0,p)
+            tbar1_2, err_tbar1_2 = quadgk(t_int2,p,1)
+            return tbar1_1 + tbar1_2
         else
             return t_bar(p, N, 0.0)
         end
@@ -45,7 +69,7 @@ end
 ## adjusted from -4N -> -2N because model is haploid
 function t_bar_star(p::Float64, N::Float64)
     if p <= 0 
-        return 0
+        return 1000
     elseif p == 1
         return 0
     else
@@ -54,12 +78,12 @@ function t_bar_star(p::Float64, N::Float64)
 end
 
 function π_x!(N, selective_advantage, ps)
-    α =  N * selective_advantage
+    α =  2*N * selective_advantage
     predicted_values = Vector{Float64}(undef,0)
     for p in ps
-        if p == 0
+        if p == 0.0
             p_pred = p
-        elseif p == 1
+        elseif p == 1.0
             p_pred = p
         else
             p_pred = (1 - exp(-α * p))/(1 - exp(-α))
@@ -125,9 +149,9 @@ function find_π_x(experiment, genotype = nothing)
         ## find_t_fix either returns ints or NaN
         ## and NaN gets read as Float64
         ## Works on Julia 1.6 6/14/21
-        if typeof(t_fix) == Vector{Float64}
+        if isnan.(t_fix) == [true, true]
             push!(experiment_results, 0)
-        elseif typeof(t_fix) == Vector{Int64}
+        else 
             push!(experiment_results, 1)
         end
     end
@@ -141,12 +165,12 @@ function get_t_fix(file::JLD2.JLDFile, genotype=nothing)
     t_fix = Vector{Int64}(undef, 0)
     for file in get_experiment(file)
         for replicate in file
-            # if isnan.(find_t_fix(replicate,genotype)) == [false, false]
-            push!(ps, replicate.parameters.init_freqs[genotype])
-            push!(genotypes, find_t_fix(replicate,genotype)[2])
-            push!(t_fix, find_t_fix(replicate,genotype)[1])
+            if isnan.(find_t_fix(replicate,genotype)) == [false, false]
+                push!(ps, replicate.parameters.init_freqs[genotype])
+                push!(genotypes, find_t_fix(replicate,genotype)[2])
+                push!(t_fix, find_t_fix(replicate,genotype)[1])
         
-            # end
+            end
         end
     end
     return ps, genotypes, t_fix
