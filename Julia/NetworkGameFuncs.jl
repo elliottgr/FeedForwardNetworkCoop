@@ -216,7 +216,7 @@ function pairwise_fitness_calc!(pop::population)
     
     repro_array = zeros(Float64, pop.parameters.N)
     for (n1,n2) in zip(1:pop.parameters.N, pop.shuffled_indices)
-        if n1 == 1
+        if pop.genotypes[n1] == 1
             repro_array[n1] = pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]*pop.parameters.resident_fitness_scale
         else
             repro_array[n1] = pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]
@@ -238,6 +238,7 @@ function reproduce!(pop::population)
     genotype_i_array = sample(collect(1:1:length(pop.genotypes)), ProbabilityWeights(repro_array), pop.parameters.N, replace=true)
     old_networks = copy(pop.networks)
     # old_genotypes = copy(pop.genotypes)
+    # print(length(genotype_i_array), "  ", length(Set(genotype_i_array)), "\n")
     for (res_i, offspring_i) in zip(1:pop.parameters.N, genotype_i_array)
         # g_i = sample(genotype_i_array, Weights(repro_array))
         # new_networks[res_i] = pop.networks[offspring_i]
@@ -439,7 +440,7 @@ outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
         update_population!(pop)
 
         # reproduction function / produce and save t+1 population array
-        old_pop = copy(pop.networks)[1:10]
+
         reproduce!(pop)
 
         # mutation function / iterates over population and mutates at chance probability μ

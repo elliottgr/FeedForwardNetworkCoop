@@ -124,10 +124,10 @@ function find_t_fix(rep, genotype=nothing)
             if rep.fixations[t] == genotype
                 return [t, rep.fixations[t]]
             end
-        # else
-        #     if rep.fixations[t] != 0
-        #         return [t, rep.fixations[t]]
-        #     end
+        else
+            if rep.fixations[t] != 0
+                return [t, rep.fixations[t]]
+            end
         end
     end
 
