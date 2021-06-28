@@ -1,10 +1,7 @@
-## This file runs the Feed Forward Network Game functions across initial
-## frequencies without selection to compare the population simulation with theory.
-## For a given parameter set, it iterates the desired number of replicates/timesteps
-## over different initial frequencies. 
+## This file will use the functions and structures in the accompanying files to
+## evolve networks under Wright-Fisher selection. 
 
 
-## Starting distributed computing
 
 using Distributed
 
@@ -46,31 +43,15 @@ addprocs(4, topology=:master_worker, exeflags="--project=$(Base.active_project()
         parameters = initial_arg_parsing()
 
         ## setting iterator of population frequency
-        ps = collect(0.0:parameters.init_freq_resolution:1.0)
         n_workers = nworkers()
         print("Starting replicates with $n_workers processes", "\n")
 
         ## initializing output array
         sim_outputs = Vector(undef, 0)
-
-        for (p, q) in zip(ps, reverse(ps))
-
-            print("p = ", p, "\n")
-
-            ## creating savable copy of the parameters
-
-            replicate_parameters = copy(parameters)
-            replicate_parameters.init_freqs = [p, q] 
-            # ###################
-            # # Simulation call #
-            # ###################
-            @time current_reps = RunReplicates(replicate_parameters)
-
-            push!(sim_outputs, current_reps)
+        @time current_reps = RunReplicates(replicate_parameters)
+        push!(sim_outputs, current_reps)
             
-        ## end of init_freq iteration loop
-        end
-
+    parameters.filename = "NetworkGameCoop.jld2"
     jldsave(parameters.filename; sim_outputs)
     ###################
     #   Data Output   #     
