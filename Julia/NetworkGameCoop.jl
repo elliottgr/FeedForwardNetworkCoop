@@ -1,5 +1,5 @@
 ## This file will use the functions and structures in the accompanying files to
-## evolve networks under Wright-Fisher selection. 
+## evolve networks under Wright-Fisher selection. It replicates this accross different network sizes, as well
 
 
 
@@ -23,6 +23,7 @@ addprocs(4, topology=:master_worker, exeflags="--project=$(Base.active_project()
     end
 
     function RunReplicates(parameters::simulation_parameters)
+        print("Network Size = $(parameters.nnet)", "\n")
         rep_outputs = pmap(parameter_output_map, repeat([parameters], parameters.nreps))
         nreps = length(rep_outputs)
         print("$nreps replicates completed in: ")
@@ -38,19 +39,23 @@ addprocs(4, topology=:master_worker, exeflags="--project=$(Base.active_project()
         ## Arg Parsing
         ##########
 
- 
         
-        parameters = initial_arg_parsing()
-
-        ## setting iterator of population frequency
+            ## initializing output array
+        sim_outputs = Vector(undef, 0)
+        parameters = initial_arg_parsing() 
         n_workers = nworkers()
         print("Starting replicates with $n_workers processes", "\n")
+        
+        for net_size in collect(1:2:20)
 
-        ## initializing output array
-        sim_outputs = Vector(undef, 0)
-        @time current_reps = RunReplicates(parameters)
-        push!(sim_outputs, current_reps)
-            
+            replicate_parameters = copy(parameters)
+            replicate_parameters.nnet = net_size
+            ## setting iterator of population frequency
+
+
+            @time current_reps = RunReplicates(replicate_parameters)
+            push!(sim_outputs, current_reps)
+        end
     parameters.filename = "NetworkGameCoop.jld2"
     jldsave(parameters.filename; sim_outputs)
     ###################

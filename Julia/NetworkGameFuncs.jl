@@ -83,11 +83,11 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
     if parameters.δ >= 0.0
         rmOut, mrOut = repeatedNetworkGame(parameters,mutNet,resNet)
         discount = calc_discount(parameters.δ, parameters.rounds)
-        x::Vector{Float64} = (parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut)
-        y::Vector{Float64} = (parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut)
+        # x::Vector{Float64} = (parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut)
+        # y::Vector{Float64} = (parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut)
 
-        wmr = 1 + (dot(x, discount) * parameters.fitness_benefit_scale)
-        wrm = 1 + (dot(y, discount) * parameters.fitness_benefit_scale)
+        wmr = 1 + (dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
+        wrm = 1 + (dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
 
         ## this will return the frequency of competitions in which
         ## the the resident will outcompete the mutant in the reproduction game
@@ -151,6 +151,18 @@ function output!(t::Int64, pop::population, outputs::simulation_output)
     outputs.w_mean_history[t] = pop.mean_w
 end
 
+
+## returns number if 0 < number < 1, else returns 0, 1
+function range_check(number::Float64)
+    if number < 0
+        return 0
+    elseif number > 1
+        return 1
+    else
+        return number
+    end
+end
+
 function population_construction(parameters::simulation_parameters)
     ## constructs a population array when supplied with parameters and a list of networks
     ## should default to a full array of a randomly chosen resident genotype unless
@@ -161,7 +173,7 @@ function population_construction(parameters::simulation_parameters)
     for n::Int64 in 1:length(parameters.init_freqs)
         Wm = randn((parameters.nnet,parameters.nnet))
         Wb = randn(parameters.nnet)
-        initOffer = (1.0 + randn())/2
+        initOffer = range_check((1.0 + randn())/2)
         initialnetworks[n] = network(n, Wm, Wb, initOffer, initOffer)
     end
     pop_iterator = 0
@@ -222,7 +234,7 @@ end
 
 function reproduce!(pop::population)
     repro_array = pairwise_fitness_calc!(pop)
-    genotype_i_array = sample(collect(1:1:length(pop.genotypes)), ProbabilityWeights(repro_array), pop.parameters.N, replace=true)
+    genotype_i_array = sample(1:pop.parameters.N, ProbabilityWeights(repro_array), pop.parameters.N, replace=true)
     old_networks = copy(pop.networks)
     for (res_i, offspring_i) in zip(1:pop.parameters.N, genotype_i_array)
         pop.networks[res_i] = old_networks[offspring_i]
@@ -241,13 +253,13 @@ function mutate!(pop::population)
             mutWm = UpperTriangular(rand(Binomial(1, pop.parameters.mutlink), (pop.parameters.nnet,pop.parameters.nnet)) 
                                     .* rand(Normal(0, pop.parameters.mutsize), (pop.parameters.nnet,pop.parameters.nnet)))
             mutWb = rand(Binomial(1, pop.parameters.mutlink), pop.parameters.nnet) .* rand(Normal(0, pop.parameters.mutsize),pop.parameters.nnet)
-            mutInit = minimum(maximum(0, rand(Normal(0, pop.parameters.mutsize))), 1)
+            mutInit = range_check(rand(Normal(0, pop.parameters.mutsize)) + 1)
 
             pop.networks[i] = network(pop.n_genotypes,
                                         (pop.networks[i].Wm + mutWm),
                                         (pop.networks[i].Wb + mutWb),
-                                        (pop.networks[i].InitialOffer + mutInit),
-                                        (pop.networks[i].InitialOffer + mutInit))
+                                        mutInit,
+                                        mutInit)
         end
     end
 end
