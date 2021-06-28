@@ -52,20 +52,16 @@ addprocs(4, topology=:master_worker, exeflags="--project=$(Base.active_project()
 
         ## initializing output array
         sim_outputs = Vector(undef, 0)
-
         for (p, q) in zip(ps, reverse(ps))
-
             print("p = ", p, "\n")
 
             ## creating savable copy of the parameters
-
             replicate_parameters = copy(parameters)
             replicate_parameters.init_freqs = [p, q] 
             # ###################
             # # Simulation call #
             # ###################
             @time current_reps = RunReplicates(replicate_parameters)
-
             push!(sim_outputs, current_reps)
             
         ## end of init_freq iteration loop

@@ -62,6 +62,7 @@ mutable struct population
     fit_dict::Dict{Int64, Dict{Int64, Float64}}
     shuffled_indices::Vector{Int64}
     n_genotypes::Int64
+    mean_w::Float64
 end
 
 mutable struct simulation_output
@@ -70,7 +71,6 @@ mutable struct simulation_output
     fixations::Vector{Int64}
     ## number of genotypes at each time point
     n_genotypes::Vector{Int64}
-
     ## simulation results ##
     ## mean values of fitness and initial offer over the sim
     w_mean_history::Vector{Float64}

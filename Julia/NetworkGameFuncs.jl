@@ -120,6 +120,13 @@ function update_population!(pop::population)
     update_fit_dict!(pop)
 end
 
+function return_initial_offer_array(pop::population)
+    init_offers = zeros(Float64, pop.parameters.N)
+    for i in 1:pop.parameters.N
+        init_offers[i] = pop.networks[i].InitialOffer
+    end
+    return init_offers
+end
 function return_genotype_id_array(population_array::Vector{network})
     ## Returns an array of the genotype inside
     genotype_array = zeros(Int64, length(population_array))
@@ -140,6 +147,8 @@ function output!(t::Int64, pop::population, outputs::simulation_output)
     ## Maximum or length of the set of keys should return the largest genotype index ever present because
     ## each iteration will guarantee it shows up in fit_dict via the shuffle method
     outputs.n_genotypes[t] = pop.n_genotypes
+    outputs.init_mean_history[t] = mean(return_initial_offer_array(pop))
+    outputs.w_mean_history[t] = pop.mean_w
 end
 
 function population_construction(parameters::simulation_parameters)
@@ -165,7 +174,7 @@ function population_construction(parameters::simulation_parameters)
     if length(population_array) != parameters.N
         return error("population array failed to generate $N networks")
     end
-    return population(parameters, shuffle!(population_array), return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Float64}}(), shuffle(1:parameters.N), length(parameters.init_freqs))
+    return population(parameters, shuffle!(population_array), return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Float64}}(), shuffle(1:parameters.N), length(parameters.init_freqs), 0)
 end
 
 ##################
@@ -203,6 +212,7 @@ function pairwise_fitness_calc!(pop::population)
             repro_array[n1] = pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]
         end
     end
+    pop.mean_w = mean(repro_array)
     return repro_array./sum(repro_array)
 end
 
@@ -231,7 +241,8 @@ function mutate!(pop::population)
             mutWm = UpperTriangular(rand(Binomial(1, pop.parameters.mutlink), (pop.parameters.nnet,pop.parameters.nnet)) 
                                     .* rand(Normal(0, pop.parameters.mutsize), (pop.parameters.nnet,pop.parameters.nnet)))
             mutWb = rand(Binomial(1, pop.parameters.mutlink), pop.parameters.nnet) .* rand(Normal(0, pop.parameters.mutsize),pop.parameters.nnet)
-            mutInit = rand(Normal(0, pop.parameters.mutsize))
+            mutInit = minimum(maximum(0, rand(Normal(0, pop.parameters.mutsize))), 1)
+
             pop.networks[i] = network(pop.n_genotypes,
                                         (pop.networks[i].Wm + mutWm),
                                         (pop.networks[i].Wb + mutWb),
@@ -311,7 +322,7 @@ function initial_arg_parsing()
         "--init_freqs"
             help = "vector of initial genotype frequencies, must sum to 1"
             arg_type = Vector{Float64}
-            default = [0.50, 0.50]
+            default = [.99, 0.01]
         ########
         ## Network Parameters
         ########
@@ -420,9 +431,9 @@ outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
         ## should detect an error in genotype tracking. Will trip if there is <2 genotypes initially
         if pop.parameters.init_freqs[1] != 0.0
             if length(Set(keys(pop.fit_dict))) != maximum(Set(keys(pop.fit_dict)))
-                print("Length: ", length(Set(keys(pop.fit_dict))))
-                print("Max: ", maximum(Set(keys(pop.fit_dict))))
-                print("Error in genotype tracking, dictionary of fitness values has missing genotypes")
+                print("Length: ", length(Set(keys(pop.fit_dict))), "\n")
+                print("Max: ", maximum(Set(keys(pop.fit_dict))), "\n")
+                print("Error in genotype tracking, dictionary of fitness values has missing genotypes", "\n")
                 break
             end
         end

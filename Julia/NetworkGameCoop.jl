@@ -48,7 +48,7 @@ addprocs(4, topology=:master_worker, exeflags="--project=$(Base.active_project()
 
         ## initializing output array
         sim_outputs = Vector(undef, 0)
-        @time current_reps = RunReplicates(replicate_parameters)
+        @time current_reps = RunReplicates(parameters)
         push!(sim_outputs, current_reps)
             
     parameters.filename = "NetworkGameCoop.jld2"
