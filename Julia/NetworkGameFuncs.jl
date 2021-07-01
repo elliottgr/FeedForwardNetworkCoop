@@ -6,11 +6,11 @@ using LinearAlgebra, Random, Distributions, ArgParse, StatsBase
 
 include("NetworkGameStructs.jl")
 
-function calcOj(j::Int64, prev_out::Vector{Float64}, Wm::Matrix{Float64}, Wb::Vector{Float64}, )
+function calcOj(j::Int64, prev_out::Vector{Float64}, Wm::Matrix{Float64}, Wb::Vector{Float64} )
     ##############################
     ## Iterates a single layer of the Feed Forward network
     ##############################
-    x = dot(Wm[1:j,j][1:j], prev_out[1:j]) + Wb[j]
+    x = dot(Wm[1:j,j], prev_out[1:j]) + Wb[j]
     # return 1-(exp(x*-x))
     # return x
     return (1/(1+exp(-x)))
