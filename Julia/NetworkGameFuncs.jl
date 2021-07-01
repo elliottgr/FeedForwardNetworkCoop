@@ -6,13 +6,14 @@ using LinearAlgebra, Random, Distributions, ArgParse, StatsBase
 
 include("NetworkGameStructs.jl")
 
-function calcOj(j::Int64, prev_out::Vector{Float64}, Wm::Matrix{Float64}, Wb::Vector{Float64})
+function calcOj(j::Int64, prev_out::Vector{Float64}, Wm::Matrix{Float64}, Wb::Vector{Float64}, )
     ##############################
     ## Iterates a single layer of the Feed Forward network
     ##############################
     x = dot(Wm[1:j,j][1:j], prev_out[1:j]) + Wb[j]
     # return 1-(exp(x*-x))
-    return x
+    # return x
+    return (1/(1+exp(-x)))
 end
 
 function iterateNetwork(input::Float64, Wm::Matrix{Float64}, Wb::Vector{Float64})
@@ -87,7 +88,7 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
         # x::Vector{Float64} = (parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut)
         # y::Vector{Float64} = (parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut)
 
-        wmr = 1 + (dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
+        # wmr = 1 + (dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
         wrm = 1 + (dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
 
         ## this will return the frequency of competitions in which
@@ -163,6 +164,21 @@ function range_check(number::Float64)
         return number
     end
 end
+
+function range_check(vector::Vector{Float64})
+    for i in 1:length(vector)
+        vector[i] = range_check(vector[i])
+    end
+    return vector
+end
+
+function range_check(matrix::Matrix{Float64})
+    for i in eachindex(matrix)
+        matrix[i] = range_check(matrix[i])
+    end
+    return matrix
+end
+        
 
 function population_construction(parameters::simulation_parameters)
     ## constructs a population array when supplied with parameters and a list of networks
@@ -294,7 +310,7 @@ function initial_arg_parsing()
         "--mu"
             help = "mutation probability per birth"
             arg_type = Float64
-            default = 0.0
+            default = 0.01
         "--resident_fitness_scale"
             help = "scales the initial resident fitness for debugging pop gen funcs"
             arg_type = Float64
@@ -305,12 +321,12 @@ function initial_arg_parsing()
         "--rounds"
             help = "number of rounds the game is played between individuals"
             arg_type = Int64
-            default = 10
+            default = 16
 
         "--fitness_benefit_scale"
             help = "scales the fitness payout of game rounds by this amount (payoff * scale)"
             arg_type = Float64
-            default = 0.0
+            default = 1.0
 
         "--b"
             help = "payoff benefit"
@@ -325,7 +341,7 @@ function initial_arg_parsing()
             arg_type = Float64
             default = 0.0
         "--r"
-            help = "relatedness coefficient"
+            help = "relatedness coefficient (does nothing as of 7/1/21)"
             arg_type = Float64
             default = 0.0
         "--delta"

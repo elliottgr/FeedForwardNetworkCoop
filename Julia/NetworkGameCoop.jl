@@ -46,7 +46,7 @@ addprocs(4, topology=:master_worker, exeflags="--project=$(Base.active_project()
         n_workers = nworkers()
         print("Starting replicates with $n_workers processes", "\n")
         
-        for net_size in collect(1:2:18)
+        for net_size in collect(1:2:16)
 
             replicate_parameters = copy(parameters)
             replicate_parameters.nnet = net_size
