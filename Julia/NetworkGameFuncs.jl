@@ -11,7 +11,8 @@ function calcOj(j::Int64, prev_out::Vector{Float64}, Wm::Matrix{Float64}, Wb::Ve
     ## Iterates a single layer of the Feed Forward network
     ##############################
     x = dot(Wm[1:j,j][1:j], prev_out[1:j]) + Wb[j]
-    return 1-(exp(x*-x))
+    # return 1-(exp(x*-x))
+    return x
 end
 
 function iterateNetwork(input::Float64, Wm::Matrix{Float64}, Wb::Vector{Float64})

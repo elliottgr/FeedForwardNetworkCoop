@@ -46,7 +46,7 @@ addprocs(4, topology=:master_worker, exeflags="--project=$(Base.active_project()
         n_workers = nworkers()
         print("Starting replicates with $n_workers processes", "\n")
         
-        for net_size in collect(1:2:20)
+        for net_size in collect(1:2:18)
 
             replicate_parameters = copy(parameters)
             replicate_parameters.nnet = net_size
@@ -56,7 +56,13 @@ addprocs(4, topology=:master_worker, exeflags="--project=$(Base.active_project()
             @time current_reps = RunReplicates(replicate_parameters)
             push!(sim_outputs, current_reps)
         end
-    parameters.filename = "NetworkGameCoop.jld2"
+    
+    output_filename = replace(parameters.filename, ".jld2"=>"")
+    # b_val = replace(string(parameters.b), "." => "0")
+    # c_val = replace(string(parameters.c), "."=>"0")
+    parameters.filename = string(output_filename, "_b_", replace(string(parameters.b), "." => "0"), "_c_", replace(string(parameters.c), "."=>"0"), ".jld2")
+        # parameters.filename = "NetworkGameCoop.jld2"
+
     jldsave(parameters.filename; sim_outputs)
     ###################
     #   Data Output   #     
