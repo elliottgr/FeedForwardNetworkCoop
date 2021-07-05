@@ -11,8 +11,6 @@ function calcOj(j::Int64, prev_out::Vector{Float64}, Wm::Matrix{Float64}, Wb::Ve
     ## Iterates a single layer of the Feed Forward network
     ##############################
     x = dot(Wm[1:j,j], prev_out[1:j]) + Wb[j]
-    # return 1-(exp(x*-x))
-    # return x
     return (1/(1+exp(-x)))
 end
 
@@ -190,7 +188,8 @@ function population_construction(parameters::simulation_parameters)
     for n::Int64 in 1:length(parameters.init_freqs)
         Wm = randn((parameters.nnet,parameters.nnet))
         Wb = randn(parameters.nnet)
-        initOffer = range_check((1.0 + randn())/2)
+        # initOffer = range_check((1.0 + randn())/2)
+        initOffer = copy(parameters.initial_offer)
         initialnetworks[n] = network(n, Wm, Wb, initOffer, initOffer)
     end
     pop_iterator = 0
@@ -326,7 +325,7 @@ function initial_arg_parsing()
         "--fitness_benefit_scale"
             help = "scales the fitness payout of game rounds by this amount (payoff * scale)"
             arg_type = Float64
-            default = 1.0
+            default = 0.01
 
         "--b"
             help = "payoff benefit"
@@ -348,6 +347,10 @@ function initial_arg_parsing()
             help = "payoff discount, negative values use last round"
             arg_type = Float64
             default = 0.0
+        "--initial_offer"
+            help = "the default value of initial offers for the initial residents."
+            arg_type = Float64
+            default = 0.1
         "--init_freqs"
             help = "vector of initial genotype frequencies, must sum to 1"
             arg_type = Vector{Float64}
@@ -388,7 +391,7 @@ function initial_arg_parsing()
     parsed_args = parse_args(ARGS, arg_parse_settings)
     parameters = simulation_parameters(parsed_args["tmax"], parsed_args["nreps"], parsed_args["N"], parsed_args["mu"], parsed_args["resident_fitness_scale"],
                                         parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
-                                        parsed_args["c"], parsed_args["d"], parsed_args["delta"], parsed_args["init_freqs"], 
+                                        parsed_args["c"], parsed_args["d"], parsed_args["delta"], parsed_args["initial_offer"], parsed_args["init_freqs"], 
                                         parsed_args["nnet"], parsed_args["mutsize"], parsed_args["mutinitsize"], parsed_args["mutlink"],
                                         parsed_args["filename"], parsed_args["init_freq_resolution"])
 
