@@ -304,13 +304,13 @@ function mutate!(pop::population)
             mutWm = UpperTriangular(rand(Binomial(1, pop.parameters.mutlink), (pop.parameters.nnet,pop.parameters.nnet)) 
                                     .* rand(Normal(0, pop.parameters.mutsize), (pop.parameters.nnet,pop.parameters.nnet)))
             mutWb = rand(Binomial(1, pop.parameters.mutlink), pop.parameters.nnet) .* rand(Normal(0, pop.parameters.mutsize),pop.parameters.nnet)
-            mutInit = range_check(rand(Normal(0, pop.parameters.mutsize)) + 1)
+            mutInit = rand(Normal(0, pop.parameters.mutsize))
 
             pop.networks[i] = network(pop.n_genotypes,
                                         (pop.networks[i].Wm + mutWm),
                                         (pop.networks[i].Wb + mutWb),
-                                        mutInit,
-                                        mutInit)
+                                        range_check(pop.networks[i].InitialOffer + mutInit),
+                                        range_check(pop.networks[i].InitialOffer + mutInit))
         end
     end
 end
