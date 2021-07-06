@@ -23,6 +23,7 @@ mutable struct simulation_parameters
     mutsize::Float64
     mutinitsize::Float64
     mutlink::Float64
+    net_save_tick::Int64
     #file/simulation params
     filename::String
     init_freq_resolution::Float64
@@ -43,7 +44,12 @@ end
 
 ## need to be able to create copies of the parameters and networks structs
 function Base.copy(parameters::simulation_parameters)
-    return simulation_parameters(parameters.tmax, parameters.nreps,parameters.N,parameters.μ, parameters.resident_fitness_scale, parameters.rounds,parameters.fitness_benefit_scale,parameters.b,parameters.c,parameters.d,parameters.δ,parameters.initial_offer, parameters.init_freqs,parameters.nnet,parameters.mutsize,parameters.mutinitsize,parameters.mutlink,parameters.filename, parameters.init_freq_resolution)
+    return simulation_parameters(parameters.tmax, parameters.nreps,parameters.N,parameters.μ, 
+                                    parameters.resident_fitness_scale, parameters.rounds,
+                                    parameters.fitness_benefit_scale,parameters.b,parameters.c,parameters.d,
+                                    parameters.δ,parameters.initial_offer, parameters.init_freqs,parameters.nnet,
+                                    parameters.mutsize,parameters.mutinitsize,parameters.mutlink,parameters.net_save_tick,
+                                    parameters.filename, parameters.init_freq_resolution)
 end
 
 function Base.copy(networks::Vector{network})
@@ -76,7 +82,7 @@ mutable struct simulation_output
     ## mean values of fitness and initial offer over the sim
     w_mean_history::Vector{Float64}
     init_mean_history::Vector{Float64}
-
+    mean_net_history::Vector{network}
     ## Output copy of parameters
     parameters::simulation_parameters
 

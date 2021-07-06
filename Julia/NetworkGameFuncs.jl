@@ -127,6 +127,8 @@ function return_initial_offer_array(pop::population)
     end
     return init_offers
 end
+
+
 function return_genotype_id_array(population_array::Vector{network})
     ## Returns an array of the genotype inside
     genotype_array = zeros(Int64, length(population_array))
@@ -136,16 +138,49 @@ function return_genotype_id_array(population_array::Vector{network})
     return genotype_array
 end
 
+## Will iterate over each network and save the mean value of each vertex/edge
+function return_mean_network(pop::population)
+    Wm_out = zeros((pop.parameters.nnet, pop.parameters.nnet))
+    Wb_out = zeros(pop.parameters.nnet)
+    init_out = Vector{Float64}(undef, length(pop.networks))
+    ## summing the value of each network, dividing by pop size at end to find mean
+    for i in 1:length(pop.networks)
+        for ij in eachindex(pop.networks[i].Wm)
+            Wm_out[ij] += pop.networks[i].Wm[ij]
+        end
+        for j in 1:pop.parameters.nnet
+            Wb_out[j] += pop.networks[i].Wb[j]
+        end
+
+    end
+    wm_mean = Wm_out./pop.parameters.N
+    wb_mean = Wb_out./pop.parameters.N
+    # wm_mean = mean!(zeros((pop.parameters.nnet, pop.parameters.nnet)),Wm_out)
+    # wb_mean = mean!(zeros(pop.parameters.nnet), Wb_out)
+
+    return network(-1, wm_mean, wb_mean, mean(init_out), mean(init_out))
+end
+
+
 function output!(t::Int64, pop::population, outputs::simulation_output)
     ## Updates output arrays
     if count(i->(i==pop.genotypes[1]), pop.genotypes) == pop.parameters.N
-    # if length(Set(pop.genotypes)) == 1
         outputs.fixations[t] = pop.genotypes[1]
     else
         outputs.fixations[t] = 0
     end
     ## Maximum or length of the set of keys should return the largest genotype index ever present because
     ## each iteration will guarantee it shows up in fit_dict via the shuffle method
+
+    ## only calculates mean net on tick intervals to save calculations
+    if pop.parameters.net_save_tick != 0
+        if mod(pop.parameters.net_save_tick, t) == 0
+            outputs.mean_net_history[t] = return_mean_network(pop)
+        else
+            outputs.mean_net_history[t] = outputs.mean_net_history[t-1]
+        end
+    end
+
     outputs.n_genotypes[t] = pop.n_genotypes
     outputs.init_mean_history[t] = mean(return_initial_offer_array(pop))
     outputs.w_mean_history[t] = pop.mean_w
@@ -280,8 +315,7 @@ function mutate!(pop::population)
     end
 end
 
-
-
+# \:raised_hands: 
 #######################
 # Simulation Function #
 #######################
@@ -374,13 +408,17 @@ function initial_arg_parsing()
             help = "Probability that a random edge or node be altered in a mutation event"
             arg_type = Float64
             default = 0.5
+        "--net_save_tick"
+            help = "Computes and saves the mean network values ever [x] timesteps. x = 0 does not save"
+            arg_type = Int64
+            default = 0
         ########
         ## File/Simulation Parameters
         ########
         "--filename"
             help = "Filename to save outputs to (please include .jld2 extension)"
             arg_type = String
-            default = "NetworkGamePopGenTests.jld2"
+            default = "NetworkGameTests.jld2"
         "--init_freq_resolution"
             help = "Step-size between initial frequencies if iterating over them"
             arg_type = Float64
@@ -393,7 +431,7 @@ function initial_arg_parsing()
                                         parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
                                         parsed_args["c"], parsed_args["d"], parsed_args["delta"], parsed_args["initial_offer"], parsed_args["init_freqs"], 
                                         parsed_args["nnet"], parsed_args["mutsize"], parsed_args["mutinitsize"], parsed_args["mutlink"],
-                                        parsed_args["filename"], parsed_args["init_freq_resolution"])
+                                        parsed_args["net_save_tick"], parsed_args["filename"], parsed_args["init_freq_resolution"])
 
     ## Necessary sanity checks for params
     if mod(parameters.N, 2) != 0
@@ -432,6 +470,7 @@ outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
                             zeros(Int64, pop.parameters.tmax),
                             zeros(Float64, pop.parameters.tmax),
                             zeros(Float64, pop.parameters.tmax),
+                            Vector{network}(undef, pop.parameters.tmax),
                             pop.parameters)
 
     ############
