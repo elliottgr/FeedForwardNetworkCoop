@@ -60,7 +60,7 @@ addprocs(4, topology=:master_worker, exeflags="--project=$(Base.active_project()
     output_filename = replace(parameters.filename, ".jld2"=>"")
     # b_val = replace(string(parameters.b), "." => "0")
     # c_val = replace(string(parameters.c), "."=>"0")
-    parameters.filename = string(output_filename, "_b_", replace(string(parameters.b), "." => "0"), "_c_", replace(string(parameters.c), "."=>"0"), ".jld2")
+    parameters.filename = string(output_filename, "_b_", replace(string(parameters.b), "." => "0"), "_c_", replace(string(parameters.c), "."=>"0"), "_tmax_", parameters.tmax, ".jld2")
         # parameters.filename = "NetworkGameCoop.jld2"
 
     jldsave(parameters.filename; sim_outputs)
