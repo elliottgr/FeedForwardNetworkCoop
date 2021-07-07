@@ -304,7 +304,7 @@ function mutate!(pop::population)
             mutWm = UpperTriangular(rand(Binomial(1, pop.parameters.mutlink), (pop.parameters.nnet,pop.parameters.nnet)) 
                                     .* rand(Normal(0, pop.parameters.mutsize), (pop.parameters.nnet,pop.parameters.nnet)))
             mutWb = rand(Binomial(1, pop.parameters.mutlink), pop.parameters.nnet) .* rand(Normal(0, pop.parameters.mutsize),pop.parameters.nnet)
-            mutInit = rand(Normal(0, pop.parameters.mutsize))
+            mutInit = rand(Normal(0, pop.parameters.mutinitsize))
 
             pop.networks[i] = network(pop.n_genotypes,
                                         (pop.networks[i].Wm + mutWm),
@@ -403,7 +403,7 @@ function initial_arg_parsing()
         "--mutinitsize"
             help = "Size of mutant effects on initial offers in Normal Dist. StdDevs"
             arg_type = Float64
-            default = 0.01
+            default = 0.1
         "--mutlink"
             help = "Probability that a random edge or node be altered in a mutation event"
             arg_type = Float64
