@@ -427,6 +427,10 @@ function initial_arg_parsing()
         ########
         ## File/Simulation Parameters
         ########
+        "--seed"
+            help = "seed number for RNG"
+            arg_type = Int64
+            default = 666
         "--filename"
             help = "Filename to save outputs to (please include .jld2 extension)"
             arg_type = String
@@ -445,7 +449,7 @@ function initial_arg_parsing()
                                         parsed_args["game_param_min"], parsed_args["game_param_max"], parsed_args["game_param_step"],
                                          parsed_args["initial_offer"], parsed_args["init_freqs"], 
                                         parsed_args["nnet"], parsed_args["mutsize"], parsed_args["mutinitsize"], parsed_args["mutlink"],
-                                        parsed_args["net_save_tick"], parsed_args["filename"], parsed_args["init_freq_resolution"])
+                                        parsed_args["net_save_tick"], parsed_args["seed"], parsed_args["filename"], parsed_args["init_freq_resolution"])
 
     ## Necessary sanity checks for params
     if mod(parameters.N, 2) != 0

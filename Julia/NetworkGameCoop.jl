@@ -3,7 +3,7 @@
 
 
 
-using Distributed
+using Distributed, Random
 
 
 addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project())")
@@ -43,6 +43,7 @@ addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project(
             ## initializing output array
         sim_outputs = Vector(undef, 0)
         parameters = initial_arg_parsing() 
+        Random.seed!(parameters.seed)
         n_workers = nworkers()
         print("Starting replicates with $n_workers processes", "\n")
         for b in collect(parameters.game_param_min:parameters.game_param_step:parameters.game_param_max)

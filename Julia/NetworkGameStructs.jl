@@ -28,6 +28,7 @@ mutable struct simulation_parameters
     mutlink::Float64
     net_save_tick::Int64
     #file/simulation params
+    seed::Int64
     filename::String
     init_freq_resolution::Float64
 end
@@ -53,7 +54,7 @@ function Base.copy(parameters::simulation_parameters)
                                     parameters.game_param_min, parameters.game_param_max, parameters.game_param_step,
                                     parameters.δ,parameters.initial_offer, parameters.init_freqs,parameters.nnet,
                                     parameters.mutsize,parameters.mutinitsize,parameters.mutlink,parameters.net_save_tick,
-                                    parameters.filename, parameters.init_freq_resolution)
+                                    parameters.seed,parameters.filename, parameters.init_freq_resolution)
 end
 
 function Base.copy(networks::Vector{network})
