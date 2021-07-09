@@ -6,7 +6,7 @@
 using Distributed
 
 
-addprocs(4, topology=:master_worker, exeflags="--project=$(Base.active_project())")
+addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project())")
 @everywhere using ArgParse, JLD2
 @everywhere begin
     #instantiating environment
