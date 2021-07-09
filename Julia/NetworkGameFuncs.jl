@@ -381,6 +381,18 @@ function initial_arg_parsing()
             help = "payoff discount, negative values use last round"
             arg_type = Float64
             default = 0.0
+        "--game_param_min"
+            help = "initial value of b/c for replicates"
+            arg_type = Float64
+            default = 0.0
+        "--game_param_max"
+            help = "final value of b/c for replicates"
+            arg_type = Float64
+            default = 2.0
+        "--game_param_step"
+            help = "step size of iterations for b/c"
+            arg_type = Float64
+            default = 0.5
         "--initial_offer"
             help = "the default value of initial offers for the initial residents."
             arg_type = Float64
@@ -429,7 +441,9 @@ function initial_arg_parsing()
     parsed_args = parse_args(ARGS, arg_parse_settings)
     parameters = simulation_parameters(parsed_args["tmax"], parsed_args["nreps"], parsed_args["N"], parsed_args["mu"], parsed_args["resident_fitness_scale"],
                                         parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
-                                        parsed_args["c"], parsed_args["d"], parsed_args["delta"], parsed_args["initial_offer"], parsed_args["init_freqs"], 
+                                        parsed_args["c"], parsed_args["d"], parsed_args["delta"],
+                                        parsed_args["game_param_min"], parsed_args["game_param_max"], parsed_args["game_param_step"],
+                                         parsed_args["initial_offer"], parsed_args["init_freqs"], 
                                         parsed_args["nnet"], parsed_args["mutsize"], parsed_args["mutinitsize"], parsed_args["mutlink"],
                                         parsed_args["net_save_tick"], parsed_args["filename"], parsed_args["init_freq_resolution"])
 
