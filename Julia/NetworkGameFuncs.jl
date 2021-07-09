@@ -411,7 +411,7 @@ function initial_arg_parsing()
         "--net_save_tick"
             help = "Computes and saves the mean network values ever [x] timesteps. x = 0 does not save"
             arg_type = Int64
-            default = 0
+            default = 1000
         ########
         ## File/Simulation Parameters
         ########
