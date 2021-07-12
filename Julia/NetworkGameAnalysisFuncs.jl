@@ -1,10 +1,12 @@
-## this file takes outputs from networkgame*.jl simulations and
-## creates visualizations of mean network weights over time
+## functions necessary to create and analyze results from network game sims
 
-using DataFrames, JLD2
+using DataFrames, JLD2, StatsPlots, Statistics, Plots
 
 include("NetworkGameStructs.jl")
 
+###############
+## File Manip Functions
+###############
 function get_experiment(file::JLD2.JLDFile, experiment=nothing, replicate=nothing) 
     if experiment == nothing
         return file["sim_outputs"]
@@ -68,7 +70,23 @@ function get_df_dict(files::Vector{JLD2.JLDFile})
             end
         end
     end
+    split_parameters(df_dict)
     return df_dict
+end
+
+## need to turn parameter values into columns
+function split_parameters(df_dict::Dict)
+    # param_names = Vector{Symbol}(undef, 0)
+    # print(keys(df_dict))
+    # parameters = df_dict[:parameters][1]
+    for param in fieldnames(simulation_parameters)
+        temp_array = Vector(undef, 0)
+        for param_entry in df_dict[:parameters]
+            push!(temp_array, getproperty(param_entry, param))
+        end
+        df_dict[param] = temp_array
+        # push!(param_names, param)
+    end
 end
 
 ## 7/9/21 2nd try at creating a dataframe of values. 
@@ -77,28 +95,45 @@ function create_df(files::Vector{JLD2.JLDFile})
 
 
     ## preallocating arrays for DF, unused
+    df = DataFrame()
+
     # n_replicates = find_n_rows(files)
 
     ## wasn't sure how to define a preallocation on these, leaving it undef for append
     
-    df_dict = get_df_dict(files)
-
-    
-end
-
-
-function main()
-    files = Vector{JLD2.JLDFile}(undef, 0)
-    for file in readdir()
-        if last(splitext(file)) == ".jld2"
-            print(file)
-            push!(files, jldopen(file))
-        end
+    for (key, value) in get_df_dict(files)
+        df[!, Symbol(key)] = value
     end
-    filestr = "NetworkGameTests_b_200_c_100_tmax_100000.jld2"
 
-    # output = jldopen(file)
-    create_df(files)
+    return df
 end
 
-main()
+
+## for a DataFrame group, returns figures similar to those created in cooperateion_analysis.jl
+## and JVC's original grant proposal. Implementation creates two dataframes because I copied it from
+## cooperation analysis rather than directly applying it to the gdf created elsewhere.
+function create_mean_w_violin_plots(group::SubDataFrame)
+    nnets = zeros(Int64, 0)
+    w_means = zeros(Float64, 0)
+    for replicate in eachrow(group)
+        push!(nnets, replicate[:nnet])
+        push!(w_means, last(replicate[:w_mean_history]))
+    end
+    temp_df = DataFrame(nnet=nnets, w_mean = w_means)
+    @df temp_df violin(:nnet, :w_mean, title = "Mean Fitness", legend = :none)
+    @df temp_df boxplot!(:nnet, :w_mean, fillalpha=.6)
+end
+
+
+##similar to above, creates plots for a given subdataframe.
+function create_mean_init_violin_plots(group::SubDataFrame)
+    nnets = zeros(Int64, 0)
+    inits = zeros(Float64,0)
+    for replicate in eachrow(group)
+        push!(nnets, replicate[:nnet])
+        push!(inits, last(replicate[:init_mean_history]))
+    end
+    temp_df = DataFrame(nnet=nnets, inits = inits)
+    @df temp_df violin(:nnet, :inits, title = "Mean Initial Offer", legend = :none)
+    @df temp_df boxplot!(:nnet, :inits, fillalpha=.6)
+end

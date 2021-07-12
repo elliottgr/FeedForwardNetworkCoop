@@ -49,12 +49,12 @@ end
 ## need to be able to create copies of the parameters and networks structs
 function Base.copy(parameters::simulation_parameters)
     return simulation_parameters(parameters.tmax, parameters.nreps,parameters.N,parameters.μ, 
-                                    parameters.resident_fitness_scale, parameters.rounds,
-                                    parameters.fitness_benefit_scale,parameters.b,parameters.c,parameters.d,
-                                    parameters.game_param_min, parameters.game_param_max, parameters.game_param_step,
-                                    parameters.δ,parameters.initial_offer, parameters.init_freqs,parameters.nnet,
-                                    parameters.mutsize,parameters.mutinitsize,parameters.mutlink,parameters.net_save_tick,
-                                    parameters.seed,parameters.filename, parameters.init_freq_resolution)
+                                parameters.resident_fitness_scale, parameters.rounds,
+                                parameters.fitness_benefit_scale,parameters.b,parameters.c,parameters.d,
+                                parameters.game_param_min, parameters.game_param_max, parameters.game_param_step,
+                                parameters.δ,parameters.initial_offer, parameters.init_freqs,parameters.nnet,
+                                parameters.mutsize,parameters.mutinitsize,parameters.mutlink,parameters.net_save_tick,
+                                parameters.seed,parameters.filename, parameters.init_freq_resolution)
 end
 
 function Base.copy(networks::Vector{network})
