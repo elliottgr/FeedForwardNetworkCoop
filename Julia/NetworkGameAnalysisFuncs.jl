@@ -21,7 +21,7 @@ function get_experiment(file::JLD2.JLDFile, experiment=nothing, replicate=nothin
 end
 
 
-## finds the names of all dataframe columns for pre-allocation,
+## finds the names of all columns extracted from simulation_output
 ## since it just uses the type definition, it doesn't need input
 function get_column_names()
     output_column_names = Vector{Symbol}(undef, 0)
@@ -46,8 +46,9 @@ function find_n_rows(files::Vector{JLD2.JLDFile})
     return n_replicates
 end
 
+## constructs a dictionary of column vectors extracted from an instance of
+## the simulation_output struct to be passed to the dataframe
 function get_df_dict(files::Vector{JLD2.JLDFile})
-    
     fixations = Vector{Vector{Int64}}(undef, 0)
     n_genotypes = Vector{Vector{Int64}}(undef, 0)
     w_mean_history = Vector{Vector{Float64}}(undef, 0)
@@ -74,7 +75,9 @@ function get_df_dict(files::Vector{JLD2.JLDFile})
     return df_dict
 end
 
-## need to turn parameter values into columns
+## need to turn parameter values into columns. This function should be robust to updates of the 
+## simulation_parameters struct, but will introduce issues if different versions are analyzed together.
+## place files in seperate directories if this is necessary
 function split_parameters(df_dict::Dict)
     # param_names = Vector{Symbol}(undef, 0)
     # print(keys(df_dict))
@@ -91,16 +94,18 @@ end
 
 ## 7/9/21 2nd try at creating a dataframe of values. 
 ## going to be 1 row = 1 replicate, try to extract from there for plotting
+
+## wasn't sure how to define a preallocation on these, leaving it undef for append
+## speed isn't essential when working with <1800 replicates. Unless future sims
+## are several orders of magnitude higher, the push! vector construction is fine.
 function create_df(files::Vector{JLD2.JLDFile})
 
-
-    ## preallocating arrays for DF, unused
+    ## preallocating  DF
     df = DataFrame()
 
     # n_replicates = find_n_rows(files)
 
-    ## wasn't sure how to define a preallocation on these, leaving it undef for append
-    
+
     for (key, value) in get_df_dict(files)
         df[!, Symbol(key)] = value
     end
@@ -136,4 +141,16 @@ function create_mean_init_violin_plots(group::SubDataFrame)
     temp_df = DataFrame(nnet=nnets, inits = inits)
     @df temp_df violin(:nnet, :inits, title = "Mean Initial Offer", legend = :none)
     @df temp_df boxplot!(:nnet, :inits, fillalpha=.6)
+end
+
+## creates violin plots from a grouped dataframe
+function create_all_violin_plots(gdf)
+    for group in gdf
+        plt = plot(create_mean_w_violin_plots(group), create_mean_init_violin_plots(group), layout=(2,1))
+        b = replace(string(group[!, :b][1]), "."=>"0")
+        c = replace(string(group[!, :c][1]), "."=>"0")
+        tmax = replace(string(group[!, :tmax][1]), "."=>"0")
+        filename = string("mean_init_and_fitness", "_b_", b, "_c_", c, "_tmax_", tmax)
+        savefig(plt, filename)
+    end
 end
