@@ -6,12 +6,37 @@ using LinearAlgebra, Query
 # include("NetworkGameStructs.jl")
 include("NetworkGameAnalysisFuncs.jl")
 
+## from Satvik Beri (https://stackoverflow.com/questions/59562325/moving-average-in-julia)
+## by default, only computes the mean after k datapoints, modified here to fill the array with intermediates
 
-## setting this up as the mean of rolling averages
+function rolling_mean3(arr, n)
+    so_far = sum(arr[1:n])
+    pre_out = zero(arr[1:(n-1)])
+    for i in 1:(n-1)
+        pre_out[i] = mean(arr[1:i])
+    end
+    out = zero(arr[n:end])
+
+    ## modification from Beri's script: this doesn't get overwrriten in the below loop
+    out[1] = so_far / n
+    for (i, (start, stop)) in enumerate(zip(arr, arr[n+1:end]))
+        so_far += stop - start
+        out[i+1] = so_far / n
+    end
+
+    return append!(pre_out, out)
+end
+
+
+## setting this up as the mean of rolling averages sampling "k" timepoints
 function create_mean_init_and_fitness_plots(group::DataFrame, k::Int64)
     test_var = 1
     for b in unique(group[!,:b])
+        print(string("b: ", string(b)))
+        print("\n")
         for c in unique(group[!,:c])
+            print(string("c: ", string(c)))
+            print("\n")
             plt_w = plot()
             plt_init = plot()
             plt_out = plot(plt_w, plt_init, layout = (2,1))
@@ -21,38 +46,22 @@ function create_mean_init_and_fitness_plots(group::DataFrame, k::Int64)
                 fitness_array = zeros(Float64, tmax)
                 init_array = zeros(Float64, tmax)
                 ## finding the element wise mean for the conditions
-                # for replicate in group[(group.b .== b).&(group[!,:c] .== c).&(group[!,:nnet] .== nnet)]
-                # for replicate in eachrow(group[(isequal.(group.b, b), :).&(isequal.(group.c, c),:).&(isequal.(group.nnet, nnet),:)])
                 for replicate in eachrow(subset(group, :b => ByRow(==(b)), :c => ByRow(==(c)), :nnet => ByRow(==(nnet))))
-
-                    for timepoint in 1:tmax
-                        t_min = maximum([(timepoint-k), 1])
-                        fitness_array[timepoint] += sum(replicate.w_mean_history[t_min:timepoint])/k
-                        init_array[timepoint] += sum(replicate.init_mean_history[t_min:timepoint])/k
-                    end
+                    ## summing the rolling mean of each replicate
+                    fitness_array .+= rolling_mean3(replicate.w_mean_history, k)
+                    init_array .+= rolling_mean3(replicate.init_mean_history, k)
                     i+=1
                 end
                 ## dividing sum of replicates by # of reps
                 fitness_array ./= i
                 init_array ./= i
-                plt_init = plot!(plt_out[1], init_array, label = nnet)
-                plt_w = plot!(plt_out[2], fitness_array, label = nnet)
-                # plt_out = plot!(init_array, fitness_array, layout=(2,1), label = nnet)
-
+                plt_init = plot!(plt_out[1], init_array, label = nnet, title = "InitOffer")
+                plt_w = plot!(plt_out[2], fitness_array, label = nnet, title = "W")
             end
-            # plt_out = plot(plt_init, plt_w, layout=(1,2))
-            filestr = string("mean_w_b_", replace(string(b), "."=>"0"), "_c_", replace(string(c),"."=>"0"))
+            filestr = string("mean_w_b_", replace(string(b), "."=>"0"), "_c_", replace(string(c),"."=>"0"), "_k_", string(k))
             savefig(plt_out, filestr)
         end
     end
-    # for replicate in group
-        
-    #     fitness_array .+= replicate.init_mean_history
-    #     i+=1
-    # end
-    # fitness_array ./= i
-
-    # return plot(fitness_array)
 end
 
 function main()
@@ -64,17 +73,12 @@ function main()
             push!(files, jldopen(file))
         end
     end
-    create_mean_init_and_fitness_plots(create_df(files), 5000)
-    # gdf = groupby(, [:b, :c])
-    # for g in gdf
-    #     create_mean_fitness_plots(g)
-    # end
-    # create_all_violin_plots(gdf)
+    create_mean_init_and_fitness_plots(create_df(files), 50)
+
     selection = groupby(create_df(files), [:b, :c, :nnet])
-    i = 0
     plt = Vector(undef, 0)
     for group in selection
-        # i+=1
+
         if group[1, :nnet] == 7
             push!(plt, network_heatmap(group))
         end
@@ -86,4 +90,4 @@ function main()
     end
 end
 
-main()  
+@time main()  
