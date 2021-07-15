@@ -1,6 +1,6 @@
 ## functions necessary to create and analyze results from network game sims
 
-using DataFrames, JLD2, StatsPlots, Statistics, Plots
+using DataFrames, JLD2, StatsPlots, Statistics, Plots, ColorSchemes
 
 include("NetworkGameStructs.jl")
 
@@ -154,3 +154,33 @@ function create_all_violin_plots(gdf)
         savefig(plt, filename)
     end
 end
+
+## returns a heightmap of all edge->edge connections at the end of each replicate in a given group 
+## I'm not putting an EXPLICIT control for what happens when the group contains
+## differing values of nnet, but passing something like that will likely break your analysis!!
+
+## This plots the node weights on the diagonal of the edge weights!
+function network_heatmap(group::SubDataFrame)
+    # max_net = ma
+    output_wm = zeros(Float64, (group[1, :nnet], group[1, :nnet]))
+    output_wb = zeros(Float64, group[1, :nnet])
+    reps = 0
+    for replicate in eachrow(group)
+        output_wm .+= last(replicate.mean_net_history).Wm
+        output_wb .+= last(replicate.mean_net_history).Wb
+        reps += 1
+    end
+    output_wm ./= reps
+    output_wb ./= reps
+    for wb_i in 1:length(output_wb)
+        output_wm[wb_i,wb_i] = output_wb[wb_i]
+    end
+    gr()
+    title = string("b = ", string(group[1, :b]), ", c = ", string(group[1, :c]))
+    # plt1 = 
+    # plt2 = 
+    return heatmap(output_wm, c = :RdBu_11, yflip = true,  clim = (-1,1), title = title)
+end
+
+
+
