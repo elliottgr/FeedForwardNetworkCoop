@@ -117,12 +117,12 @@ end
 ## for a DataFrame group, returns figures similar to those created in cooperateion_analysis.jl
 ## and JVC's original grant proposal. Implementation creates two dataframes because I copied it from
 ## cooperation analysis rather than directly applying it to the gdf created elsewhere.
-function create_mean_w_violin_plots(group::SubDataFrame)
+function create_mean_w_violin_plots(group::SubDataFrame, k)
     nnets = zeros(Int64, 0)
     w_means = zeros(Float64, 0)
     for replicate in eachrow(group)
         push!(nnets, replicate[:nnet])
-        push!(w_means, last(replicate[:w_mean_history]))
+        push!(w_means, last(rolling_mean3(replicate[:w_mean_history], k)))
     end
     temp_df = DataFrame(nnet=nnets, w_mean = w_means)
     @df temp_df violin(:nnet, :w_mean, title = "Mean Fitness", legend = :none)
@@ -131,12 +131,12 @@ end
 
 
 ##similar to above, creates plots for a given subdataframe.
-function create_mean_init_violin_plots(group::SubDataFrame)
+function create_mean_init_violin_plots(group::SubDataFrame, k)
     nnets = zeros(Int64, 0)
     inits = zeros(Float64,0)
     for replicate in eachrow(group)
         push!(nnets, replicate[:nnet])
-        push!(inits, last(replicate[:init_mean_history]))
+        push!(inits, last(rolling_mean3(replicate[:init_mean_history], k)))
     end
     temp_df = DataFrame(nnet=nnets, inits = inits)
     @df temp_df violin(:nnet, :inits, title = "Mean Initial Offer", legend = :none)
@@ -144,9 +144,9 @@ function create_mean_init_violin_plots(group::SubDataFrame)
 end
 
 ## creates violin plots from a grouped dataframe
-function create_all_violin_plots(gdf)
+function create_all_violin_plots(gdf, k)
     for group in gdf
-        plt = plot(create_mean_w_violin_plots(group), create_mean_init_violin_plots(group), layout=(2,1))
+        plt = plot(create_mean_w_violin_plots(group, k), create_mean_init_violin_plots(group, k), layout=(2,1))
         b = replace(string(group[!, :b][1]), "."=>"0")
         c = replace(string(group[!, :c][1]), "."=>"0")
         tmax = replace(string(group[!, :tmax][1]), "."=>"0")
@@ -182,5 +182,63 @@ function network_heatmap(group::SubDataFrame)
     return heatmap(output_wm, c = :RdBu_11, yflip = true,  clim = (-1,1), title = title)
 end
 
+
+## from Satvik Beri (https://stackoverflow.com/questions/59562325/moving-average-in-julia)
+## by default, only computes the mean after k datapoints, modified here to fill the array with intermediates
+
+function rolling_mean3(arr, n)
+    so_far = sum(arr[1:n])
+    pre_out = zero(arr[1:(n-1)])
+    for i in 1:(n-1)
+        pre_out[i] = mean(arr[1:i])
+    end
+    out = zero(arr[n:end])
+
+    ## modification from Beri's script: this doesn't get overwrriten in the below loop
+    out[1] = so_far / n
+    for (i, (start, stop)) in enumerate(zip(arr, arr[n+1:end]))
+        so_far += stop - start
+        out[i+1] = so_far / n
+    end
+
+    return append!(pre_out, out)
+end
+
+
+## setting this up as the mean of rolling averages sampling "k" timepoints
+function create_mean_init_and_fitness_plots(group::DataFrame, k::Int64)
+    test_var = 1
+    for b in unique(group[!,:b])
+        print(string("b: ", string(b)))
+        print("\n")
+        for c in unique(group[!,:c])
+            print(string("c: ", string(c)))
+            print("\n")
+            plt_w = plot()
+            plt_init = plot()
+            plt_out = plot(plt_w, plt_init, layout = (2,1))
+            for nnet in unique(group[!,:nnet])
+                i = 0
+                tmax = maximum(group[!, :tmax])
+                fitness_array = zeros(Float64, tmax)
+                init_array = zeros(Float64, tmax)
+                ## finding the element wise mean for the conditions
+                for replicate in eachrow(subset(group, :b => ByRow(==(b)), :c => ByRow(==(c)), :nnet => ByRow(==(nnet))))
+                    ## summing the rolling mean of each replicate
+                    fitness_array .+= rolling_mean3(replicate.w_mean_history, k)
+                    init_array .+= rolling_mean3(replicate.init_mean_history, k)
+                    i+=1
+                end
+                ## dividing sum of replicates by # of reps
+                fitness_array ./= i
+                init_array ./= i
+                plt_init = plot!(plt_out[1], init_array, label = nnet, title = "InitOffer")
+                plt_w = plot!(plt_out[2], fitness_array, label = nnet, title = "W")
+            end
+            filestr = string("mean_w_b_", replace(string(b), "."=>"0"), "_c_", replace(string(c),"."=>"0"), "_k_", string(k))
+            savefig(plt_out, filestr)
+        end
+    end
+end
 
 
