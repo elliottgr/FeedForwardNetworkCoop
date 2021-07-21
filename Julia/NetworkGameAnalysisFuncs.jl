@@ -55,16 +55,24 @@ function get_df_dict(files::Vector{JLD2.JLDFile})
     init_mean_history = Vector{Vector{Float64}}(undef, 0)
     mean_net_history = Vector{Vector{network}}(undef, 0)
     parameters = Vector{simulation_parameters}(undef, 0)
+    timestep = Vector{Vector{Int64}}(undef, 0)
+    rep_id = Vector{Int64}(undef, 0)
     df_dict = Dict([
                 (Symbol(:fixations), fixations),
                 (Symbol(:n_genotypes), n_genotypes),
                 (Symbol(:w_mean_history), w_mean_history),
                 (Symbol(:init_mean_history), init_mean_history),
                 (Symbol(:mean_net_history), mean_net_history),
-                (Symbol(:parameters), parameters)])
+                (Symbol(:parameters), parameters),
+                (Symbol(:timestep), timestep),
+                (Symbol(:rep_id), rep_id)])
+    rep_i = 0
     for file in files
         for experiment in get_experiment(file)
             for rep in experiment
+                rep_i += 1
+                push!(df_dict[:timestep], collect(Int64, 1:1:length(rep.fixations)))
+                push!(df_dict[:rep_id], rep_i)
                 for col in get_column_names()
                         push!(df_dict[col], getproperty(rep, col))
                 end
@@ -150,7 +158,7 @@ function create_all_violin_plots(gdf, k)
         b = replace(string(group[!, :b][1]), "."=>"0")
         c = replace(string(group[!, :c][1]), "."=>"0")
         tmax = replace(string(group[!, :tmax][1]), "."=>"0")
-        filename = string("mean_init_and_fitness", "_b_", b, "_c_", c, "_tmax_", tmax)
+        filename = string("mean_init_and_fitness", "_b_", b, "_c_", c, "_tmax_", tmax, "_k_", string(k))
         savefig(plt, filename)
     end
 end
