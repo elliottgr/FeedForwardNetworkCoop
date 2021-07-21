@@ -166,4 +166,4 @@ function main(k=50 , net_save_tick_multiplier = 100, max_rows = 1000000)
     end
 end
 
-@time main(1, 10,1000)  
+@time main(1, 1,1)  
