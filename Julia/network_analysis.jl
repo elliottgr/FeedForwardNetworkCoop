@@ -16,7 +16,7 @@ function create_edge_df(files::Vector{JLD2.JLDFile}, net_save_tick_multiplier, m
     ## df_dict returns a dictionary that is not properly setup
     ## for creating a column of edge weights
     df_dict = get_df_dict(files)
-
+    print("df_dict created!")
     rep_id = zeros(Int64, max_rows)
     timestep = zeros(Int64, max_rows)
     b_col = zeros(Float64, max_rows)
@@ -27,34 +27,21 @@ function create_edge_df(files::Vector{JLD2.JLDFile}, net_save_tick_multiplier, m
     e2 = zeros(Int64, max_rows)
     fitness = zeros(Float64, max_rows)
 
-
-    # rep_id = Vector{Int64}(undef,0)
-    # timestep = Vector{Int64}(undef,0)
-    # b_col = Vector{Float64}(undef, 0)
-    # c_col = Vector{Float64}(undef, 0)
-    # nnet = Vector{Int64}(undef, 0)
-    # edge_weight = Vector{Float64}(undef, 0)
-    # e1 = Vector{Int64}(undef, 0)
-    # e2 = Vector{Int64}(undef, 0)
-
     ## less elegant for loop than the regular create_df :(
     ## seperating the edge matrix, populating the other columns
     row = 0
+    # for i in 1:length(df_dict[:mean_net_history])
+    for i in 1:max_rows
 
-    for i in 1:length(df_dict[:mean_net_history])
+        ## debug checker
+        if mod(i, 50) == 0
+            print(i)
+        end
         for n1 in 1:df_dict[:nnet][i]
             for t in 1:length(df_dict[:mean_net_history][i])
                 if mod((df_dict[:net_save_tick][i][1]*net_save_tick_multiplier), t) == 0
                     if row < max_rows
-                        # push!(e1, n1)
-                        # push!(e2, 0)
-                        # push!(edge_weight, df_dict[:mean_net_history][i][t].Wb[n1])
-                        # push!(rep_id, df_dict[:rep_id][i])
-                        # push!(timestep, df_dict[:timestep][i][t])
-                        # push!(b_col, df_dict[:b][i])
-                        # push!(c_col, df_dict[:c][i])
-                        # push!(nnet, df_dict[:nnet][i])
-                        row+=1
+                        row += 1
                         e1[row] = n1
                         e2[row] = 0
                         edge_weight[row] = df_dict[:mean_net_history][i][t].Wb[n1]
@@ -72,14 +59,6 @@ function create_edge_df(files::Vector{JLD2.JLDFile}, net_save_tick_multiplier, m
                         if mod(df_dict[:net_save_tick][i][1]*net_save_tick_multiplier, t) == 0
                             if row < max_rows
                                 row+=1
-                                # push!(e1, n1)
-                                # push!(e2, n2)
-                                # push!(edge_weight, df_dict[:mean_net_history][i][t].Wm[n1,n2])
-                                # push!(rep_id, df_dict[:rep_id][i])
-                                # push!(timestep, df_dict[:timestep][i][t])
-                                # push!(b_col, df_dict[:b][i])
-                                # push!(c_col, df_dict[:c][i])
-                                # push!(nnet, df_dict[:nnet][i])
                                 e1[row] = n1
                                 e2[row] = 0
                                 edge_weight[row] = df_dict[:mean_net_history][i][t].Wb[n1]
@@ -89,7 +68,6 @@ function create_edge_df(files::Vector{JLD2.JLDFile}, net_save_tick_multiplier, m
                                 c_col[row] = df_dict[:c][i]
                                 nnet[row] = df_dict[:nnet][i]
                                 fitness[row] = df_dict[:w_mean_history][i][t]
-
                             end
                         end
                     end
@@ -107,16 +85,22 @@ function create_edge_df(files::Vector{JLD2.JLDFile}, net_save_tick_multiplier, m
                     e2 = e2)
 end
 
+## function accepts a group of e1, returns correlations to all e2
+function edge_correlations(group::SubDataFrame)
 
-## testing with nnet = 9
-function correlation_heatmaps(edge_df::DataFrame, nnet=9)
-    output_matrix = zeros(Float64, (nnet,nnet))
-    for ij in eachindex(output_matrix)
-        print(ij)
+end
+
+## takes a parameter set and creates a nested heatmap of edge-fitness correlations
+function correlation_heatmaps(b_c_group::SubDataFrame)
+    edge_df = groupby(b_c_group, [:e1, :e2])
+    for i in 1:nnet
+        for j in 1:nnet
+            output_matrix[i,j] = correlation()
+        end
     end
 end
 
-function main(k=50 , net_save_tick_multiplier = 100, max_rows = 1000000)
+function main(k=50 , net_save_tick_multiplier = 1, max_rows = 1000000)
     include("NetworkGameAnalysisFuncs.jl")
     files = Vector{JLD2.JLDFile}(undef, 0)
     for file in readdir()
@@ -126,11 +110,17 @@ function main(k=50 , net_save_tick_multiplier = 100, max_rows = 1000000)
         end
     end
 
-
+    print("creating edge_df...")
     edge_df = create_edge_df(files, net_save_tick_multiplier, max_rows)
-    print(edge_df)
-    # print(print(edge_df))
-    correlation_heatmaps(edge_df, 9)
+    print("edge_df done")
+    
+    # creating and passing grouped dataframes of parameter sets
+    # b_c_grouped_edge_df = groupby(edge_df, [:b, :c])
+
+    # for b_c_group in b_c_grouped_edge_df
+    #     correlation_heatmaps(b_c_group)
+    # end
+    
     # selection = groupby(create_df(files), [:b, :c])
 
 
@@ -166,4 +156,4 @@ function main(k=50 , net_save_tick_multiplier = 100, max_rows = 1000000)
     end
 end
 
-@time main(1, 1,1)  
+@time main(1, 1, 1000)  
