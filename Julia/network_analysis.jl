@@ -1,9 +1,7 @@
 ## this file takes outputs from networkgame*.jl simulations and
 ## creates visualizations of mean network weights over time
 
-# using DataFrames, JLD2
-using LinearAlgebra
-# include("NetworkGameStructs.jl")
+using LinearAlgebra, Random
 include("NetworkGameAnalysisFuncs.jl")
 
 
@@ -11,11 +9,15 @@ include("NetworkGameAnalysisFuncs.jl")
 ## using the existing get_df_dict function, iterating over that array, creating a dataframe from that
 ## one entry corresponds to a single network weight
 ## edges represented by two columns. e1 is starting column, e2 is end. e2 = 0 means e1 is a node weight
-function create_edge_df(files::Vector{JLD2.JLDFile}, net_save_tick_multiplier, max_rows)
-    
+## the "use_random" flag determines whether networks are sampled randomly or in the sorted order of the original DF
+function create_edge_df(files::Vector{JLD2.JLDFile}, max_rows, use_random = false)
+
+
     ## df_dict returns a dictionary that is not properly setup
     ## for creating a column of edge weights
     df_dict = get_df_dict(files)
+    
+
     print("df_dict created!")
     rep_id = zeros(Int64, max_rows)
     timestep = zeros(Int64, max_rows)
@@ -27,48 +29,55 @@ function create_edge_df(files::Vector{JLD2.JLDFile}, net_save_tick_multiplier, m
     e2 = zeros(Int64, max_rows)
     fitness = zeros(Float64, max_rows)
 
+    ##pre allocating this array to prevent iterating over unused timepoints in the main loop
+    tmax_array = collect(1:df_dict[:net_save_tick][1][1]:maximum(df_dict[:timestep])[end])
+
+
     ## less elegant for loop than the regular create_df :(
     ## seperating the edge matrix, populating the other columns
     row = 0
-    # for i in 1:length(df_dict[:mean_net_history])
-    for i in 1:max_rows
+    if use_random == true
+        network_indices = shuffle(1:length(df_dict[:nnet]))
+    else
+        network_indices = 1:length(df_dict[:nnet])
+    end
 
-        ## debug checker
-        if mod(i, 50) == 0
-            print(i)
+    ##iterates over all replicate networks
+    for i in network_indices
+        ## stops the loop when all rows are used
+        if row == max_rows
+            break
         end
-        for n1 in 1:df_dict[:nnet][i]
-            for t in 1:length(df_dict[:mean_net_history][i])
-                if mod((df_dict[:net_save_tick][i][1]*net_save_tick_multiplier), t) == 0
-                    if row < max_rows
-                        row += 1
-                        e1[row] = n1
-                        e2[row] = 0
-                        edge_weight[row] = df_dict[:mean_net_history][i][t].Wb[n1]
-                        rep_id[row] = df_dict[:rep_id][i]
-                        timestep[row] = df_dict[:timestep][i][t]
-                        b_col[row] = df_dict[:b][i]
-                        c_col[row] = df_dict[:c][i]
-                        nnet[row] = df_dict[:nnet][i]
-                        fitness[row] = df_dict[:w_mean_history][i][t]
 
-                    end
+        ## iterates over all nodes of a network
+        for n1 in 1:df_dict[:nnet][i]
+            for t in tmax_array
+                if row < max_rows
+                    row += 1
+                    e1[row] = n1
+                    e2[row] = 0
+                    edge_weight[row] = df_dict[:mean_net_history][i][t].Wb[n1]
+                    rep_id[row] = df_dict[:rep_id][i]
+                    timestep[row] = df_dict[:timestep][i][t]
+                    b_col[row] = df_dict[:b][i]
+                    c_col[row] = df_dict[:c][i]
+                    nnet[row] = df_dict[:nnet][i]
+                    fitness[row] = df_dict[:w_mean_history][i][t]
                 end
+                ##Iterates over all edges
                 for n2 in 1:df_dict[:nnet][i]
-                    for t in 1:length(df_dict[:mean_net_history][i])
-                        if mod(df_dict[:net_save_tick][i][1]*net_save_tick_multiplier, t) == 0
-                            if row < max_rows
-                                row+=1
-                                e1[row] = n1
-                                e2[row] = 0
-                                edge_weight[row] = df_dict[:mean_net_history][i][t].Wb[n1]
-                                rep_id[row] = df_dict[:rep_id][i]
-                                timestep[row] = df_dict[:timestep][i][t]
-                                b_col[row] = df_dict[:b][i]
-                                c_col[row] = df_dict[:c][i]
-                                nnet[row] = df_dict[:nnet][i]
-                                fitness[row] = df_dict[:w_mean_history][i][t]
-                            end
+                    for t in tmax_array
+                        if row < max_rows
+                            row+=1
+                            e1[row] = n1
+                            e2[row] = n2
+                            edge_weight[row] = df_dict[:mean_net_history][i][t].Wm[n1,n2]
+                            rep_id[row] = df_dict[:rep_id][i]
+                            timestep[row] = df_dict[:timestep][i][t]
+                            b_col[row] = df_dict[:b][i]
+                            c_col[row] = df_dict[:c][i]
+                            nnet[row] = df_dict[:nnet][i]
+                            fitness[row] = df_dict[:w_mean_history][i][t]
                         end
                     end
                 end
@@ -100,7 +109,7 @@ function correlation_heatmaps(b_c_group::SubDataFrame)
     end
 end
 
-function main(k=50 , net_save_tick_multiplier = 1, max_rows = 1000000)
+function main(k=50 , max_rows = 1000000, use_random = false)
     include("NetworkGameAnalysisFuncs.jl")
     files = Vector{JLD2.JLDFile}(undef, 0)
     for file in readdir()
@@ -111,8 +120,11 @@ function main(k=50 , net_save_tick_multiplier = 1, max_rows = 1000000)
     end
 
     print("creating edge_df...")
-    edge_df = create_edge_df(files, net_save_tick_multiplier, max_rows)
-    print("edge_df done")
+    # edge_df = create_edge_df(files, net_save_tick_multiplier, max_rows)
+    edge_df = create_edge_df(files, max_rows, use_random)
+
+    print(last(edge_df))
+    # print("edge_df done")
     
     # creating and passing grouped dataframes of parameter sets
     # b_c_grouped_edge_df = groupby(edge_df, [:b, :c])
@@ -156,4 +168,4 @@ function main(k=50 , net_save_tick_multiplier = 1, max_rows = 1000000)
     end
 end
 
-@time main(1, 1, 1000)  
+@time main(1, 100000000, true)  
