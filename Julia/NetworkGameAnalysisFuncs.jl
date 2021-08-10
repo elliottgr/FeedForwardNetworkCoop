@@ -16,6 +16,7 @@ function load_files()
             push!(files, jldopen(file))
         end
     end
+    
     return files
 end
 
@@ -135,16 +136,17 @@ function create_df(files::Vector{JLD2.JLDFile})
     return df
 end
 
-## using the existing get_df_dict function, iterating over that array, creating a dataframe from that
+## takes a subgroup from the existing get_df_dict function
+## iterates over that array, creating a second dataframe from that
 ## one entry corresponds to a single network weight
 ## edges represented by two columns. e1 is starting column, e2 is end. e2 = 0 means e1 is a node weight
 ## the "use_random" flag determines whether networks are sampled randomly or in the sorted order of the original DF
-function create_edge_df(files::Vector{JLD2.JLDFile}, max_rows, use_random = false)
+function create_edge_df(df_dict::SubDataFrame, max_rows, use_random = false)
 
 
     ## df_dict returns a dictionary that is not properly setup
     ## for creating a column of edge weights
-    df_dict = get_df_dict(files)
+    
     
     ## initializing column vectors, preallocating to a set length improves performance here substantially
     print("df_dict created!")
@@ -159,16 +161,16 @@ function create_edge_df(files::Vector{JLD2.JLDFile}, max_rows, use_random = fals
     fitness = zeros(Float64, max_rows)
 
     ##pre allocating this array to prevent iterating over unused timepoints in the main loop
-    tmax_array = collect(1:df_dict[:net_save_tick][1][1]:maximum(df_dict[:timestep])[end])
+    tmax_array = collect(1:df_dict[!, :net_save_tick][1][1]:maximum(df_dict[!, :timestep])[end])
 
 
     ## less elegant for loop than the regular create_df :(
     ## seperating the edge matrix, populating the other columns
     row = 0
     if use_random == true
-        network_indices = shuffle(1:length(df_dict[:nnet]))
+        network_indices = shuffle(1:length(df_dict[!, :nnet]))
     else
-        network_indices = 1:length(df_dict[:nnet])
+        network_indices = 1:length(df_dict[!, :nnet])
     end
 
     ##iterates over all replicate networks
@@ -180,34 +182,34 @@ function create_edge_df(files::Vector{JLD2.JLDFile}, max_rows, use_random = fals
         end
 
         ## iterates over all nodes of a network
-        for n1 in 1:df_dict[:nnet][i]
+        for n1 in 1:df_dict[!, :nnet][i]
             for t in tmax_array
                 if row < max_rows
                     row += 1
                     e1[row] = n1
                     e2[row] = 0
-                    edge_weight[row] = df_dict[:mean_net_history][i][t].Wb[n1]
-                    rep_id[row] = df_dict[:rep_id][i]
-                    timestep[row] = df_dict[:timestep][i][t]
-                    b_col[row] = df_dict[:b][i]
-                    c_col[row] = df_dict[:c][i]
-                    nnet[row] = df_dict[:nnet][i]
-                    fitness[row] = df_dict[:w_mean_history][i][t]
+                    edge_weight[row] = df_dict[!, :mean_net_history][i][t].Wb[n1]
+                    rep_id[row] = df_dict[!, :rep_id][i]
+                    timestep[row] = df_dict[!, :timestep][i][t]
+                    b_col[row] = df_dict[!, :b][i]
+                    c_col[row] = df_dict[!, :c][i]
+                    nnet[row] = df_dict[!, :nnet][i]
+                    fitness[row] = df_dict[!, :w_mean_history][i][t]
                 end
                 ##Iterates over all edges
-                for n2 in n1:df_dict[:nnet][i]
+                for n2 in n1:df_dict[!, :nnet][i]
                     for t in tmax_array
                         if row < max_rows
                             row+=1
                             e1[row] = n1
                             e2[row] = n2
-                            edge_weight[row] = df_dict[:mean_net_history][i][t].Wm[n1,n2]
-                            rep_id[row] = df_dict[:rep_id][i]
-                            timestep[row] = df_dict[:timestep][i][t]
-                            b_col[row] = df_dict[:b][i]
-                            c_col[row] = df_dict[:c][i]
-                            nnet[row] = df_dict[:nnet][i]
-                            fitness[row] = df_dict[:w_mean_history][i][t]
+                            edge_weight[row] = df_dict[!, :mean_net_history][i][t].Wm[n1,n2]
+                            rep_id[row] = df_dict[!, :rep_id][i]
+                            timestep[row] = df_dict[!, :timestep][i][t]
+                            b_col[row] = df_dict[!, :b][i]
+                            c_col[row] = df_dict[!, :c][i]
+                            nnet[row] = df_dict[!, :nnet][i]
+                            fitness[row] = df_dict[!, :w_mean_history][i][t]
                         end
                     end
                 end
@@ -220,6 +222,7 @@ function create_edge_df(files::Vector{JLD2.JLDFile}, max_rows, use_random = fals
                     c = c_col, 
                     nnet = nnet,
                     edge_weight = edge_weight,
+                    fitness = fitness,
                     e1 = e1,
                     e2 = e2)
 end
