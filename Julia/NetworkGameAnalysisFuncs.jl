@@ -15,6 +15,7 @@ function load_files()
             print(file)
             push!(files, jldopen(file))
         end
+        
     end
     
     return files
@@ -59,17 +60,29 @@ function find_n_rows(files::Vector{JLD2.JLDFile})
     return n_replicates
 end
 
-## constructs a dictionary of column vectors extracted from an instance of
-## the simulation_output struct to be passed to the dataframe
+## going to try a more optimized "get_df_dict"
 function get_df_dict(files::Vector{JLD2.JLDFile})
-    fixations = Vector{Vector{Int64}}(undef, 0)
-    n_genotypes = Vector{Vector{Int64}}(undef, 0)
-    w_mean_history = Vector{Vector{Float64}}(undef, 0)
-    init_mean_history = Vector{Vector{Float64}}(undef, 0)
-    mean_net_history = Vector{Vector{network}}(undef, 0)
-    parameters = Vector{simulation_parameters}(undef, 0)
-    timestep = Vector{Vector{Int64}}(undef, 0)
-    rep_id = Vector{Int64}(undef, 0)
+
+    ## iterating over all replicates to get the number of rows to generate
+    n_rows = 0
+    for file in files
+        for file in files
+            for experiment in get_experiment(file)
+                for rep in experiment
+                    n_rows += 1
+                end
+            end
+        end
+    end
+    ## filling networks and parameters
+    fixations = fill(zeros(Int64,0), n_rows)
+    n_genotypes = fill(zeros(Int64,0), n_rows)
+    w_mean_history =  fill(zeros(Float64,0), n_rows)
+    init_mean_history =  fill(zeros(Float64,0), n_rows)
+    mean_net_history = fill(Vector{network}(undef, 0), n_rows)
+    parameters = Vector{simulation_parameters}(undef, n_rows)
+    timestep = fill(zeros(Int64,0), n_rows)
+    rep_id = zeros(Int64, n_rows)
     df_dict = Dict([
                 (Symbol(:fixations), fixations),
                 (Symbol(:n_genotypes), n_genotypes),
@@ -79,15 +92,17 @@ function get_df_dict(files::Vector{JLD2.JLDFile})
                 (Symbol(:parameters), parameters),
                 (Symbol(:timestep), timestep),
                 (Symbol(:rep_id), rep_id)])
+    
     rep_i = 0
     for file in files
         for experiment in get_experiment(file)
             for rep in experiment
                 rep_i += 1
-                push!(df_dict[:timestep], collect(Int64, 1:1:length(rep.fixations)))
-                push!(df_dict[:rep_id], rep_i)
+                df_dict[:timestep][rep_i] = collect(Int64, 1:1:length(rep.fixations))
+                ## not necessary in this implementation but don't want to break other stuff
+                df_dict[:rep_id][rep_i] = rep_i
                 for col in get_column_names()
-                        push!(df_dict[col], getproperty(rep, col))
+                    df_dict[col][rep_i] = getproperty(rep,col)
                 end
             end
         end
@@ -95,6 +110,43 @@ function get_df_dict(files::Vector{JLD2.JLDFile})
     split_parameters(df_dict)
     return df_dict
 end
+
+## constructs a dictionary of column vectors extracted from an instance of
+## the simulation_output struct to be passed to the dataframe
+# # function get_df_dict(files::Vector{JLD2.JLDFile})
+#     fixations = Vector{Vector{Int64}}(undef, 0)
+#     n_genotypes = Vector{Vector{Int64}}(undef, 0)
+#     w_mean_history = Vector{Vector{Float64}}(undef, 0)
+#     init_mean_history = Vector{Vector{Float64}}(undef, 0)
+#     mean_net_history = Vector{Vector{network}}(undef, 0)
+#     parameters = Vector{simulation_parameters}(undef, 0)
+#     timestep = Vector{Vector{Int64}}(undef, 0)
+#     rep_id = Vector{Int64}(undef, 0)
+#     df_dict = Dict([
+#                 (Symbol(:fixations), fixations),
+#                 (Symbol(:n_genotypes), n_genotypes),
+#                 (Symbol(:w_mean_history), w_mean_history),
+#                 (Symbol(:init_mean_history), init_mean_history),
+#                 (Symbol(:mean_net_history), mean_net_history),
+#                 (Symbol(:parameters), parameters),
+#                 (Symbol(:timestep), timestep),
+#                 (Symbol(:rep_id), rep_id)])
+#     rep_i = 0
+#     for file in files
+#         for experiment in get_experiment(file)
+#             for rep in experiment
+#                 rep_i += 1
+#                 push!(df_dict[:timestep], collect(Int64, 1:1:length(rep.fixations)))
+#                 push!(df_dict[:rep_id], rep_i)
+#                 for col in get_column_names()
+#                         push!(df_dict[col], getproperty(rep, col))
+#                 end
+#             end
+#         end
+#     end
+#     split_parameters(df_dict)
+#     return df_dict
+# end
 
 ## need to turn parameter values into columns. This function should be robust to updates of the 
 ## simulation_parameters struct, but will introduce issues if different versions are analyzed together.
