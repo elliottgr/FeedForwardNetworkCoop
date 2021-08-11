@@ -15,8 +15,14 @@ function correlation_heatmaps(b_c_nnet_group::DataFrame)
     for edge_group in groupby(b_c_nnet_group, [:e1, :e2])
         shifted_e1 = edge_group[!, :e1][1] + 1
         shifted_e2 = edge_group[!, :e2][1] + 1
+
+        
         if shifted_e2 < shifted_e1
-            weight_fitness_corr_matrix[shifted_e1, shifted_e2] = NaN
+            if shifted_e2 != 1
+                weight_fitness_corr_matrix[shifted_e1, shifted_e2] = NaN
+            else
+                weight_fitness_corr_matrix[shifted_e1, shifted_e2] = cor(edge_group[!,:edge_weight], edge_group[!,:fitness])
+            end
         else
             weight_fitness_corr_matrix[shifted_e1, shifted_e2] = cor(edge_group[!,:edge_weight], edge_group[!,:fitness])
     
@@ -26,13 +32,16 @@ function correlation_heatmaps(b_c_nnet_group::DataFrame)
     c = b_c_nnet_group[1, :c]
     title_str = string("b: " , b, " c: ", c)
     # tick_marks = collect(0:1:b_c_nnet_group[1,:nnet])
+
+    #still need to flip y-axis of corr matrix
     return heatmap(weight_fitness_corr_matrix, 
-        xlabel = "Node 1", 
-        ylabel = "Node 2", 
+        xlabel = "Node 2", 
+        ylabel = "Node 1", 
         title = title_str,
         clims = (-0.5, 0.5),
-        xticks = (1:1:(b_c_nnet_group[1, :nnet]+1), string.reverse(0:1:b_c_nnet_group[1,:nnet])),
-        yticks = (1:1:(b_c_nnet_group[1, :nnet]+1), string.reverse(0:1:b_c_nnet_group[1,:nnet])))
+        xticks = (1:1:(b_c_nnet_group[1, :nnet]+1), (0:1:b_c_nnet_group[1,:nnet])),
+        yticks = (1:1:(b_c_nnet_group[1, :nnet]+1), (0:1:b_c_nnet_group[1,:nnet])),
+        yflip = true)
 end
 
 
@@ -50,8 +59,11 @@ function create_b_c_heatmap_plot(df, nnet::Int64, max_rows, use_random)
         # c_i = findall(x->x==group[1,:c], b_c_vals)[1]
         push!(heatmaps,correlation_heatmaps(create_edge_df(group, max_rows, use_random)))
     end
-    savefig(plot(heatmaps..., layout = (length(b_c_vals), length(b_c_vals))), "heatmaps.png")
+    filestr = string("fitness_edge_weight_heatmap_nnet_", nnet, ".png")
+    savefig(plot(heatmaps..., layout = (length(b_c_vals), length(b_c_vals))), filestr)
 end
+
+
 function main(k=50 , max_rows = 1000000, use_random = false)
     include("NetworkGameAnalysisFuncs.jl")
     files = load_files()
@@ -63,9 +75,10 @@ function main(k=50 , max_rows = 1000000, use_random = false)
     for file in files
         close(file)
     end
-
-    create_b_c_heatmap_plot(main_df, 3, max_rows, use_random)
-    # test_group = groupby(main_df, [:b,:c,:nnet])
+    for nnet in 1:2:7
+        create_b_c_heatmap_plot(main_df, nnet, max_rows, use_random)
+    end
+        # test_group = groupby(main_df, [:b,:c,:nnet])
     i = 0
 
    
