@@ -4,6 +4,15 @@ using DataFrames, JLD2, StatsPlots, Statistics, Plots, ColorSchemes
 
 include("NetworkGameStructs.jl")
 
+struct analysis_parameters
+    k::Int64
+    max_rows::Int64
+    use_random::Bool
+    t_start::Int64
+    t_end::Int64
+end
+
+
 ###############
 ## File Manip Functions
 ###############
@@ -60,8 +69,13 @@ function find_n_rows(files::Vector{JLD2.JLDFile})
     return n_replicates
 end
 
+
+## constructs a dictionary of column vectors extracted from an instance of
+## the simulation_output struct to be passed to the dataframe
+
+
 ## going to try a more optimized "get_df_dict"
-function get_df_dict(files::Vector{JLD2.JLDFile})
+function get_df_dict(files::Vector{JLD2.JLDFile}, analysis_params::analysis_parameters)
 
     ## iterating over all replicates to get the number of rows to generate
     n_rows = 0
@@ -74,6 +88,7 @@ function get_df_dict(files::Vector{JLD2.JLDFile})
             end
         end
     end
+    
     ## filling networks and parameters
     fixations = fill(zeros(Int64,0), n_rows)
     n_genotypes = fill(zeros(Int64,0), n_rows)
@@ -94,74 +109,48 @@ function get_df_dict(files::Vector{JLD2.JLDFile})
                 (Symbol(:rep_id), rep_id)])
     
     rep_i = 0
+    column_names = get_column_names()
     for file in files
         for experiment in get_experiment(file)
             for rep in experiment
                 rep_i += 1
-                df_dict[:timestep][rep_i] = collect(Int64, 1:1:length(rep.fixations))
+                df_dict[:timestep][rep_i] = collect(Int64, analysis_params.t_start:1:length(rep.fixations))
                 ## not necessary in this implementation but don't want to break other stuff
                 df_dict[:rep_id][rep_i] = rep_i
-                for col in get_column_names()
-                    df_dict[col][rep_i] = getproperty(rep,col)
+
+                for col in column_names
+                    ## need to filter things where t_start:end doesnt work
+                    if typeof(getproperty(rep,col)) == Vector
+                        df_dict[col][rep_i] = getproperty(rep,col)[analysis_params.t_start:analysis_params.t_end]
+                    else
+                        df_dict[col][rep_i] = getproperty(rep,col)
+                    end
                 end
             end
         end
     end
-    split_parameters(df_dict)
+    split_parameters(df_dict, analysis_params)
     return df_dict
 end
-
-## constructs a dictionary of column vectors extracted from an instance of
-## the simulation_output struct to be passed to the dataframe
-# # function get_df_dict(files::Vector{JLD2.JLDFile})
-#     fixations = Vector{Vector{Int64}}(undef, 0)
-#     n_genotypes = Vector{Vector{Int64}}(undef, 0)
-#     w_mean_history = Vector{Vector{Float64}}(undef, 0)
-#     init_mean_history = Vector{Vector{Float64}}(undef, 0)
-#     mean_net_history = Vector{Vector{network}}(undef, 0)
-#     parameters = Vector{simulation_parameters}(undef, 0)
-#     timestep = Vector{Vector{Int64}}(undef, 0)
-#     rep_id = Vector{Int64}(undef, 0)
-#     df_dict = Dict([
-#                 (Symbol(:fixations), fixations),
-#                 (Symbol(:n_genotypes), n_genotypes),
-#                 (Symbol(:w_mean_history), w_mean_history),
-#                 (Symbol(:init_mean_history), init_mean_history),
-#                 (Symbol(:mean_net_history), mean_net_history),
-#                 (Symbol(:parameters), parameters),
-#                 (Symbol(:timestep), timestep),
-#                 (Symbol(:rep_id), rep_id)])
-#     rep_i = 0
-#     for file in files
-#         for experiment in get_experiment(file)
-#             for rep in experiment
-#                 rep_i += 1
-#                 push!(df_dict[:timestep], collect(Int64, 1:1:length(rep.fixations)))
-#                 push!(df_dict[:rep_id], rep_i)
-#                 for col in get_column_names()
-#                         push!(df_dict[col], getproperty(rep, col))
-#                 end
-#             end
-#         end
-#     end
-#     split_parameters(df_dict)
-#     return df_dict
-# end
 
 ## need to turn parameter values into columns. This function should be robust to updates of the 
 ## simulation_parameters struct, but will introduce issues if different versions are analyzed together.
 ## place files in seperate directories if this is necessary
-function split_parameters(df_dict::Dict)
-    # param_names = Vector{Symbol}(undef, 0)
-    # print(keys(df_dict))
-    # parameters = df_dict[:parameters][1]
+function split_parameters(df_dict::Dict, analysis_params)
     for param in fieldnames(simulation_parameters)
-        temp_array = Vector(undef, 0)
+        temp_array = Vector(undef, length(df_dict[:parameters]))
+        i = 0
         for param_entry in df_dict[:parameters]
-            push!(temp_array, getproperty(param_entry, param))
+            i+=1
+            ## need to filter things where t_start:end doesnt work
+            if typeof(getproperty(param_entry,param)) == Vector
+                temp_array[i] = getproperty(param_entry, param)[analysis_params.t_start:analysis_params.t_end]
+            else
+                temp_array[i] = getproperty(param_entry, param)
+            end
         end
         df_dict[param] = temp_array
-        # push!(param_names, param)
+
     end
 end
 
@@ -173,27 +162,24 @@ end
 ## wasn't sure how to define a preallocation on these, leaving it undef for append
 ## speed isn't essential when working with <1800 replicates. Unless future sims
 ## are several orders of magnitude higher, the push! vector construction is fine.
-function create_df(files::Vector{JLD2.JLDFile})
+function create_df(files::Vector{JLD2.JLDFile}, analysis_params)
 
-    ## preallocating  DF
+    ## creating  DF
     df = DataFrame()
 
-    # n_replicates = find_n_rows(files)
-
-
-    for (key, value) in get_df_dict(files)
+    for (key, value) in get_df_dict(files, analysis_params)
         df[!, Symbol(key)] = value
     end
 
     return df
 end
 
-## takes a subgroup from the existing get_df_dict function
-## iterates over that array, creating a second dataframe from that
+## takes a subgroup from the existing dataframe created by create_df()
+## iterates over that array, creating a second dataframe from that (inefficient but didn't feel like rewriting the whole thing)
 ## one entry corresponds to a single network weight
 ## edges represented by two columns. e1 is starting column, e2 is end. e2 = 0 means e1 is a node weight
 ## the "use_random" flag determines whether networks are sampled randomly or in the sorted order of the original DF
-function create_edge_df(df_dict::SubDataFrame, max_rows, use_random = false)
+function create_edge_df(df_dict::SubDataFrame, analysis_params::analysis_parameters)
 
 
     ## df_dict returns a dictionary that is not properly setup
@@ -201,45 +187,45 @@ function create_edge_df(df_dict::SubDataFrame, max_rows, use_random = false)
     
     
     ## initializing column vectors, preallocating to a set length improves performance here substantially
-    print("df_dict created!")
-    rep_id = zeros(Int64, max_rows)
-    timestep = zeros(Int64, max_rows)
-    b_col = zeros(Float64, max_rows)
-    c_col = zeros(Float64, max_rows)
-    nnet = zeros(Int64, max_rows)
-    edge_weight = zeros(Float64, max_rows)
-    e1 = zeros(Int64, max_rows)
-    e2 = zeros(Int64, max_rows)
-    fitness = zeros(Float64, max_rows)
+    rep_id = zeros(Int64, analysis_params.max_rows)
+    timestep = zeros(Int64, analysis_params.max_rows)
+    b_col = zeros(Float64, analysis_params.max_rows)
+    c_col = zeros(Float64, analysis_params.max_rows)
+    nnet = zeros(Int64, analysis_params.max_rows)
+    edge_weight = zeros(Float64, analysis_params.max_rows)
+    e1 = zeros(Int64, analysis_params.max_rows)
+    e2 = zeros(Int64, analysis_params.max_rows)
+    fitness = zeros(Float64, analysis_params.max_rows)
 
     ##pre allocating this array to prevent iterating over unused timepoints in the main loop
-    tmax_array = collect(1:df_dict[!, :net_save_tick][1][1]:maximum(df_dict[!, :timestep])[end])
-
-
+    # tmax_array = collect(1:df_dict[!, :net_save_tick][1][1]:(maximum(df_dict[!, :timestep])[end])-(analysis_params.t_start+analysis_params.t_end))
+    tmax_array = collect(1:df_dict[!, :net_save_tick][1][1]:(analysis_params.t_end - analysis_params.t_start))
+    print("t_max ",length(tmax_array))
     ## less elegant for loop than the regular create_df :(
     ## seperating the edge matrix, populating the other columns
     row = 0
-    if use_random == true
+    if analysis_params.use_random == true
         network_indices = shuffle(1:length(df_dict[!, :nnet]))
     else
         network_indices = 1:length(df_dict[!, :nnet])
     end
-
+    print("network_indices ", length(network_indices))
     ##iterates over all replicate networks
     for i in network_indices
 
         ## stops the loop when all rows are used
-        if row == max_rows
+        if row == analysis_params.max_rows
             break
         end
 
         ## iterates over all nodes of a network
         for n1 in 1:df_dict[!, :nnet][i]
             for t in tmax_array
-                if row < max_rows
+                if row < analysis_params.max_rows
                     row += 1
                     e1[row] = n1
                     e2[row] = 0
+                    ## this is actually the node weight :)
                     edge_weight[row] = df_dict[!, :mean_net_history][i][t].Wb[n1]
                     rep_id[row] = df_dict[!, :rep_id][i]
                     timestep[row] = df_dict[!, :timestep][i][t]
@@ -251,7 +237,7 @@ function create_edge_df(df_dict::SubDataFrame, max_rows, use_random = false)
                 ##Iterates over all edges
                 for n2 in n1:df_dict[!, :nnet][i]
                     for t in tmax_array
-                        if row < max_rows
+                        if row < analysis_params.max_rows
                             row+=1
                             e1[row] = n1
                             e2[row] = n2
