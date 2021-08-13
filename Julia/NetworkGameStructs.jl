@@ -1,4 +1,4 @@
-
+using Strided
 
 ## organized by part of the model modified, values set via ArgParse
 
@@ -35,6 +35,17 @@ end
 
 ## smallest type necessary to play a complete round of the game 
 mutable struct network
+    genotype_id::Int64
+    Wm::StridedView{Float64, 2, Vector{Float64}}
+    Wb::StridedView{Float64, 1, Vector{Float64}}
+    InitialOffer::Float64
+    CurrentOffer::Float64
+end
+
+## copy of old network structure for saving to disk. Only difference is this has basic Julia Arrays since 
+## these won't need further matrix operations
+
+mutable struct output_network
     genotype_id::Int64
     Wm::Matrix{Float64}
     Wb::Vector{Float64}
@@ -74,7 +85,9 @@ mutable struct population
     fit_dict::Dict{Int64, Dict{Int64, Float64}}
     shuffled_indices::Vector{Int64}
     n_genotypes::Int64
+    payoffs::Vector{Float64}
     mean_w::Float64
+    gamePayoffTempArray::Vector{Vector{Float64}}
 end
 
 mutable struct simulation_output
@@ -85,9 +98,10 @@ mutable struct simulation_output
     n_genotypes::Vector{Int64}
     ## simulation results ##
     ## mean values of fitness and initial offer over the sim
+    payoff_mean_history::Vector{Float64}
     w_mean_history::Vector{Float64}
     init_mean_history::Vector{Float64}
-    mean_net_history::Vector{network}
+    mean_net_history::Vector{output_network}
     ## Output copy of parameters
     parameters::simulation_parameters
 

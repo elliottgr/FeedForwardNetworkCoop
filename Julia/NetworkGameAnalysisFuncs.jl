@@ -1,6 +1,6 @@
 ## functions necessary to create and analyze results from network game sims
 
-using DataFrames, JLD2, StatsPlots, Statistics, Plots, ColorSchemes
+using DataFrames, JLD2, StatsPlots, Statistics, Plots, ColorSchemes, LinearAlgebra, Random
 
 include("NetworkGameStructs.jl")
 
@@ -89,13 +89,14 @@ function get_df_dict(files::Vector{JLD2.JLDFile}, analysis_params::analysis_para
         end
     end
     
-    ## filling networks and parameters
+    ## creating columns to be filled
     fixations = fill(zeros(Int64,0), n_rows)
     n_genotypes = fill(zeros(Int64,0), n_rows)
     w_mean_history =  fill(zeros(Float64,0), n_rows)
     init_mean_history =  fill(zeros(Float64,0), n_rows)
-    mean_net_history = fill(Vector{network}(undef, 0), n_rows)
+    mean_net_history = fill(Vector{output_network}(undef, 0), n_rows)
     parameters = Vector{simulation_parameters}(undef, n_rows)
+    payoff_mean_history = fill(zeros(Float64, 0), n_rows)
     timestep = fill(zeros(Int64,0), n_rows)
     rep_id = zeros(Int64, n_rows)
     df_dict = Dict([
@@ -106,7 +107,8 @@ function get_df_dict(files::Vector{JLD2.JLDFile}, analysis_params::analysis_para
                 (Symbol(:mean_net_history), mean_net_history),
                 (Symbol(:parameters), parameters),
                 (Symbol(:timestep), timestep),
-                (Symbol(:rep_id), rep_id)])
+                (Symbol(:rep_id), rep_id),
+                (Symbol(:payoff_mean_history), payoff_mean_history)])
     
     rep_i = 0
     column_names = get_column_names()
@@ -136,7 +138,7 @@ end
 ## need to turn parameter values into columns. This function should be robust to updates of the 
 ## simulation_parameters struct, but will introduce issues if different versions are analyzed together.
 ## place files in seperate directories if this is necessary
-function split_parameters(df_dict::Dict, analysis_params)
+function split_parameters(df_dict::Dict, analysis_params::analysis_parameters)
     for param in fieldnames(simulation_parameters)
         temp_array = Vector(undef, length(df_dict[:parameters]))
         i = 0
@@ -162,7 +164,7 @@ end
 ## wasn't sure how to define a preallocation on these, leaving it undef for append
 ## speed isn't essential when working with <1800 replicates. Unless future sims
 ## are several orders of magnitude higher, the push! vector construction is fine.
-function create_df(files::Vector{JLD2.JLDFile}, analysis_params)
+function create_df(files::Vector{JLD2.JLDFile}, analysis_params::analysis_parameters)
 
     ## creating  DF
     df = DataFrame()
@@ -200,16 +202,15 @@ function create_edge_df(df_dict::SubDataFrame, analysis_params::analysis_paramet
     ##pre allocating this array to prevent iterating over unused timepoints in the main loop
     # tmax_array = collect(1:df_dict[!, :net_save_tick][1][1]:(maximum(df_dict[!, :timestep])[end])-(analysis_params.t_start+analysis_params.t_end))
     tmax_array = collect(1:df_dict[!, :net_save_tick][1][1]:(analysis_params.t_end - analysis_params.t_start))
-    print("t_max ",length(tmax_array))
-    ## less elegant for loop than the regular create_df :(
-    ## seperating the edge matrix, populating the other columns
+
+
     row = 0
     if analysis_params.use_random == true
         network_indices = shuffle(1:length(df_dict[!, :nnet]))
     else
         network_indices = 1:length(df_dict[!, :nnet])
     end
-    print("network_indices ", length(network_indices))
+    
     ##iterates over all replicate networks
     for i in network_indices
 
@@ -267,15 +268,57 @@ end
 
 
 
+
+## takes a parameter set and creates a nested heatmap of edge-fitness correlations
+## main diagonal is node weights, above main diag is node-node (edge) correlations
+function correlation_heatmaps(b_c_nnet_group::DataFrame)
+    weight_fitness_corr_matrix = zeros(Float64, (b_c_nnet_group[!, :nnet][1],b_c_nnet_group[!, :nnet][1]))
+    for edge_group in groupby(b_c_nnet_group, [:e1, :e2])
+        if edge_group[!, :e2][1] == 0
+            if edge_group[1, :e1] != 0
+                weight_fitness_corr_matrix[edge_group[!, :e1][1] , edge_group[!, :e1][1]] = cor(edge_group[!,:edge_weight], edge_group[!,:fitness])
+            end
+        elseif edge_group[!, :e2][1] < edge_group[!, :e1][1]
+            weight_fitness_corr_matrix[edge_group[!, :e1][1] , edge_group[!, :e2][1]] = NaN
+        else
+            weight_fitness_corr_matrix[edge_group[!, :e1][1] , edge_group[!, :e2][1]] = cor(edge_group[!,:edge_weight], edge_group[!,:fitness])
+        end
+    end
+    return heatmap(weight_fitness_corr_matrix, 
+        xlabel = "Node 2", 
+        ylabel = "Node 1", 
+        title = string("b: " , b_c_nnet_group[1, :b], " c: ", b_c_nnet_group[1, :c]),
+        c = :RdBu_9,
+        clims = (-0.5, 0.5),
+        xticks = (1:1:(b_c_nnet_group[1, :nnet]), (1:1:b_c_nnet_group[1,:nnet])),
+        yticks = (1:1:(b_c_nnet_group[1, :nnet]), (1:1:b_c_nnet_group[1,:nnet])),
+        yflip = true)
+end
+
+
+## pass the main_df (timepoint rows) to create a n x n heatmap composed of
+## edge-fitness corrrelation heatmaps. the larger heatmap axes are b, c params
+function create_b_c_heatmap_plot(df, nnet::Int64, analysis_params)
+    b_c_vals = unique(df[!,:c])
+    heatmaps = Vector{Plots.Plot}(undef,0)
+    main_df = df[df.nnet .== nnet, :]
+
+    for group in groupby(main_df, [:b,:c])
+        push!(heatmaps,correlation_heatmaps(create_edge_df(group, analysis_params)))
+    end
+    filestr = string("fitness_edge_weight_heatmap_nnet_", nnet, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
+    savefig(plot(heatmaps..., layout = (length(b_c_vals), length(b_c_vals))), filestr)
+end
+
 ## for a DataFrame group, returns figures similar to those created in cooperateion_analysis.jl
 ## and JVC's original grant proposal. Implementation creates two dataframes because I copied it from
 ## cooperation analysis rather than directly applying it to the gdf created elsewhere.
-function create_mean_w_violin_plots(group::SubDataFrame, k)
+function create_mean_w_violin_plots(group::SubDataFrame, analysis_params::analysis_parameters)
     nnets = zeros(Int64, 0)
     w_means = zeros(Float64, 0)
     for replicate in eachrow(group)
         push!(nnets, replicate[:nnet])
-        push!(w_means, last(rolling_mean3(replicate[:w_mean_history], k)))
+        push!(w_means, last(rolling_mean3(replicate[:w_mean_history], analysis_params.k)))
     end
     temp_df = DataFrame(nnet=nnets, w_mean = w_means)
     @df temp_df violin(:nnet, :w_mean, title = "Mean Fitness", legend = :none)
@@ -284,12 +327,12 @@ end
 
 
 ##similar to above, creates plots for a given subdataframe.
-function create_mean_init_violin_plots(group::SubDataFrame, k)
+function create_mean_init_violin_plots(group::SubDataFrame, analysis_params::analysis_parameters)
     nnets = zeros(Int64, 0)
     inits = zeros(Float64,0)
     for replicate in eachrow(group)
         push!(nnets, replicate[:nnet])
-        push!(inits, last(rolling_mean3(replicate[:init_mean_history], k)))
+        push!(inits, last(rolling_mean3(replicate[:init_mean_history], analysis_params.k)))
     end
     temp_df = DataFrame(nnet=nnets, inits = inits)
     @df temp_df violin(:nnet, :inits, title = "Mean Initial Offer", legend = :none)
@@ -297,13 +340,13 @@ function create_mean_init_violin_plots(group::SubDataFrame, k)
 end
 
 ## creates violin plots from a grouped dataframe
-function create_all_violin_plots(gdf, k)
+function create_all_violin_plots(gdf, analysis_params::analysis_parameters)
     for group in gdf
-        plt = plot(create_mean_w_violin_plots(group, k), create_mean_init_violin_plots(group, k), layout=(2,1))
+        plt = plot(create_mean_w_violin_plots(group, analysis_params), create_mean_init_violin_plots(group, analysis_params), layout=(2,1))
         b = replace(string(group[!, :b][1]), "."=>"0")
         c = replace(string(group[!, :c][1]), "."=>"0")
         tmax = replace(string(group[!, :tmax][1]), "."=>"0")
-        filename = string("mean_init_and_fitness", "_b_", b, "_c_", c, "_tmax_", tmax, "_k_", string(k))
+        filename = string("mean_init_and_fitness", "_b_", b, "_c_", c, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
         savefig(plt, filename)
     end
 end
@@ -314,7 +357,6 @@ end
 
 ## This plots the node weights on the diagonal of the edge weights!
 function network_heatmap(group::SubDataFrame)
-    # max_net = ma
     output_wm = zeros(Float64, (group[1, :nnet], group[1, :nnet]))
     output_wb = zeros(Float64, group[1, :nnet])
     reps = 0
@@ -359,7 +401,7 @@ end
 
 
 ## setting this up as the mean of rolling averages sampling "k" timepoints
-function create_mean_init_and_fitness_plots(group::DataFrame, k::Int64)
+function create_mean_init_and_fitness_plots(group::DataFrame, analysis_params::analysis_parameters)
     test_var = 1
     for b in unique(group[!,:b])
         print(string("b: ", string(b)))
@@ -378,8 +420,8 @@ function create_mean_init_and_fitness_plots(group::DataFrame, k::Int64)
                 ## finding the element wise mean for the conditions
                 for replicate in eachrow(subset(group, :b => ByRow(==(b)), :c => ByRow(==(c)), :nnet => ByRow(==(nnet))))
                     ## summing the rolling mean of each replicate
-                    fitness_array .+= rolling_mean3(replicate.w_mean_history, k)
-                    init_array .+= rolling_mean3(replicate.init_mean_history, k)
+                    fitness_array .+= rolling_mean3(replicate.w_mean_history, analysis_params.k)
+                    init_array .+= rolling_mean3(replicate.init_mean_history, analysis_params.k)
                     i+=1
                 end
                 ## dividing sum of replicates by # of reps
@@ -388,7 +430,7 @@ function create_mean_init_and_fitness_plots(group::DataFrame, k::Int64)
                 plt_init = plot!(plt_out[1], init_array, label = nnet, title = "InitOffer")
                 plt_w = plot!(plt_out[2], fitness_array, label = nnet, title = "W")
             end
-            filestr = string("mean_w_b_", replace(string(b), "."=>"0"), "_c_", replace(string(c),"."=>"0"), "_k_", string(k))
+            filestr = string("mean_w_b_", replace(string(b), "."=>"0"), "_c_", replace(string(c),"."=>"0"), "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
             savefig(plt_out, filestr)
         end
     end

@@ -6,7 +6,7 @@ using LinearAlgebra, Random, Distributions, ArgParse, StatsBase
 
 include("NetworkGameStructs.jl")
 
-function calcOj(j::Int64, prev_out::Vector{Float64}, Wm::Matrix{Float64}, Wb::Vector{Float64} )
+function calcOj(j::Int64, prev_out::StridedView{Float64, 1, Vector{Float64}, typeof(identity)}, Wm::StridedView{Float64, 2, Vector{Float64}, typeof(identity)}, Wb::StridedView{Float64, 1, Vector{Float64}, typeof(identity)} )
     ##############################
     ## Iterates a single layer of the Feed Forward network
     ##############################
@@ -14,16 +14,17 @@ function calcOj(j::Int64, prev_out::Vector{Float64}, Wm::Matrix{Float64}, Wb::Ve
     return (1/(1+exp(-x)))
 end
 
-function iterateNetwork(input::Float64, Wm::Matrix{Float64}, Wb::Vector{Float64})
+function iterateNetwork(input::Float64, Wm::StridedView{Float64, 2, Vector{Float64}, typeof(identity)}, Wb::StridedView{Float64, 1, Vector{Float64}, typeof(identity)})
     ##############################
     ## Calculates the total output of the network,
     ## iterating over calcOj() for each layer
     ##############################
 
-    prev_out = zeros(Float64, length(Wb))
+    # prev_out = zeros(Float64, length(Wb))
+    prev_out = StridedView(zeros(Float64, length(Wb)))
     prev_out[1] = input
     for j in 2:length(Wb)
-        prev_out[j] = calcOj(j, prev_out, Wm, Wb)
+        prev_out[j] = @strided calcOj(j, prev_out, Wm, Wb)
     end
     return prev_out
 end
@@ -65,7 +66,7 @@ function calc_discount(δ::Float64, rounds::Int64)
     return exp.(-δ.*(rounds.-1 .-range(1,rounds, step = 1)))
 end
 
-function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet::network)
+function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet::network, gamePayoffArray::Vector{Vector{Float64}})
 
     ####################################
     ## calulate resident-mutant fitness matrix from contributions throughout the game history. If
@@ -83,18 +84,19 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
     if parameters.δ >= 0.0
         rmOut, mrOut = repeatedNetworkGame(parameters,mutNet,resNet)
         discount = calc_discount(parameters.δ, parameters.rounds)
-        # x::Vector{Float64} = (parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut)
-        # y::Vector{Float64} = (parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut)
 
-        # wmr = 1 + (dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
+        wmr = 1 + (dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
         wrm = 1 + (dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
-
+        gamePayoffArray[1][1] = wrm
+        gamePayoffArray[1][2] = wmr
+        gamePayoffArray[2][1] = last(rmOut)
+        gamePayoffArray[2][2] = last(mrOut)
         ## this will return the frequency of competitions in which
         ## the the resident will outcompete the mutant in the reproduction game
         ## P(mutant) + P(resident) = 1
-        return wrm
+        # return wrm
         ## Legacy code, changed 6/18/21
-        #return [wmr, wrm]
+        return gamePayoffArray
     ############################################################
     ## without discount, retrieves only the final value after all 
     ## rounds played and returns it as w based on game parameters
@@ -103,8 +105,8 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
         rmOut, mrOut = repeatedNetworkGameHistory(parameters, mutNet, resNet)
         wmr = max(0.0, (1 + ((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
         wrm = max(0.0, (1 + ((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
-        return wrm
-
+        # return wrm
+        return [[wrm, wmr], [rmOut, mrOut]]
     end
 end
 
@@ -140,25 +142,23 @@ end
 
 ## Will iterate over each network and save the mean value of each vertex/edge
 function return_mean_network(pop::population)
-    Wm_out = zeros((pop.parameters.nnet, pop.parameters.nnet))
-    Wb_out = zeros(pop.parameters.nnet)
-    init_out = Vector{Float64}(undef, length(pop.networks))
-    ## summing the value of each network, dividing by pop size at end to find mean
-    for i in 1:length(pop.networks)
-        for ij in eachindex(pop.networks[i].Wm)
-            Wm_out[ij] += pop.networks[i].Wm[ij]
-        end
-        for j in 1:pop.parameters.nnet
-            Wb_out[j] += pop.networks[i].Wb[j]
-        end
+    Wm_out = Matrix{Float64}(undef, (pop.parameters.nnet,pop.parameters.nnet))
+    Wb_out = Vector{Float64}(undef, pop.parameters.nnet)
 
+    init_out = Vector{Float64}(undef, length(pop.networks))
+
+    for net_i in 1:length(pop.networks)
+        for i in 1:pop.parameters.nnet
+            @inbounds Wb_out[i] += pop.networks[net_i].Wb[i]
+            for j in 1:pop.parameters.nnet
+                @inbounds Wm_out[i, j] += pop.networks[net_i].Wm[i,j]
+            end
+        end
     end
     wm_mean = Wm_out./pop.parameters.N
     wb_mean = Wb_out./pop.parameters.N
-    # wm_mean = mean!(zeros((pop.parameters.nnet, pop.parameters.nnet)),Wm_out)
-    # wb_mean = mean!(zeros(pop.parameters.nnet), Wb_out)
 
-    return network(-1, wm_mean, wb_mean, mean(init_out), mean(init_out))
+    return output_network(-1, wm_mean, wb_mean, mean(init_out), mean(init_out))
 end
 
 
@@ -184,6 +184,7 @@ function output!(t::Int64, pop::population, outputs::simulation_output)
     outputs.n_genotypes[t] = pop.n_genotypes
     outputs.init_mean_history[t] = mean(return_initial_offer_array(pop))
     outputs.w_mean_history[t] = pop.mean_w
+    outputs.payoff_mean_history[t] = mean(pop.payoffs)
 end
 
 
@@ -221,8 +222,8 @@ function population_construction(parameters::simulation_parameters)
     population_array = Vector{network}(undef, parameters.N)
     scale_freq(p, N) = convert(Int64, round((p*N), digits=0))
     for n::Int64 in 1:length(parameters.init_freqs)
-        Wm = UpperTriangular(randn((parameters.nnet,parameters.nnet)))
-        Wb = randn(parameters.nnet)
+        Wm = StridedView(Matrix(UpperTriangular(randn((parameters.nnet,parameters.nnet)))))
+        Wb = StridedView(randn(parameters.nnet))
         # initOffer = range_check((1.0 + randn())/2)
         initOffer = copy(parameters.initial_offer)
         initialnetworks[n] = network(n, Wm, Wb, initOffer, initOffer)
@@ -237,23 +238,26 @@ function population_construction(parameters::simulation_parameters)
     if length(population_array) != parameters.N
         return error("population array failed to generate $N networks")
     end
-    return population(parameters, shuffle!(population_array), return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Float64}}(), shuffle(1:parameters.N), length(parameters.init_freqs), 0)
+    return population(parameters, shuffle!(population_array), return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Float64}}(), shuffle(1:parameters.N), length(parameters.init_freqs), zeros(Float64, parameters.N), 0, [[0.0, 0.0], [0.0,0.0]])
 end
 
 ##################
 # Pairwise fitness
 ##################
 function update_fit_dict!(pop::population)
+
     for (n1::Int64, n2::Int64) in zip(1:pop.parameters.N, pop.shuffled_indices)
         if pop.genotypes[n1] ∉ keys(pop.fit_dict)
             pop.fit_dict[pop.genotypes[n1]] = Dict{Int64, Vector{Float64}}()
         end
         if pop.genotypes[n2] ∉ keys(pop.fit_dict[pop.genotypes[n1]])
-            if n1 != 1
-                pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = fitnessOutcome(pop.parameters, pop.networks[n2], pop.networks[n1])
-            else 
-                pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = fitnessOutcome(pop.parameters, pop.networks[n2], pop.networks[n1])
-            end
+            # if n1 != 1
+                pop.gamePayoffTempArray = fitnessOutcome(pop.parameters, pop.networks[n2], pop.networks[n1], pop.gamePayoffTempArray)
+                pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = pop.gamePayoffTempArray[1][1]
+                pop.payoffs[n1] = pop.gamePayoffTempArray[2][1]
+            # else 
+            #     pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = gameOutcome[1][1]
+            # end
         end
     end
 end
@@ -305,10 +309,11 @@ function mutate!(pop::population)
                                     .* rand(Normal(0, pop.parameters.mutsize), (pop.parameters.nnet,pop.parameters.nnet)))
             mutWb = rand(Binomial(1, pop.parameters.mutlink), pop.parameters.nnet) .* rand(Normal(0, pop.parameters.mutsize),pop.parameters.nnet)
             mutInit = rand(Normal(0, pop.parameters.mutinitsize))
-
+            outWm = pop.networks[i].Wm + StridedView(Matrix(mutWm))
+            outWb = pop.networks[i].Wb + StridedView(mutWb)
             pop.networks[i] = network(pop.n_genotypes,
-                                        (pop.networks[i].Wm + mutWm),
-                                        (pop.networks[i].Wb + mutWb),
+                                        (outWm),
+                                        (outWb),
                                         range_check(pop.networks[i].InitialOffer + mutInit),
                                         range_check(pop.networks[i].InitialOffer + mutInit))
         end
@@ -392,7 +397,7 @@ function initial_arg_parsing()
         "--game_param_step"
             help = "step size of iterations for b/c"
             arg_type = Float64
-            default = 0.5
+            default = 1.0
         "--initial_offer"
             help = "the default value of initial offers for the initial residents."
             arg_type = Float64
@@ -488,6 +493,7 @@ outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
                             zeros(Int64, pop.parameters.tmax),
                             zeros(Float64, pop.parameters.tmax),
                             zeros(Float64, pop.parameters.tmax),
+                            zeros(Float64, pop.parameters.tmax),
                             Vector{network}(undef, pop.parameters.tmax),
                             pop.parameters)
 
@@ -519,9 +525,10 @@ outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
         end
         ## should detect an error in genotype tracking. Will trip if there is <2 genotypes initially
         if pop.parameters.init_freqs[1] != 0.0
-            if length(Set(keys(pop.fit_dict))) != maximum(Set(keys(pop.fit_dict)))
-                print("Length: ", length(Set(keys(pop.fit_dict))), "\n")
-                print("Max: ", maximum(Set(keys(pop.fit_dict))), "\n")
+            keyset = Set(keys(pop.fit_dict))
+            if length(keyset) != maximum(keyset)
+                print("Length: ", length(keyset), "\n")
+                print("Max: ", maximum(keyset), "\n")
                 print("Error in genotype tracking, dictionary of fitness values has missing genotypes", "\n")
                 break
             end
