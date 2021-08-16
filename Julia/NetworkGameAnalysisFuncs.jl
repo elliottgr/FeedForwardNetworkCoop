@@ -10,6 +10,7 @@ struct analysis_parameters
     use_random::Bool
     t_start::Int64
     t_end::Int64
+    output_folder::String
 end
 
 
@@ -306,7 +307,7 @@ function create_b_c_heatmap_plot(df, nnet::Int64, analysis_params)
     for group in groupby(main_df, [:b,:c])
         push!(heatmaps,correlation_heatmaps(create_edge_df(group, analysis_params)))
     end
-    filestr = string("fitness_edge_weight_heatmap_nnet_", nnet, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
+    filestr = pwd()*analysis_params.output_folder*"/"*string("fitness_edge_weight_heatmap_nnet_", nnet, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
     savefig(plot(heatmaps..., layout = (length(b_c_vals), length(b_c_vals))), filestr)
 end
 
@@ -318,7 +319,7 @@ function create_mean_w_violin_plots(group::SubDataFrame, analysis_params::analys
     w_means = zeros(Float64, 0)
     for replicate in eachrow(group)
         push!(nnets, replicate[:nnet])
-        push!(w_means, last(rolling_mean3(replicate[:w_mean_history], analysis_params.k)))
+        push!(w_means, last(rolling_mean(replicate[:w_mean_history][analysis_params.t_start:analysis_params.t_end], analysis_params.k)))
     end
     temp_df = DataFrame(nnet=nnets, w_mean = w_means)
     @df temp_df violin(:nnet, :w_mean, title = "Mean Fitness", legend = :none)
@@ -332,7 +333,7 @@ function create_mean_init_violin_plots(group::SubDataFrame, analysis_params::ana
     inits = zeros(Float64,0)
     for replicate in eachrow(group)
         push!(nnets, replicate[:nnet])
-        push!(inits, last(rolling_mean3(replicate[:init_mean_history], analysis_params.k)))
+        push!(inits, last(rolling_mean(replicate[:init_mean_history][analysis_params.t_start:analysis_params.t_end], analysis_params.k)))
     end
     temp_df = DataFrame(nnet=nnets, inits = inits)
     @df temp_df violin(:nnet, :inits, title = "Mean Initial Offer", legend = :none)
@@ -345,9 +346,8 @@ function create_all_violin_plots(gdf, analysis_params::analysis_parameters)
         plt = plot(create_mean_w_violin_plots(group, analysis_params), create_mean_init_violin_plots(group, analysis_params), layout=(2,1))
         b = replace(string(group[!, :b][1]), "."=>"0")
         c = replace(string(group[!, :c][1]), "."=>"0")
-        tmax = replace(string(group[!, :tmax][1]), "."=>"0")
-        filename = string("mean_init_and_fitness", "_b_", b, "_c_", c, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
-        savefig(plt, filename)
+        filestr = pwd()*analysis_params.output_folder*"/"*string("mean_init_and_fitness", "_b_", b, "_c_", c, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
+        savefig(plt, filestr)
     end
 end
 
@@ -381,7 +381,7 @@ end
 ## from Satvik Beri (https://stackoverflow.com/questions/59562325/moving-average-in-julia)
 ## by default, only computes the mean after k datapoints, modified here to fill the array with intermediates
 
-function rolling_mean3(arr, n)
+function rolling_mean(arr, n)
     so_far = sum(arr[1:n])
     pre_out = zero(arr[1:(n-1)])
     for i in 1:(n-1)
@@ -401,36 +401,38 @@ end
 
 
 ## setting this up as the mean of rolling averages sampling "k" timepoints
-function create_mean_init_and_fitness_plots(group::DataFrame, analysis_params::analysis_parameters)
-    test_var = 1
+function create_mean_init_payoff_and_fitness_plots(group::DataFrame, analysis_params::analysis_parameters)
+    print("Creating time series plots...", "\n")
     for b in unique(group[!,:b])
-        print(string("b: ", string(b)))
-        print("\n")
         for c in unique(group[!,:c])
-            print(string("c: ", string(c)))
-            print("\n")
             plt_w = plot()
             plt_init = plot()
-            plt_out = plot(plt_w, plt_init, layout = (2,1))
+            plt_payoff = plot()
+            plt_out = plot(plt_w, plt_init, plt_payoff, layout = (3,1))
             for nnet in unique(group[!,:nnet])
                 i = 0
-                tmax = maximum(group[!, :tmax])
-                fitness_array = zeros(Float64, tmax)
-                init_array = zeros(Float64, tmax)
+                # tmax = maximum(group[!, :tmax])
+                
+                fitness_array = zeros(Float64, (analysis_params.t_end - analysis_params.t_start + 1))
+                init_array = zeros(Float64, (analysis_params.t_end - analysis_params.t_start + 1))
+                payoff_array = zeros(Float64, (analysis_params.t_end - analysis_params.t_start + 1))
+
                 ## finding the element wise mean for the conditions
                 for replicate in eachrow(subset(group, :b => ByRow(==(b)), :c => ByRow(==(c)), :nnet => ByRow(==(nnet))))
                     ## summing the rolling mean of each replicate
-                    fitness_array .+= rolling_mean3(replicate.w_mean_history, analysis_params.k)
-                    init_array .+= rolling_mean3(replicate.init_mean_history, analysis_params.k)
+                    fitness_array .+= rolling_mean(replicate.w_mean_history[analysis_params.t_start:analysis_params.t_end], analysis_params.k)
+                    init_array .+= rolling_mean(replicate.init_mean_history[analysis_params.t_start:analysis_params.t_end], analysis_params.k)
+                    payoff_array .+= rolling_mean(replicate.payoff_mean_history[analysis_params.t_start:analysis_params.t_end], analysis_params.k)
                     i+=1
                 end
                 ## dividing sum of replicates by # of reps
                 fitness_array ./= i
                 init_array ./= i
-                plt_init = plot!(plt_out[1], init_array, label = nnet, title = "InitOffer")
+                plt_init = plot!(plt_out[1], init_array, label = nnet, title = "Initial Offer")
                 plt_w = plot!(plt_out[2], fitness_array, label = nnet, title = "W")
+                plt_payoff = plot!(plt_out[3], payoff_array, label = nnet, title = "Payoff")
             end
-            filestr = string("mean_w_b_", replace(string(b), "."=>"0"), "_c_", replace(string(c),"."=>"0"), "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
+            filestr = pwd()*analysis_params.output_folder*"/"*string("mean_w_b_", replace(string(b), "."=>"0"), "_c_", replace(string(c),"."=>"0"), "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
             savefig(plt_out, filestr)
         end
     end
