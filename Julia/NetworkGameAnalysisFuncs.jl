@@ -307,7 +307,7 @@ function create_b_c_heatmap_plot(df, nnet::Int64, analysis_params)
     for group in groupby(main_df, [:b,:c])
         push!(heatmaps,correlation_heatmaps(create_edge_df(group, analysis_params)))
     end
-    filestr = pwd()*analysis_params.output_folder*"/"*string("fitness_edge_weight_heatmap_nnet_", nnet, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
+    filestr = pwd()*"/"*analysis_params.output_folder*"/"*string("fitness_edge_weight_heatmap_nnet_", nnet, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
     savefig(plot(heatmaps..., layout = (length(b_c_vals), length(b_c_vals))), filestr)
 end
 
@@ -346,7 +346,7 @@ function create_all_violin_plots(gdf, analysis_params::analysis_parameters)
         plt = plot(create_mean_w_violin_plots(group, analysis_params), create_mean_init_violin_plots(group, analysis_params), layout=(2,1))
         b = replace(string(group[!, :b][1]), "."=>"0")
         c = replace(string(group[!, :c][1]), "."=>"0")
-        filestr = pwd()*analysis_params.output_folder*"/"*string("mean_init_and_fitness", "_b_", b, "_c_", c, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
+        filestr = pwd()*"/"*analysis_params.output_folder*"/"*string("mean_init_and_fitness", "_b_", b, "_c_", c, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
         savefig(plt, filestr)
     end
 end
@@ -432,7 +432,7 @@ function create_mean_init_payoff_and_fitness_plots(group::DataFrame, analysis_pa
                 plt_w = plot!(plt_out[2], fitness_array, label = nnet, title = "W")
                 plt_payoff = plot!(plt_out[3], payoff_array, label = nnet, title = "Payoff")
             end
-            filestr = pwd()*analysis_params.output_folder*"/"*string("mean_w_b_", replace(string(b), "."=>"0"), "_c_", replace(string(c),"."=>"0"), "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
+            filestr = pwd()*"/"*analysis_params.output_folder*"/"*string("mean_w_b_", replace(string(b), "."=>"0"), "_c_", replace(string(c),"."=>"0"), "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
             savefig(plt_out, filestr)
         end
     end

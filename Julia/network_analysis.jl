@@ -22,8 +22,8 @@ function main(k=50 , max_rows = 1000000, use_random = false, t_start = 1, t_end 
     end
 
     if isdir(string(pwd(), analysis_params.output_folder)) == false
-        print("Output directory not found, creating a new one at ", string(pwd(), analysis_params.output_folder))
-        mkdir(string(pwd(), analysis_params.output_folder))
+        print("Output directory not found, creating a new one at ", string(pwd(), "/", analysis_params.output_folder))
+        mkdir(string(pwd(), "/", analysis_params.output_folder))
     end
 
     ## main loop
