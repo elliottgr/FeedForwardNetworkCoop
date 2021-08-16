@@ -56,4 +56,4 @@ end
 ## max_rows = number of edges to sample for edge analysis
 ## use_random = boolean for whether edges are sampled randomly or sequentially 
 ## t_start = timestep to begin tracking data for analysis
-@time main(50, 10000000, true, 1, 10000) 
+@time main(50, 100000000, true, 1, 10000) 
