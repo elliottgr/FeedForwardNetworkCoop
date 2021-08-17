@@ -1,16 +1,17 @@
 ## functions necessary to create and analyze results from network game sims
 
-using DataFrames, JLD2, StatsPlots, Statistics, Plots, ColorSchemes, LinearAlgebra, Random
+using DataFrames, JLD2, StatsPlots, Statistics, Plots, ColorSchemes, LinearAlgebra, Random, ArgParse
 
 include("NetworkGameStructs.jl")
 
-struct analysis_parameters
+mutable struct analysis_parameters
     k::Int64
     max_rows::Int64
     use_random::Bool
     t_start::Int64
     t_end::Int64
     output_folder::String
+    filepath::String
 end
 
 
@@ -24,11 +25,22 @@ function load_files()
         if last(splitext(file)) == ".jld2"
             print(file)
             push!(files, jldopen(file))
+            folder_name = first(splitext(file))
         end
-        
     end
-    
-    return files
+    if length(files) > 1
+        folder_name = "multiple_datasets"
+    end
+    return [files, folder_name]
+end
+
+function generate_output_directory(analysis_params::analysis_parameters, files::Vector{JLD2.JLDFile})
+    if length(files) > 1
+        folder_name = "multiple_datasets"
+    else
+        folder_name = splitext(files[1])[1]
+    end
+    return folder_name
 end
 
 function get_experiment(file::JLD2.JLDFile, experiment=nothing, replicate=nothing) 
@@ -307,7 +319,7 @@ function create_b_c_heatmap_plot(df, nnet::Int64, analysis_params)
     for group in groupby(main_df, [:b,:c])
         push!(heatmaps,correlation_heatmaps(create_edge_df(group, analysis_params)))
     end
-    filestr = pwd()*"/"*analysis_params.output_folder*"/"*string("fitness_edge_weight_heatmap_nnet_", nnet, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
+    filestr = pwd()*"/"*analysis_params.filepath*"/"*string("fitness_edge_weight_heatmap_nnet_", nnet, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
     savefig(plot(heatmaps..., layout = (length(b_c_vals), length(b_c_vals))), filestr)
 end
 
@@ -346,7 +358,7 @@ function create_all_violin_plots(gdf, analysis_params::analysis_parameters)
         plt = plot(create_mean_w_violin_plots(group, analysis_params), create_mean_init_violin_plots(group, analysis_params), layout=(2,1))
         b = replace(string(group[!, :b][1]), "."=>"0")
         c = replace(string(group[!, :c][1]), "."=>"0")
-        filestr = pwd()*"/"*analysis_params.output_folder*"/"*string("mean_init_and_fitness", "_b_", b, "_c_", c, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
+        filestr = pwd()*"/"*analysis_params.filepath*"/"*string("mean_init_and_fitness", "_b_", b, "_c_", c, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
         savefig(plt, filestr)
     end
 end
@@ -432,10 +444,46 @@ function create_mean_init_payoff_and_fitness_plots(group::DataFrame, analysis_pa
                 plt_w = plot!(plt_out[2], fitness_array, label = nnet, title = "W")
                 plt_payoff = plot!(plt_out[3], payoff_array, label = nnet, title = "Payoff")
             end
-            filestr = pwd()*"/"*analysis_params.output_folder*"/"*string("mean_w_b_", replace(string(b), "."=>"0"), "_c_", replace(string(c),"."=>"0"), "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
+            filestr = pwd()*"/"*analysis_params.filepath*"/"*string("mean_w_b_", replace(string(b), "."=>"0"), "_c_", replace(string(c),"."=>"0"), "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
             savefig(plt_out, filestr)
         end
     end
+end
+
+function analysis_arg_parsing()
+    arg_parse_settings = ArgParseSettings()
+    @add_arg_table arg_parse_settings begin
+        "--k"
+            help = "number of datapoints for running mean in time series data"
+            arg_type = Int64
+            default = 50
+        "--max_rows"
+            help = "maximum number of edges to sample // setting too high will crash"
+            arg_type = Int64
+            default = 10000000
+        "--use_random"
+            help = "Boolean // True = Edges are sampled randomly, False = Edges are sampled in order from simulation"
+            arg_type = Bool
+            default = true
+        "--t_start"
+            help = "timestep to begin tracking data for analysis // def = 1"
+            arg_type = Int64
+            default = 1
+        "--t_end"
+            help = "timestep to stop tracking data for analysis // def = 100k, do not set higher than tmax from networkgamecoop.jl runs"
+            arg_type = Int64
+            default = 100000
+        "--output_folder"
+            help = "folder name to save output plots"
+            arg_type = String
+            default = "output_figures"
+    end
+    parsed_args = parse_args(ARGS, arg_parse_settings)
+    ## I'm sure there's a way to do this iteratively 
+    analysis_params = analysis_parameters(parsed_args["k"], parsed_args["max_rows"],
+                                        parsed_args["use_random"], parsed_args["t_start"],
+                                        parsed_args["t_end"], parsed_args["output_folder"], "filepath")
+    return analysis_params
 end
 
 
