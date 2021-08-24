@@ -1,6 +1,6 @@
 ## functions necessary to create and analyze results from network game sims
 
-using DataFrames, JLD2, StatsPlots, Statistics, Plots, ColorSchemes, LinearAlgebra, Random, ArgParse
+using DataFrames, JLD2, StatsPlots, Statistics, Plots, ColorSchemes, LinearAlgebra, Random, ArgParse, Dates
 
 include("NetworkGameStructs.jl")
 
@@ -18,6 +18,27 @@ end
 ###############
 ## File Manip Functions
 ###############
+
+
+## creates a log file to save parameters from specific runs of the analysis file
+function create_log_file(df::DataFrame, analysis_params::analysis_parameters)
+    logfilestr = string(analysis_params.filepath, "/parameter_info_", string(now()), ".txt")
+    io = open(logfilestr, "w")
+    println(io, "log file for network_analysis.jl")
+    println(io, now())
+    println(io, "simulation_parameters (NetworkGameCoop.jl):")
+    println(io, "#####################")
+    for param in fieldnames(simulation_parameters)
+        println(io, string(param, " = ", unique(df[!, param])))
+    end
+    println(io,"")
+    println(io, "analysis_parameters (network_analysis.jl):")
+    println(io, "#####################")
+    for param in fieldnames(analysis_parameters)
+        println(io, string(param, " = ", getproperty(analysis_params, param)))
+    end
+    close(io)
+end
 
 function load_files()
     files = Vector{JLD2.JLDFile}(undef, 0)

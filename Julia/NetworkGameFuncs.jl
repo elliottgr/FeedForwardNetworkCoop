@@ -435,7 +435,7 @@ function initial_arg_parsing()
         "--seed"
             help = "seed number for RNG"
             arg_type = Int64
-            default = 666
+            default = 1453
         "--filename"
             help = "Filename to save outputs to (please include .jld2 extension)"
             arg_type = String

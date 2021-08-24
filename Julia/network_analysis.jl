@@ -12,7 +12,7 @@ function main()
     # analysis_params = analysis_parameters(k, max_rows, use_random, t_start, t_end, "figure_outputs")
     analysis_params = analysis_arg_parsing()
     analysis_params.t_start = 1
-    analysis_params.t_end = 2500
+    analysis_params.t_end = 1000
     main_df = create_df(files, analysis_params)
 
     print("Done!" , "\n")
@@ -31,7 +31,7 @@ function main()
     if isdir(string(pwd(), "/", analysis_params.filepath, "/")) == false
         mkdir(string(pwd(), "/", analysis_params.filepath))
     end
-
+    create_log_file(main_df, analysis_params)
 
 
     for file in files
