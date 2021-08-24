@@ -11,6 +11,8 @@ function main()
     ## see NetworkGameAnalysisfunc.jl for explanation of create_df() and create_edge_df()
     # analysis_params = analysis_parameters(k, max_rows, use_random, t_start, t_end, "figure_outputs")
     analysis_params = analysis_arg_parsing()
+    analysis_params.t_start = 1
+    analysis_params.t_end = 2500
     main_df = create_df(files, analysis_params)
 
     print("Done!" , "\n")
