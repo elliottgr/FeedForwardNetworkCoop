@@ -41,8 +41,10 @@ addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project(
 
         
             ## initializing output array
-        sim_outputs = Vector(undef, 0)
+
         parameters = initial_arg_parsing() 
+        # sim_outputs = Vector(undef, 0)
+        # sim_outputs = 
         Random.seed!(parameters.seed)
         n_workers = nworkers()
         print("Starting replicates with $n_workers processes", "\n")
@@ -51,11 +53,8 @@ addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project(
             replicate_parameters.b = b
             for c in collect(parameters.game_param_min:parameters.game_param_step:parameters.game_param_max)
                 replicate_parameters.c = c
-                for net_size in collect(1:2:16)
+                for net_size in collect(parameters.nnet_min:parameters.nnet_step:parameters.nnet_max)
                     replicate_parameters.nnet = net_size
-                    ## setting iterator of population frequency
-
-
                     @time current_reps = RunReplicates(replicate_parameters)
                     push!(sim_outputs, current_reps)
                 end

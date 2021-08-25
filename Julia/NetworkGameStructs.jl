@@ -22,6 +22,9 @@ mutable struct simulation_parameters
     initial_offer::Float64
     init_freqs::Vector{Float64}
     #network params
+    nnet_min::Int64
+    nnet_max::Int64
+    nnet_step::Int64
     nnet::Int64
     mutsize::Float64
     mutinitsize::Float64
