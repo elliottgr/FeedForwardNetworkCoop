@@ -438,32 +438,32 @@ function create_mean_init_payoff_and_fitness_plots(group::DataFrame, analysis_pa
     print("Creating time series plots...", "\n")
     for b in unique(group[!,:b])
         for c in unique(group[!,:c])
-            plt_w = plot()
-            plt_init = plot()
             plt_payoff = plot()
-            plt_out = plot(plt_w, plt_init, plt_payoff, layout = (3,1))
+            plt_init = plot()
+            plt_coop = plot()
+            plt_out = plot( plt_init, plt_payoff, plt_coop, layout = (3,1))
             for nnet in unique(group[!,:nnet])
                 i = 0
                 # tmax = maximum(group[!, :tmax])
                 
                 fitness_array = zeros(Float64, (analysis_params.t_end - analysis_params.t_start + 1))
                 init_array = zeros(Float64, (analysis_params.t_end - analysis_params.t_start + 1))
-                payoff_array = zeros(Float64, (analysis_params.t_end - analysis_params.t_start + 1))
+                coop_array = zeros(Float64, (analysis_params.t_end - analysis_params.t_start + 1))
 
                 ## finding the element wise mean for the conditions
                 for replicate in eachrow(subset(group, :b => ByRow(==(b)), :c => ByRow(==(c)), :nnet => ByRow(==(nnet))))
                     ## summing the rolling mean of each replicate
                     fitness_array .+= rolling_mean(replicate.w_mean_history[analysis_params.t_start:analysis_params.t_end], analysis_params.k)
                     init_array .+= rolling_mean(replicate.init_mean_history[analysis_params.t_start:analysis_params.t_end], analysis_params.k)
-                    payoff_array .+= rolling_mean(replicate.payoff_mean_history[analysis_params.t_start:analysis_params.t_end], analysis_params.k)
+                    coop_array .+= rolling_mean(replicate.payoff_mean_history[analysis_params.t_start:analysis_params.t_end], analysis_params.k)
                     i+=1
                 end
                 ## dividing sum of replicates by # of reps
                 fitness_array ./= i
                 init_array ./= i
                 plt_init = plot!(plt_out[1], init_array, label = nnet, title = "Initial Offer")
-                plt_w = plot!(plt_out[2], fitness_array, label = nnet, title = "W")
-                plt_payoff = plot!(plt_out[3], payoff_array, label = nnet, title = "Payoff")
+                plt_payoff = plot!(plt_out[2], fitness_array, label = nnet, title = "Payoff (fitness)")
+                plt_coop = plot!(plt_out[3], coop_array, label = nnet, title = "Cooperation")
             end
             filestr = pwd()*"/"*analysis_params.filepath*"/"*string("mean_w_b_", replace(string(b), "."=>"0"), "_c_", replace(string(c),"."=>"0"), "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
             savefig(plt_out, filestr)
