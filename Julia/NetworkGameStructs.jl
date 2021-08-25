@@ -66,7 +66,8 @@ function Base.copy(parameters::simulation_parameters)
                                 parameters.resident_fitness_scale, parameters.rounds,
                                 parameters.fitness_benefit_scale,parameters.b,parameters.c,parameters.d,
                                 parameters.game_param_min, parameters.game_param_max, parameters.game_param_step,
-                                parameters.δ,parameters.initial_offer, parameters.init_freqs,parameters.nnet,
+                                parameters.δ,parameters.initial_offer, parameters.init_freqs,
+                                parameters.nnet_min, parameters.nnet_max, parameters.nnet_step, parameters.nnet,
                                 parameters.mutsize,parameters.mutinitsize,parameters.mutlink,parameters.net_save_tick,
                                 parameters.seed,parameters.filename, parameters.init_freq_resolution)
 end

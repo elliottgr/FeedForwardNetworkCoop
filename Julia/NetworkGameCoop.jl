@@ -5,8 +5,8 @@
 
 using Distributed, Random
 
-
 addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project())")
+
 @everywhere using ArgParse, JLD2
 @everywhere begin
     #instantiating environment
@@ -43,20 +43,31 @@ addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project(
             ## initializing output array
 
         parameters = initial_arg_parsing() 
+
         # sim_outputs = Vector(undef, 0)
-        # sim_outputs = 
+        # sim_outputs = Vector{Vector{simulation_output}}
+        b_vals = collect(parameters.game_param_min:parameters.game_param_step:parameters.game_param_max)
+        c_vals = collect(parameters.game_param_min:parameters.game_param_step:parameters.game_param_max)
+        nnet_vals = collect(parameters.nnet_min:parameters.nnet_step:parameters.nnet_max)
+            
+        sim_outputs = Vector{Vector{simulation_output}}(undef, (length(b_vals)*length(c_vals)*length(nnet_vals)))
         Random.seed!(parameters.seed)
+
+
         n_workers = nworkers()
         print("Starting replicates with $n_workers processes", "\n")
-        for b in collect(parameters.game_param_min:parameters.game_param_step:parameters.game_param_max)
+        i = 1
+        for b in b_vals
             replicate_parameters = copy(parameters)
             replicate_parameters.b = b
-            for c in collect(parameters.game_param_min:parameters.game_param_step:parameters.game_param_max)
+            for c in c_vals
                 replicate_parameters.c = c
-                for net_size in collect(parameters.nnet_min:parameters.nnet_step:parameters.nnet_max)
+                for net_size in nnet_vals
                     replicate_parameters.nnet = net_size
                     @time current_reps = RunReplicates(replicate_parameters)
-                    push!(sim_outputs, current_reps)
+                    # push!(sim_outputs, current_reps)
+                    sim_outputs[i] = current_reps
+                    i+=1
                 end
             end
         end
