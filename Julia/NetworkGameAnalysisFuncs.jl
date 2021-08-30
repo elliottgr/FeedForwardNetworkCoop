@@ -35,6 +35,8 @@ function create_log_file(df::DataFrame, analysis_params::analysis_parameters)
     println(io, "analysis_parameters (network_analysis.jl):")
     println(io, "#####################")
     for param in fieldnames(analysis_parameters)
+        # print( parse_args([string("--", param, " ", getproperty(analysis_params, param))], arg_parse_settings))
+        print( parse_args([], arg_parse_settings))
         println(io, string(param, " = ", getproperty(analysis_params, param)))
     end
     close(io)
@@ -472,7 +474,7 @@ function create_mean_init_payoff_and_fitness_plots(group::DataFrame, analysis_pa
 end
 
 function analysis_arg_parsing()
-    arg_parse_settings = ArgParseSettings()
+    global arg_parse_settings = ArgParseSettings()
     @add_arg_table arg_parse_settings begin
         "--k"
             help = "number of datapoints for running mean in time series data"
@@ -499,6 +501,7 @@ function analysis_arg_parsing()
             arg_type = String
             default = "output_figures"
     end
+
     parsed_args = parse_args(ARGS, arg_parse_settings)
     ## I'm sure there's a way to do this iteratively 
     analysis_params = analysis_parameters(parsed_args["k"], parsed_args["max_rows"],
