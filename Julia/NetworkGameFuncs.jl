@@ -85,13 +85,14 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
     if parameters.δ >= 0.0
         rmOut, mrOut = repeatedNetworkGame(parameters,mutNet,resNet)
         discount = calc_discount(parameters.δ, parameters.rounds)
-
+        discount = discount/sum(discount)
+        
         wmr = 1 + (dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
         wrm = 1 + (dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
         gamePayoffArray[1][1] = wrm
         gamePayoffArray[1][2] = wmr
-        gamePayoffArray[2][1] = last(rmOut)
-        gamePayoffArray[2][2] = last(mrOut)
+        gamePayoffArray[2][1] = dot(rmOut, discount)
+        gamePayoffArray[2][2] = dot(mrOut, discount)
         ## this will return the frequency of competitions in which
         ## the the resident will outcompete the mutant in the reproduction game
         ## P(mutant) + P(resident) = 1
