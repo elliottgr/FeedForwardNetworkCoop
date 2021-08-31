@@ -6,15 +6,16 @@ using LinearAlgebra, Random, Distributions, ArgParse, StatsBase
 
 include("NetworkGameStructs.jl")
 
-function calcOj(j::Int64, prev_out::StridedView{Float64, 1, Vector{Float64}, typeof(identity)}, Wm::StridedView{Float64, 2, Vector{Float64}, typeof(identity)}, Wb::StridedView{Float64, 1, Vector{Float64}, typeof(identity)} )
+function calcOj(activation_scale::Float64, j::Int64, prev_out::StridedView{Float64, 1, Vector{Float64}, typeof(identity)}, Wm::StridedView{Float64, 2, Vector{Float64}, typeof(identity)}, Wb::StridedView{Float64, 1, Vector{Float64}, typeof(identity)} )
     ##############################
     ## Iterates a single layer of the Feed Forward network
     ##############################
     x = dot(Wm[1:j,j], prev_out[1:j]) + Wb[j]
-    return (1/(1+exp(-x)))
+    # return activation_function(x)
+    return (1/(1+exp(-x * activation_scale)))
 end
 
-function iterateNetwork(input::Float64, Wm::StridedView{Float64, 2, Vector{Float64}, typeof(identity)}, Wb::StridedView{Float64, 1, Vector{Float64}, typeof(identity)})
+function iterateNetwork(activation_scale::Float64, input::Float64, Wm::StridedView{Float64, 2, Vector{Float64}, typeof(identity)}, Wb::StridedView{Float64, 1, Vector{Float64}, typeof(identity)})
     ##############################
     ## Calculates the total output of the network,
     ## iterating over calcOj() for each layer
@@ -24,18 +25,18 @@ function iterateNetwork(input::Float64, Wm::StridedView{Float64, 2, Vector{Float
     prev_out = StridedView(zeros(Float64, length(Wb)))
     prev_out[1] = input
     for j in 2:length(Wb)
-        prev_out[j] = @strided calcOj(j, prev_out, Wm, Wb)
+        prev_out[j] = @strided calcOj(activation_scale, j, prev_out, Wm, Wb)
     end
     return prev_out
 end
 
-function networkGameRound(mutNet::network, resNet::network)
+function networkGameRound(parameters::simulation_parameters, mutNet::network, resNet::network)
     ##############################
     ## Iterates above functions over a pair of networks,
     ## constitutes a single game round
     ##############################
-    mutOut = last(iterateNetwork(resNet.CurrentOffer, mutNet.Wm, mutNet.Wb))
-    resOut = last(iterateNetwork(mutNet.CurrentOffer, resNet.Wm, resNet.Wb))
+    mutOut = last(iterateNetwork(parameters.activation_scale, resNet.CurrentOffer, mutNet.Wm, mutNet.Wb))
+    resOut = last(iterateNetwork(parameters.activation_scale, mutNet.CurrentOffer, resNet.Wm, resNet.Wb))
     return [mutOut, resOut]
 end
 
@@ -51,7 +52,7 @@ function repeatedNetworkGame(parameters::simulation_parameters, mutNet::network,
     mutHist = zeros(Float64, parameters.rounds)
     resHist = zeros(Float64, parameters.rounds)
     for i in 1:parameters.rounds
-        mutNet.CurrentOffer, resNet.CurrentOffer = networkGameRound(mutNet, resNet)
+        mutNet.CurrentOffer, resNet.CurrentOffer = networkGameRound(parameters, mutNet, resNet)
         mutHist[i] = mutNet.CurrentOffer
         resHist[i] = resNet.CurrentOffer
     end
@@ -441,6 +442,10 @@ function initial_arg_parsing()
             help = "Computes and saves the mean network values ever [x] timesteps. x = 0 does not save"
             arg_type = Int64
             default = 1000
+        "--activation_scale"
+            help = "Adjust layer activation function. Formula is (1/(1+exp(-x * activation_function))). Higher values will filter more activation noise, lower values will allow intermediate activation to propogate through layers."
+            arg_type = Float64
+            default = 1.0
         ########
         ## File/Simulation Parameters
         ########
@@ -468,7 +473,7 @@ function initial_arg_parsing()
                                         parsed_args["initial_offer"], parsed_args["init_freqs"], 
                                         parsed_args["nnet_min"], parsed_args["nnet_max"], parsed_args["nnet_step"],
                                         parsed_args["nnet"], parsed_args["mutsize"], parsed_args["mutinitsize"], parsed_args["mutlink"],
-                                        parsed_args["net_save_tick"], parsed_args["seed"], parsed_args["filename"], parsed_args["init_freq_resolution"])
+                                        parsed_args["net_save_tick"], parsed_args["activation_scale"], parsed_args["seed"], parsed_args["filename"], parsed_args["init_freq_resolution"])
 
     ## Necessary sanity checks for params
     if mod(parameters.N, 2) != 0
@@ -510,6 +515,7 @@ outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
                             zeros(Float64, pop.parameters.tmax),
                             Vector{network}(undef, pop.parameters.tmax),
                             pop.parameters)
+
 
     ############
     # Sim Loop #
