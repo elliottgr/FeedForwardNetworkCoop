@@ -88,9 +88,11 @@ mutable struct population
     networks::Vector{network}
     genotypes::Vector{Int64}
     fit_dict::Dict{Int64, Dict{Int64, Float64}}
+    coop_dict::Dict{Int64, Dict{Int64, Float64}}
     shuffled_indices::Vector{Int64}
     n_genotypes::Int64
     payoffs::Vector{Float64}
+    cooperation_vals::Vector{Float64}
     mean_w::Float64
     gamePayoffTempArray::Vector{Vector{Float64}}
 end
@@ -104,6 +106,7 @@ mutable struct simulation_output
     ## simulation results ##
     ## mean values of fitness and initial offer over the sim
     payoff_mean_history::Vector{Float64}
+    coop_mean_history::Vector{Float64}
     w_mean_history::Vector{Float64}
     init_mean_history::Vector{Float64}
     mean_net_history::Vector{output_network}

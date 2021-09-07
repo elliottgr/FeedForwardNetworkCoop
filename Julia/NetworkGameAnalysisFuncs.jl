@@ -130,6 +130,7 @@ function get_df_dict(files::Vector{JLD2.JLDFile}, analysis_params::analysis_para
     n_genotypes = fill(zeros(Int64,0), n_rows)
     w_mean_history =  fill(zeros(Float64,0), n_rows)
     init_mean_history =  fill(zeros(Float64,0), n_rows)
+    coop_mean_history = fill(zeros(Float64, 0), n_rows)
     mean_net_history = fill(Vector{output_network}(undef, 0), n_rows)
     parameters = Vector{simulation_parameters}(undef, n_rows)
     payoff_mean_history = fill(zeros(Float64, 0), n_rows)
@@ -139,6 +140,7 @@ function get_df_dict(files::Vector{JLD2.JLDFile}, analysis_params::analysis_para
                 (Symbol(:fixations), fixations),
                 (Symbol(:n_genotypes), n_genotypes),
                 (Symbol(:w_mean_history), w_mean_history),
+                (Symbol(:coop_mean_history), coop_mean_history),
                 (Symbol(:init_mean_history), init_mean_history),
                 (Symbol(:mean_net_history), mean_net_history),
                 (Symbol(:parameters), parameters),

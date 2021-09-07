@@ -187,6 +187,7 @@ function output!(t::Int64, pop::population, outputs::simulation_output)
     outputs.init_mean_history[t] = mean(return_initial_offer_array(pop))
     outputs.w_mean_history[t] = pop.mean_w
     outputs.payoff_mean_history[t] = mean(pop.payoffs)
+    outputs.coop_mean_history[t] = mean(pop.cooperation_vals)
 end
 
 
@@ -240,7 +241,7 @@ function population_construction(parameters::simulation_parameters)
     if length(population_array) != parameters.N
         return error("population array failed to generate $N networks")
     end
-    return population(parameters, shuffle!(population_array), return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Float64}}(), shuffle(1:parameters.N), length(parameters.init_freqs), zeros(Float64, parameters.N), 0, [[0.0, 0.0], [0.0,0.0]])
+    return population(parameters, shuffle!(population_array), return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Float64}}(), Dict{Int64, Dict{Int64, Float64}}(), shuffle(1:parameters.N), length(parameters.init_freqs), zeros(Float64, parameters.N), zeros(Float64, parameters.N), 0, [[0.0, 0.0], [0.0,0.0]])
 end
 
 ##################
@@ -251,16 +252,21 @@ function update_fit_dict!(pop::population)
     for (n1::Int64, n2::Int64) in zip(1:pop.parameters.N, pop.shuffled_indices)
         if pop.genotypes[n1] ∉ keys(pop.fit_dict)
             pop.fit_dict[pop.genotypes[n1]] = Dict{Int64, Vector{Float64}}()
+            pop.coop_dict[pop.genotypes[n1]] = Dict{Int64, Vector{Float64}}()
         end
         if pop.genotypes[n2] ∉ keys(pop.fit_dict[pop.genotypes[n1]])
             # if n1 != 1
                 pop.gamePayoffTempArray = fitnessOutcome(pop.parameters, pop.networks[n2], pop.networks[n1], pop.gamePayoffTempArray)
                 pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = pop.gamePayoffTempArray[1][1]
-                pop.payoffs[n1] = pop.gamePayoffTempArray[2][1]
+                pop.coop_dict[pop.genotypes[n1]][pop.genotypes[n2]] = pop.gamePayoffTempArray[2][1]
+                # pop.cooperation_vals[n1] = pop.gamePayoffTempArray[2][1]
+                # pop.payoffs[n1] = pop.gamePayoffTempArray[1][1]
             # else 
             #     pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = gameOutcome[1][1]
             # end
         end
+        pop.payoffs[n1] = pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]
+        pop.cooperation_vals[n1] = pop.coop_dict[pop.genotypes[n1]][pop.genotypes[n2]]
     end
 end
 
@@ -403,7 +409,7 @@ function initial_arg_parsing()
         "--initial_offer"
             help = "the default value of initial offers for the initial residents."
             arg_type = Float64
-            default = 0.1
+            default = 0.5
         "--init_freqs"
             help = "vector of initial genotype frequencies, must sum to 1"
             arg_type = Vector{Float64}
@@ -511,6 +517,7 @@ function simulation(pop::population)
 
 outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
                             zeros(Int64, pop.parameters.tmax),
+                            zeros(Float64, pop.parameters.tmax),
                             zeros(Float64, pop.parameters.tmax),
                             zeros(Float64, pop.parameters.tmax),
                             zeros(Float64, pop.parameters.tmax),
