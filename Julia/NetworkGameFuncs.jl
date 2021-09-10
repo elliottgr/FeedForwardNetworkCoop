@@ -4,7 +4,7 @@ using LinearAlgebra, Random, Distributions, ArgParse, StatsBase
 # Network Game Functions
 ####################################
 
-include("NetworkGameStructsStaticArr.jl")
+include("NetworkGameStructs.jl")
 
 
 function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::SVector)
