@@ -599,15 +599,15 @@ outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
             end
         end
         ## should detect an error in genotype tracking. Will trip if there is <2 genotypes initially
-        if pop.parameters.init_freqs[1] != 0.0
-            keyset = Set(keys(pop.fit_dict))
-            if length(keyset) != maximum(keyset)
-                print("Length: ", length(keyset), "\n")
-                print("Max: ", maximum(keyset), "\n")
-                print("Error in genotype tracking, dictionary of fitness values has missing genotypes", "\n")
-                break
-            end
-        end
+        # if pop.parameters.init_freqs[1] != 0.0
+        #     keyset = Set(keys(pop.fit_dict))
+        #     if length(keyset) != maximum(keyset)
+        #         print("Length: ", length(keyset), "\n")
+        #         print("Max: ", maximum(keyset), "\n")
+        #         print("Error in genotype tracking, dictionary of fitness values has missing genotypes", "\n")
+        #         break
+        #     end
+        # end
     end
 ## organize replicate data into appropriate data structure to be returned to main function and saved
 return outputs

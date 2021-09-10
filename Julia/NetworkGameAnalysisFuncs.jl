@@ -21,6 +21,30 @@ end
 
 
 ## creates a log file to save parameters from specific runs of the analysis file
+
+function create_directories(analysis_params::analysis_parameters, folder_name)
+    analysis_params.filepath = string(analysis_params.output_folder, "/", folder_name )
+    if isdir(string(pwd(), "/", analysis_params.output_folder)) == false
+        print("Output directory not found, creating a new one at ", string(pwd(), "/", analysis_params.output_folder))
+        mkdir(string(pwd(), "/", analysis_params.output_folder))
+    end
+    if isdir(string(pwd(), "/", analysis_params.filepath, "/")) == false
+        mkdir(string(pwd(), "/", analysis_params.filepath))
+    end
+    if isdir(string(pwd()*"/"*analysis_params.filepath*"/b_c_coop_heatmaps/")) == false
+        mkdir(string(pwd()*"/"*analysis_params.filepath*"/b_c_coop_heatmaps/"))
+    end
+    if isdir(string(pwd()*"/"*analysis_params.filepath*"/edge_weight_w_heatmaps/")) == false
+        mkdir(string(pwd()*"/"*analysis_params.filepath*"/edge_weight_w_heatmaps/"))
+    end
+    if isdir(string(pwd()*"/"*analysis_params.filepath*"/violin_plots/")) ==false
+        mkdir(string(pwd()*"/"*analysis_params.filepath*"/violin_plots/"))
+    end
+    if isdir(string(pwd()*"/"*analysis_params.filepath*"/time_series/")) ==false
+        mkdir(string(pwd()*"/"*analysis_params.filepath*"/time_series/"))
+    end
+end
+
 function create_log_file(df::DataFrame, analysis_params::analysis_parameters)
     logfilestr = string(analysis_params.filepath, "/parameter_info_", string(now()), ".txt")
     io = open(logfilestr, "w")
@@ -342,7 +366,7 @@ function create_b_c_heatmap_plot(df, nnet::Int64, analysis_params)
     for group in groupby(main_df, [:b,:c])
         push!(heatmaps,correlation_heatmaps(create_edge_df(group, analysis_params)))
     end
-    filestr = pwd()*"/"*analysis_params.filepath*"/"*string("fitness_edge_weight_heatmap_nnet_", nnet, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
+    filestr = pwd()*"/"*analysis_params.filepath*"/edge_weight_w_heatmaps/"*string("fitness_edge_weight_heatmap_nnet_", nnet, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
     savefig(plot(heatmaps..., layout = (length(b_c_vals), length(b_c_vals))), filestr)
 end
 
@@ -381,7 +405,7 @@ function create_all_violin_plots(gdf, analysis_params::analysis_parameters)
         plt = plot(create_mean_w_violin_plots(group, analysis_params), create_mean_init_violin_plots(group, analysis_params), layout=(2,1))
         b = replace(string(group[!, :b][1]), "."=>"0")
         c = replace(string(group[!, :c][1]), "."=>"0")
-        filestr = pwd()*"/"*analysis_params.filepath*"/"*string("mean_init_and_fitness", "_b_", b, "_c_", c, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
+        filestr = pwd()*"/"*analysis_params.filepath*"/violin_plots/"*string("mean_init_and_fitness", "_b_", b, "_c_", c, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
         savefig(plt, filestr)
     end
 end
@@ -468,7 +492,7 @@ function create_mean_init_payoff_and_fitness_plots(group::DataFrame, analysis_pa
                 plt_payoff = plot!(plt_out[2], fitness_array, label = nnet, title = "Payoff (fitness)")
                 plt_coop = plot!(plt_out[3], coop_array, label = nnet, title = "Cooperation")
             end
-            filestr = pwd()*"/"*analysis_params.filepath*"/"*string("mean_w_b_", replace(string(b), "."=>"0"), "_c_", replace(string(c),"."=>"0"), "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
+            filestr = pwd()*"/"*analysis_params.filepath*"/time_series/"*string("mean_w_b_", replace(string(b), "."=>"0"), "_c_", replace(string(c),"."=>"0"), "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, "_k_", string(analysis_params.k))
             savefig(plt_out, filestr)
         end
     end
