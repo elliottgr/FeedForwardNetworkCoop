@@ -11,7 +11,6 @@ function calcOj(activation_scale::Float64, j::Int64, prev_out::StridedView{Float
     ## Iterates a single layer of the Feed Forward network
     ##############################
     x = dot(Wm[1:j,j], prev_out[1:j]) + Wb[j]
-    # return activation_function(x)
     return (1/(1+exp(-x * activation_scale)))
 end
 
@@ -84,6 +83,7 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
     ## 6/16 Note: Previous versions of this script returned an array of arrays, it now returns a single array
     if parameters.δ >= 0.0
         rmOut, mrOut = repeatedNetworkGame(parameters,mutNet,resNet)
+        print(rmOut, mrOut)
         discount = calc_discount(parameters.δ, parameters.rounds)
         discount = discount/sum(discount)
         
@@ -424,11 +424,11 @@ function initial_arg_parsing()
         "--nnet_max"
             help = "largest n x n network size of replicates. def = 15"
             arg_type = Int64
-            default = 15
+            default = 5
         "--nnet_step"
             help = "step size of network iterations. def = 2"
             arg_type = Int64
-            default = 2
+            default = 1
         "--nnet"
             help = "network size (deprecated)"
             arg_type = Int64

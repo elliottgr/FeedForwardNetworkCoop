@@ -35,8 +35,6 @@ function create_log_file(df::DataFrame, analysis_params::analysis_parameters)
     println(io, "analysis_parameters (network_analysis.jl):")
     println(io, "#####################")
     for param in fieldnames(analysis_parameters)
-        # print( parse_args([string("--", param, " ", getproperty(analysis_params, param))], arg_parse_settings))
-        print( parse_args([], arg_parse_settings))
         println(io, string(param, " = ", getproperty(analysis_params, param)))
     end
     close(io)
@@ -459,12 +457,13 @@ function create_mean_init_payoff_and_fitness_plots(group::DataFrame, analysis_pa
                     ## summing the rolling mean of each replicate
                     fitness_array .+= rolling_mean(replicate.w_mean_history[analysis_params.t_start:analysis_params.t_end], analysis_params.k)
                     init_array .+= rolling_mean(replicate.init_mean_history[analysis_params.t_start:analysis_params.t_end], analysis_params.k)
-                    coop_array .+= rolling_mean(replicate.payoff_mean_history[analysis_params.t_start:analysis_params.t_end], analysis_params.k)
+                    coop_array .+= rolling_mean(replicate.coop_mean_history[analysis_params.t_start:analysis_params.t_end], analysis_params.k)
                     i+=1
                 end
                 ## dividing sum of replicates by # of reps
                 fitness_array ./= i
                 init_array ./= i
+                coop_array ./= i
                 plt_init = plot!(plt_out[1], init_array, label = nnet, title = "Initial Offer")
                 plt_payoff = plot!(plt_out[2], fitness_array, label = nnet, title = "Payoff (fitness)")
                 plt_coop = plot!(plt_out[3], coop_array, label = nnet, title = "Cooperation")

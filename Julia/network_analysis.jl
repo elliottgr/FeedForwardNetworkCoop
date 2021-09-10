@@ -1,5 +1,5 @@
 ## takes outputs from networkgamecoop.jl simulations and creates visualizations 
-include("NetworkGameAnalysisFuncs.jl")
+include("NetworkGameAnalysisFuncsStaticArr.jl")
 
 function main()
     include("NetworkGameAnalysisFuncs.jl")
