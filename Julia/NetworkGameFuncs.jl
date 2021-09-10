@@ -23,14 +23,14 @@ function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::
     return (1/(1+exp(-x * activation_scale)))
 end
 
-function iterateNetwork(activation_scale::Float64, input::Float64, Wm::SMatrix, Wb::SVector)
+function iterateNetwork(activation_scale::Float64, input::Float64, Wm::SMatrix, Wb::SVector, prev_out::MVector)
     ##############################
     ## Calculates the total output of the network,
     ## iterating over calcOj() for each layer
     ##############################
 
     # prev_out = zeros(Float64, length(Wb))
-    prev_out = @MVector zeros(Float64, length(Wb))
+    # prev_out = @MVector zeros(Float64, length(Wb))
     prev_out[1] = input
     for j in 2:length(Wb)
         prev_out[j] = calcOj(activation_scale, j, prev_out, Wm, Wb)
@@ -38,18 +38,19 @@ function iterateNetwork(activation_scale::Float64, input::Float64, Wm::SMatrix, 
     return prev_out
 end
 
-function networkGameRound(parameters::simulation_parameters, mutNet::network, resNet::network)
+function networkGameRound(parameters::simulation_parameters, mutNet::network, resNet::network, prev_out)
     ##############################
     ## Iterates above functions over a pair of networks,
     ## constitutes a single game round
     ##############################
-    mutOut = last(iterateNetwork(parameters.activation_scale, resNet.CurrentOffer, mutNet.Wm, mutNet.Wb))
-    resOut = last(iterateNetwork(parameters.activation_scale, mutNet.CurrentOffer, resNet.Wm, resNet.Wb))
+    mutNet.CurrentOffer = iterateNetwork(parameters.activation_scale, resNet.CurrentOffer, mutNet.Wm, mutNet.Wb, prev_out)[parameters.nnet]
+    resNet.CurrentOffer = iterateNetwork(parameters.activation_scale, mutNet.CurrentOffer, resNet.Wm, resNet.Wb, prev_out)[parameters.nnet]
     # return [iterateNetwork(parameters.activation_scale, resNet.CurrentOffer, mutNet.Wm, mutNet.Wb)[parameters.nnet], iterateNetwork(parameters.activation_scale, mutNet.CurrentOffer, resNet.Wm, resNet.Wb)[parameters.nnet]]
-    return [mutOut, resOut]
+    # return [mutOut, resOut]
+
 end
 
-function repeatedNetworkGame(parameters::simulation_parameters, mutNet::network, resNet::network)
+function repeatedNetworkGame(parameters::simulation_parameters, mutNet::network, resNet::network, prev_out)
     ##############################
     ## Plays multiple rounds of the network game, returns differing 
     ## data types depending on whether a discount needs to be calculated
@@ -69,25 +70,15 @@ function repeatedNetworkGame(parameters::simulation_parameters, mutNet::network,
     ## old method of calculating this. old != new if tested directly because of floating point error
     ## new method is accurate to ~8 decimal places
     for i in 1:parameters.rounds
-        mutNet.CurrentOffer, resNet.CurrentOffer = networkGameRound(parameters, mutNet, resNet)
+        # prev_out = @MVector zeros(Float64, length(Wb))
+        # mutNet.CurrentOffer, resNet.CurrentOffer = networkGameRound(parameters, mutNet, resNet, prev_out)
+        networkGameRound(parameters, mutNet, resNet, prev_out)
         # mutNet.GameHistory[i] = mutNet.CurrentOffer
         # resNet.GameHistory[i] = resNet.CurrentOffer
         mutHist[i] = mutNet.CurrentOffer
         resHist[i] = mutNet.CurrentOffer
     end
 
-    # for i in 1:parameters.rounds
-    #     if i == 1 
-    #         # mutNet.CurrentOffer = iterateNetwork(parameters.activation_scale, resNet.InitialOffer, mutNet.Wm, mutNet.Wb)[parameters.nnet]
-    #         # resNet.CurrentOffer = iterateNetwork(parameters.activation_scale, mutNet.InitialOffer, resNet.Wm, resNet.Wb)[parameters.nnet]
-    #         mutHist[i] = last(iterateNetwork(parameters.activation_scale, resNet.InitialOffer, mutNet.Wm, mutNet.Wb))
-    #         resHist[i] = last(iterateNetwork(parameters.activation_scale, mutNet.InitialOffer, resNet.Wm, resNet.Wb))
-    #     else 
-    #         mutHist[i] = last(iterateNetwork(parameters.activation_scale, resHist[i-1], mutNet.Wm, mutNet.Wb))
-    #         resHist[i] = last(iterateNetwork(parameters.activation_scale, mutHist[i-1], resNet.Wm, resNet.Wb))
-    #     end
-
-    # end
     if parameters.δ >= 0
         return [mutHist, resHist]
     elseif parameters.δ < 0
@@ -109,7 +100,7 @@ function calc_payoff(parameters::simulation_parameters, rmOut, mrOut, discount)
     end
     return 1 + (output * parameters.fitness_benefit_scale)
 end
-function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet::network, gamePayoffArray::Vector{Vector{Float64}})
+function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet::network, temp_arrays::sim_temp_array)
 
     ####################################
     ## calulate resident-mutant fitness matrix from contributions throughout the game history. If
@@ -125,7 +116,9 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
 
     ## 6/16 Note: Previous versions of this script returned an array of arrays, it now returns a single array
     if parameters.δ >= 0.0
-        rmOut, mrOut = repeatedNetworkGame(parameters,mutNet,resNet)
+        gamePayoffArray = temp_arrays.gamePayoffTempArray
+        # prev_out = @MVector zeros(Float64, parameters.nnet)
+        rmOut, mrOut = repeatedNetworkGame(parameters,mutNet,resNet, temp_arrays.prev_out)
         # discount = calc_discount(parameters.δ, parameters.rounds)
         # discount = discount/sum(discount)
         
@@ -285,7 +278,11 @@ function population_construction(parameters::simulation_parameters)
     if length(population_array) != parameters.N
         return error("population array failed to generate $N networks")
     end
-    return population(parameters, shuffle!(population_array), return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Float64}}(), Dict{Int64, Dict{Int64, Float64}}(), shuffle(1:parameters.N), length(parameters.init_freqs), zeros(Float64, parameters.N), zeros(Float64, parameters.N), 0, [[0.0, 0.0], [0.0,0.0]])
+    payoff_temp_array = [[0.0, 0.0], [0.0,0.0]]
+    prev_out = @MVector zeros(Float64, parameters.nnet) 
+    NetworkGameRound = @MVector zeros(Float64, 2)
+    temp_arrays = sim_temp_array(payoff_temp_array, prev_out, NetworkGameRound)
+    return population(parameters, shuffle!(population_array), return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Float64}}(), Dict{Int64, Dict{Int64, Float64}}(), shuffle(1:parameters.N), length(parameters.init_freqs), zeros(Float64, parameters.N), zeros(Float64, parameters.N), 0, temp_arrays)
 end
 
 ##################
@@ -300,9 +297,9 @@ function update_fit_dict!(pop::population)
         end
         if pop.genotypes[n2] ∉ keys(pop.fit_dict[pop.genotypes[n1]])
             # if n1 != 1
-                pop.gamePayoffTempArray = fitnessOutcome(pop.parameters, pop.networks[n2], pop.networks[n1], pop.gamePayoffTempArray)
-                pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = pop.gamePayoffTempArray[1][1]
-                pop.coop_dict[pop.genotypes[n1]][pop.genotypes[n2]] = pop.gamePayoffTempArray[2][1]
+                pop.temp_arrays.gamePayoffTempArray = fitnessOutcome(pop.parameters, pop.networks[n2], pop.networks[n1], pop.temp_arrays)
+                pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = pop.temp_arrays.gamePayoffTempArray[1][1]
+                pop.coop_dict[pop.genotypes[n1]][pop.genotypes[n2]] = pop.temp_arrays.gamePayoffTempArray[2][1]
                 # pop.cooperation_vals[n1] = pop.gamePayoffTempArray[2][1]
                 # pop.payoffs[n1] = pop.gamePayoffTempArray[1][1]
             # else 

@@ -83,6 +83,14 @@ function Base.copy(networks::Vector{network})
     return out
 end
 
+## struct to organize/store arrays that get called constantly throughout sim, but do not need to be save
+## avoids a lot of garbage collection, speeds up sim
+mutable struct sim_temp_array
+    gamePayoffTempArray::Vector{Vector{Float64}}
+    prev_out::MVector
+    networkGameRound::MVector
+end 
+
 ## prevents the creation of population arrays that won't work with the shuffle reproduction method
 ## (those where N mod 2 != 0)
 mutable struct population
@@ -96,8 +104,12 @@ mutable struct population
     payoffs::Vector{Float64}
     cooperation_vals::Vector{Float64}
     mean_w::Float64
-    gamePayoffTempArray::Vector{Vector{Float64}}
+    # gamePayoffTempArray::Vector{Vector{Float64}}
+    # prev_out::MVector
+    temp_arrays::sim_temp_array
 end
+
+
 
 mutable struct simulation_output
     ## Fixation Stats ##
