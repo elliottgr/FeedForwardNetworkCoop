@@ -1,4 +1,4 @@
-using Strided
+using StaticArrays
 
 ## organized by part of the model modified, values set via ArgParse
 
@@ -40,8 +40,10 @@ end
 ## smallest type necessary to play a complete round of the game 
 mutable struct network
     genotype_id::Int64
-    Wm::StridedView{Float64, 2, Vector{Float64}}
-    Wb::StridedView{Float64, 1, Vector{Float64}}
+    Wm::SMatrix
+    Wb::SVector
+    # Wm::StridedView{Float64, 2, Vector{Float64}}
+    # Wb::StridedView{Float64, 1, Vector{Float64}}
     InitialOffer::Float64
     CurrentOffer::Float64
 end
@@ -58,7 +60,7 @@ mutable struct output_network
 end
 
 function Base.copy(net::network)
-    return network(net.genotype_id, net.Wm, net.Wb, net.InitialOffer, net.CurrentOffer)
+    return network(net.genotype_id, net.Wm, net.Wb, net.InitialOffer, net.InitialOffer)
 end
 
 ## need to be able to create copies of the parameters and networks structs

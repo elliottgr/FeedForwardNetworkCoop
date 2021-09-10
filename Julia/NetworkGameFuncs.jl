@@ -4,27 +4,36 @@ using LinearAlgebra, Random, Distributions, ArgParse, StatsBase
 # Network Game Functions
 ####################################
 
-include("NetworkGameStructs.jl")
+include("NetworkGameStructsStaticArr.jl")
 
-function calcOj(activation_scale::Float64, j::Int64, prev_out::StridedView{Float64, 1, Vector{Float64}, typeof(identity)}, Wm::StridedView{Float64, 2, Vector{Float64}, typeof(identity)}, Wb::StridedView{Float64, 1, Vector{Float64}, typeof(identity)} )
+
+function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::SVector)
     ##############################
     ## Iterates a single layer of the Feed Forward network
     ##############################
-    x = dot(Wm[1:j,j], prev_out[1:j]) + Wb[j]
+
+    ## dot product of Wm and prev_out, + node weights. Equivalent to x = dot(Wm[1:j,j], prev_out[1:j]) + Wb[j]
+    ## doing it this way allows scalar indexing of the static arrays, which is significantly faster and avoids unnecessary array invocation
+    x = 0
+    for j_i in 1:j
+        x += (Wm[j_i, j] * prev_out[j_i]) 
+    end
+    x += Wb[j]
+
     return (1/(1+exp(-x * activation_scale)))
 end
 
-function iterateNetwork(activation_scale::Float64, input::Float64, Wm::StridedView{Float64, 2, Vector{Float64}, typeof(identity)}, Wb::StridedView{Float64, 1, Vector{Float64}, typeof(identity)})
+function iterateNetwork(activation_scale::Float64, input::Float64, Wm::SMatrix, Wb::SVector)
     ##############################
     ## Calculates the total output of the network,
     ## iterating over calcOj() for each layer
     ##############################
 
     # prev_out = zeros(Float64, length(Wb))
-    prev_out = StridedView(zeros(Float64, length(Wb)))
+    prev_out = @MVector zeros(Float64, length(Wb))
     prev_out[1] = input
     for j in 2:length(Wb)
-        prev_out[j] = @strided calcOj(activation_scale, j, prev_out, Wm, Wb)
+        prev_out[j] = calcOj(activation_scale, j, prev_out, Wm, Wb)
     end
     return prev_out
 end
@@ -36,6 +45,7 @@ function networkGameRound(parameters::simulation_parameters, mutNet::network, re
     ##############################
     mutOut = last(iterateNetwork(parameters.activation_scale, resNet.CurrentOffer, mutNet.Wm, mutNet.Wb))
     resOut = last(iterateNetwork(parameters.activation_scale, mutNet.CurrentOffer, resNet.Wm, resNet.Wb))
+    # return [iterateNetwork(parameters.activation_scale, resNet.CurrentOffer, mutNet.Wm, mutNet.Wb)[parameters.nnet], iterateNetwork(parameters.activation_scale, mutNet.CurrentOffer, resNet.Wm, resNet.Wb)[parameters.nnet]]
     return [mutOut, resOut]
 end
 
@@ -45,16 +55,39 @@ function repeatedNetworkGame(parameters::simulation_parameters, mutNet::network,
     ## data types depending on whether a discount needs to be calculated
     ##############################
 
-    mutNet.CurrentOffer = mutNet.InitialOffer
-    resNet.CurrentOffer = resNet.InitialOffer
+    # mutNet.CurrentOffer = mutNet.InitialOffer
+    # resNet.CurrentOffer = resNet.InitialOffer
 
+
+    ## Maybe make these network structures so they don't have to be reinitialized constantly?
     mutHist = zeros(Float64, parameters.rounds)
     resHist = zeros(Float64, parameters.rounds)
+    # mutNet_1 = copy(mutNet)
+    # resNet_1 = copy(resNet)
+
+
+    ## old method of calculating this. old != new if tested directly because of floating point error
+    ## new method is accurate to ~8 decimal places
     for i in 1:parameters.rounds
         mutNet.CurrentOffer, resNet.CurrentOffer = networkGameRound(parameters, mutNet, resNet)
+        # mutNet.GameHistory[i] = mutNet.CurrentOffer
+        # resNet.GameHistory[i] = resNet.CurrentOffer
         mutHist[i] = mutNet.CurrentOffer
-        resHist[i] = resNet.CurrentOffer
+        resHist[i] = mutNet.CurrentOffer
     end
+
+    # for i in 1:parameters.rounds
+    #     if i == 1 
+    #         # mutNet.CurrentOffer = iterateNetwork(parameters.activation_scale, resNet.InitialOffer, mutNet.Wm, mutNet.Wb)[parameters.nnet]
+    #         # resNet.CurrentOffer = iterateNetwork(parameters.activation_scale, mutNet.InitialOffer, resNet.Wm, resNet.Wb)[parameters.nnet]
+    #         mutHist[i] = last(iterateNetwork(parameters.activation_scale, resNet.InitialOffer, mutNet.Wm, mutNet.Wb))
+    #         resHist[i] = last(iterateNetwork(parameters.activation_scale, mutNet.InitialOffer, resNet.Wm, resNet.Wb))
+    #     else 
+    #         mutHist[i] = last(iterateNetwork(parameters.activation_scale, resHist[i-1], mutNet.Wm, mutNet.Wb))
+    #         resHist[i] = last(iterateNetwork(parameters.activation_scale, mutHist[i-1], resNet.Wm, resNet.Wb))
+    #     end
+
+    # end
     if parameters.δ >= 0
         return [mutHist, resHist]
     elseif parameters.δ < 0
@@ -66,6 +99,16 @@ function calc_discount(δ::Float64, rounds::Int64)
     return exp.(-δ.*(rounds.-1 .-range(1,rounds, step = 1)))
 end
 
+
+
+function calc_payoff(parameters::simulation_parameters, rmOut, mrOut, discount)
+    output = 0.0
+    # wmr = 1 + (dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
+    for i in 1:parameters.rounds
+        output += (parameters.b * rmOut[i] - parameters.c * mrOut[i] + (parameters.d * rmOut[i] * mrOut[i])) * discount[i]
+    end
+    return 1 + (output * parameters.fitness_benefit_scale)
+end
 function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet::network, gamePayoffArray::Vector{Vector{Float64}})
 
     ####################################
@@ -83,14 +126,14 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
     ## 6/16 Note: Previous versions of this script returned an array of arrays, it now returns a single array
     if parameters.δ >= 0.0
         rmOut, mrOut = repeatedNetworkGame(parameters,mutNet,resNet)
-        print(rmOut, mrOut)
-        discount = calc_discount(parameters.δ, parameters.rounds)
-        discount = discount/sum(discount)
+        # discount = calc_discount(parameters.δ, parameters.rounds)
+        # discount = discount/sum(discount)
         
-        wmr = 1 + (dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
-        wrm = 1 + (dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
-        gamePayoffArray[1][1] = wrm
-        gamePayoffArray[1][2] = wmr
+        # wmr = 1 + (dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
+        # wmr_1 = calc_payoff(parameters, rmOut, mrOut, discount)
+        # wrm = 1 + (dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
+        gamePayoffArray[1][1] = calc_payoff(parameters, mrOut, rmOut, discount)
+        gamePayoffArray[1][2] = calc_payoff(parameters, rmOut, mrOut, discount)
         gamePayoffArray[2][1] = dot(rmOut, discount)
         gamePayoffArray[2][2] = dot(mrOut, discount)
         ## this will return the frequency of competitions in which
@@ -225,10 +268,11 @@ function population_construction(parameters::simulation_parameters)
     population_array = Vector{network}(undef, parameters.N)
     scale_freq(p, N) = convert(Int64, round((p*N), digits=0))
     for n::Int64 in 1:length(parameters.init_freqs)
-        Wm = StridedView(Matrix(UpperTriangular(randn((parameters.nnet,parameters.nnet)))))
-        Wb = StridedView(randn(parameters.nnet))
+        Wm = SMatrix{parameters.nnet, parameters.nnet, Float64}(Matrix(UpperTriangular(randn((parameters.nnet,parameters.nnet)))))
+        Wb =  SVector{parameters.nnet, Float64}(randn(parameters.nnet))
         # initOffer = range_check((1.0 + randn())/2)
         initOffer = copy(parameters.initial_offer)
+
         initialnetworks[n] = network(n, Wm, Wb, initOffer, initOffer)
     end
     pop_iterator = 0
@@ -317,13 +361,14 @@ function mutate!(pop::population)
                                     .* rand(Normal(0, pop.parameters.mutsize), (pop.parameters.nnet,pop.parameters.nnet)))
             mutWb = rand(Binomial(1, pop.parameters.mutlink), pop.parameters.nnet) .* rand(Normal(0, pop.parameters.mutsize),pop.parameters.nnet)
             mutInit = rand(Normal(0, pop.parameters.mutinitsize))
-            outWm = pop.networks[i].Wm + StridedView(Matrix(mutWm))
-            outWb = pop.networks[i].Wb + StridedView(mutWb)
+            outWm = pop.networks[i].Wm + Matrix(mutWm)
+            outWb = pop.networks[i].Wb + mutWb
             pop.networks[i] = network(pop.n_genotypes,
                                         (outWm),
                                         (outWb),
                                         range_check(pop.networks[i].InitialOffer + mutInit),
-                                        range_check(pop.networks[i].InitialOffer + mutInit))
+                                        range_check(pop.networks[i].InitialOffer + mutInit),
+                                        )
         end
     end
 end
@@ -450,7 +495,7 @@ function initial_arg_parsing()
             arg_type = Int64
             default = 1000
         "--activation_scale"
-            help = "Adjust layer activation function. Formula is (1/(1+exp(-x * activation_function))). Higher values will filter more activation noise, lower values will allow intermediate activation to propogate through layers."
+            help = "Adjust layer activation function. Formula is (1/(1+exp(-x * activation_scale))). Higher values will filter more activation noise, lower values will allow intermediate activation to propogate through layers."
             arg_type = Float64
             default = 1.0
         ########
@@ -481,6 +526,8 @@ function initial_arg_parsing()
                                         parsed_args["nnet_min"], parsed_args["nnet_max"], parsed_args["nnet_step"],
                                         parsed_args["nnet"], parsed_args["mutsize"], parsed_args["mutinitsize"], parsed_args["mutlink"],
                                         parsed_args["net_save_tick"], parsed_args["activation_scale"], parsed_args["seed"], parsed_args["filename"], parsed_args["init_freq_resolution"])
+
+
 
     ## Necessary sanity checks for params
     if mod(parameters.N, 2) != 0
@@ -525,6 +572,9 @@ outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
                             pop.parameters)
 
 
+    ## pre allocating this array so it doesn't get reallocated each time a game is played
+    global discount =  calc_discount(pop.parameters.δ, pop.parameters.rounds)
+    global discount = SVector{pop.parameters.rounds}(discount/sum(discount))
     ############
     # Sim Loop #
     ############
