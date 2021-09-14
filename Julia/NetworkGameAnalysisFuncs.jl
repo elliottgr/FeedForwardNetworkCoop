@@ -431,8 +431,7 @@ function network_heatmap(group::SubDataFrame)
     end
     gr()
     title = string("b = ", string(group[1, :b]), ", c = ", string(group[1, :c]))
-    # plt1 = 
-    # plt2 = 
+
     return heatmap(output_wm, c = :RdBu_11, yflip = true,  clim = (-1,1), title = title)
 end
 

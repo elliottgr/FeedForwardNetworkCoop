@@ -5,7 +5,7 @@
 
 using Distributed, Random, InteractiveUtils
 
-addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project())")
+# addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project())")
 
 @everywhere using ArgParse, JLD2
 @everywhere begin
@@ -44,13 +44,10 @@ addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project(
 
         parameters = initial_arg_parsing() 
 
-        # sim_outputs = Vector(undef, 0)
-        # sim_outputs = Vector{Vector{simulation_output}}
         b_vals = collect(parameters.game_param_min:parameters.game_param_step:parameters.game_param_max)
         c_vals = collect(parameters.game_param_min:parameters.game_param_step:parameters.game_param_max)
         nnet_vals = collect(parameters.nnet_min:parameters.nnet_step:parameters.nnet_max)
             
-        # sim_outputs = Vector{Vector{simulation_output}}(undef, (length(b_vals)*length(c_vals)*length(nnet_vals)))
         sim_outputs = Vector{Vector{simulation_ouput}}(undef, 0)
         Random.seed!(parameters.seed)
 
@@ -69,18 +66,16 @@ addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project(
                 replicate_parameters.c = c
                 for net_size in nnet_vals
                     replicate_parameters.nnet = net_size
-                    # @time current_reps = RunReplicates(replicate_parameters)
                     @time push!(sim_outputs, RunReplicates(replicate_parameters))
-                    # sim_outputs[i] = current_reps
-                    # print(varinfo(r"simulation_output"))
-                    print(Base.summarysize(sim_outputs))
-                    if Base.summarysize(sim_outputs) >= 10 * (1000)^3 ## 10 gigabytes as max filesize
+
+                    ## 25 gigabytes as max filesize
+                    ## should be safe for dispatched workers since they're called on replicate sets anyway
+                    if Base.summarysize(sim_outputs) >= 25 * (1000)^3 
                         multi_file_flag = true
                         n_files += 1
                         parameters.filename = string(output_filename, "b_c_min_", replace(string(parameters.game_param_min), "." => "0"), "b_c_max", replace(string(parameters.game_param_max), "." => "0"), "_nreps_", parameters.nreps, "_tmax_", parameters.tmax, "part_", n_files, ".jld2")
                         jldsave(parameters.filename; sim_outputs)
                         sim_outputs = sim_outputs = Vector{Vector{simulation_ouput}}(undef, 0)
-                        
                     end
                     i+=1
                 end
