@@ -412,7 +412,7 @@ function initial_arg_parsing()
             default = 16
 
         "--fitness_benefit_scale"
-            help = "scales the fitness payout of game rounds by this amount (payoff * scale)"
+            help = "scales the fitness payout of game rounds by this amount (payoff * scale). setting to 1.0 results in a crash, values between 0.01 and 0.1 work"
             arg_type = Float64
             default = 0.01
 
@@ -468,7 +468,7 @@ function initial_arg_parsing()
             arg_type = Int64
             default = 5
         "--nnet_step"
-            help = "step size of network iterations. def = 2"
+            help = "step size of network iterations. def = 1"
             arg_type = Int64
             default = 1
         "--nnet"

@@ -17,8 +17,12 @@ function create_b_c_cooperation_heatmap(main_df, analysis_params)
         c_i_map[c] = i
     end
     for nnet_group in groupby(main_df, [:nnet])
-        output_matrix = zeros(Float64, (length(b_vals), length(c_vals)))
 
+        ## data here is the mean cooperation level at each timepoint for a replicate
+        ## rolling mean of last k datapoints
+        ## median of final mean cooperation level among replicates
+        mean_output_matrix = zeros(Float64, (length(b_vals), length(c_vals)))
+        median_output_matrix = zeros(Float64, (length(b_vals), length(c_vals)))
         # for group in b_c_groups
 
         for b_c_group in groupby(nnet_group, [:b, :c])
@@ -28,18 +32,30 @@ function create_b_c_cooperation_heatmap(main_df, analysis_params)
             # print(b_i, c_i)
             for replicate in eachrow(b_c_group)
                 replicates += 1
-                output_matrix[b_i, c_i] += last(rolling_mean(replicate[:coop_mean_history][analysis_params.t_start:analysis_params.t_end], analysis_params.k))
+                mean_output_matrix[b_i, c_i] += last(rolling_mean(replicate[:coop_mean_history][analysis_params.t_start:analysis_params.t_end], analysis_params.k))
+                
             end
-            output_matrix[b_i, c_i] /= replicates
+            mean_output_matrix[b_i, c_i] /= replicates
+            median_output_matrix[b_i, c_i] = median([x[analysis_params.t_end] for x in b_c_group[!, :coop_mean_history]])
         end
-         print(output_matrix)
-        filestr = pwd()*"/"*analysis_params.filepath*"/b_c_coop_heatmaps/"*string("b_c_final_coop_heatmap_nnet_", nnet_group[!, :nnet][1], "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
-        savefig(heatmap(output_matrix,
+         print(mean_output_matrix)
+        filestr_mean = pwd()*"/"*analysis_params.filepath*"/b_c_coop_heatmaps/"*string("b_c_mean_coop_heatmap_nnet_", nnet_group[!, :nnet][1], "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
+        filestr_median = pwd()*"/"*analysis_params.filepath*"/b_c_coop_heatmaps/"*string("b_c_median_coop_heatmap_nnet_", nnet_group[!, :nnet][1], "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
+
+        savefig(heatmap(mean_output_matrix,
             xlabel = "c",
             ylabel = "b",
             xticks = c_vals,
             yticks = b_vals,
-            clims = (.45, .55)), filestr)
+            title = "Mean Cooperation (k = $(analysis_params.k) )",
+            clims = (.45, .55)), filestr_mean)
+        savefig(heatmap(median_output_matrix,
+            xlabel = "c",
+            ylabel = "b",
+            xticks = c_vals,
+            yticks = b_vals,
+            title = "Median Cooperation)",
+            clims = (.45, .55)), filestr_median)
     end
 
 end
