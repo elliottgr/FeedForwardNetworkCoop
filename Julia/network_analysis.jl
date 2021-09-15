@@ -32,13 +32,15 @@ function create_b_c_cooperation_heatmap(main_df, analysis_params)
             # print(b_i, c_i)
             for replicate in eachrow(b_c_group)
                 replicates += 1
-                mean_output_matrix[b_i, c_i] += last(rolling_mean(replicate[:coop_mean_history][analysis_params.t_start:analysis_params.t_end], analysis_params.k))
+                t_start_i = Int64(analysis_params.t_start)
+                t_end_i = Int64(analysis_params.t_end/replicate.output_save_tick)
+                mean_output_matrix[b_i, c_i] += last(rolling_mean(replicate[:coop_mean_history][analysis_params.t_start_i:analysis_params.t_end_i], analysis_params.k))
                 
             end
             mean_output_matrix[b_i, c_i] /= replicates
-            median_output_matrix[b_i, c_i] = median([x[analysis_params.t_end] for x in b_c_group[!, :coop_mean_history]])
+            median_output_matrix[b_i, c_i] = median([x[analysis_params.t_end_i] for x in b_c_group[!, :coop_mean_history]])
         end
-         print(mean_output_matrix)
+        #  print(mean_output_matrix)
         filestr_mean = pwd()*"/"*analysis_params.filepath*"/b_c_coop_heatmaps/"*string("b_c_mean_coop_heatmap_nnet_", nnet_group[!, :nnet][1], "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
         filestr_median = pwd()*"/"*analysis_params.filepath*"/b_c_coop_heatmaps/"*string("b_c_median_coop_heatmap_nnet_", nnet_group[!, :nnet][1], "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
 
@@ -72,7 +74,7 @@ function main()
     # analysis_params = analysis_parameters(k, max_rows, use_random, t_start, t_end, "figure_outputs")
     analysis_params = analysis_arg_parsing()
     analysis_params.t_start = 1
-    analysis_params.t_end = 1000
+    analysis_params.t_end = 500
     main_df = create_df(files, analysis_params)
 
     print("Done!" , "\n")
@@ -95,9 +97,9 @@ function main()
     create_b_c_cooperation_heatmap(main_df, analysis_params)
 
     ##creates heatmaps of b/c vals and network weight / fitness correlations
-    # for nnet in 1:2:maximum(main_df[!,:nnet])
-    #     create_b_c_heatmap_plot(main_df, nnet, analysis_params)
-    # end
+    for nnet in 1:2:maximum(main_df[!,:nnet])
+        create_b_c_heatmap_plot(main_df, nnet, analysis_params)
+    end
         
 
     #############################   
@@ -110,8 +112,8 @@ function main()
         ## because it produces a multi-line plot that 
         ## will not slice nicely with arbitrary groupings
         #############################
-    # create_mean_init_payoff_and_fitness_plots(main_df, analysis_params)
-    # create_all_violin_plots(groupby(main_df, [:b, :c]), analysis_params)
+    create_mean_init_payoff_and_fitness_plots(main_df, analysis_params)
+    create_all_violin_plots(groupby(main_df, [:b, :c]), analysis_params)
 
 
 

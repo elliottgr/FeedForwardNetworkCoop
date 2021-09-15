@@ -10,6 +10,10 @@ mutable struct analysis_parameters
     use_random::Bool
     t_start::Int64
     t_end::Int64
+
+    ## indices to map the compressed time series data
+    t_start_i::Int64
+    t_end_i::Int64
     output_folder::String
     filepath::String
 end
@@ -176,22 +180,26 @@ function get_df_dict(files::Vector{JLD2.JLDFile}, analysis_params::analysis_para
         for experiment in get_experiment(file)
             for rep in experiment
                 rep_i += 1
-                df_dict[:timestep][rep_i] = collect(Int64, analysis_params.t_start:1:length(rep.fixations))
+                df_dict[:timestep][rep_i] = rep.parameters.output_save_tick .* collect(Int64, analysis_params.t_start:1:length(rep.fixations))
                 ## not necessary in this implementation but don't want to break other stuff
                 df_dict[:rep_id][rep_i] = rep_i
 
                 for col in column_names
                     ## need to filter things where t_start:end doesnt work
-                    if typeof(getproperty(rep,col)) == Vector
-                        df_dict[col][rep_i] = getproperty(rep,col)[analysis_params.t_start:analysis_params.t_end]
-                    else
-                        df_dict[col][rep_i] = getproperty(rep,col)
-                    end
+                    # if typeof(getproperty(rep,col)) == Vector
+                    df_dict[col][rep_i] = getproperty(rep,col)
+                    # else
+                    #     df_dict[col][rep_i] = getproperty(rep,col)
+                    # end
                 end
             end
         end
     end
+
     split_parameters(df_dict, analysis_params)
+
+    analysis_params.t_start_i = 1
+    analysis_params.t_end_i = analysis_params.t_end/df_dict[:output_save_tick][1]
     return df_dict
 end
 
@@ -261,8 +269,8 @@ function create_edge_df(df_dict::SubDataFrame, analysis_params::analysis_paramet
 
     ##pre allocating this array to prevent iterating over unused timepoints in the main loop
     # tmax_array = collect(1:df_dict[!, :net_save_tick][1][1]:(maximum(df_dict[!, :timestep])[end])-(analysis_params.t_start+analysis_params.t_end))
-    tmax_array = collect(1:df_dict[!, :net_save_tick][1][1]:(analysis_params.t_end - analysis_params.t_start))
-
+    # tmax_array = collect(1:df_dict[!, :net_save_tick][1][1]:(analysis_params.t_end - analysis_params.t_start))
+    tmax_array = analysis_params.t_start_i:1:analysis_params.t_end_i
 
     row = 0
     if analysis_params.use_random == true
@@ -359,15 +367,19 @@ end
 ## pass the main_df (timepoint rows) to create a n x n heatmap composed of
 ## edge-fitness corrrelation heatmaps. the larger heatmap axes are b, c params
 function create_b_c_heatmap_plot(df, nnet::Int64, analysis_params)
-    b_c_vals = unique(df[!,:c])
-    heatmaps = Vector{Plots.Plot}(undef,0)
-    main_df = df[df.nnet .== nnet, :]
+    ## should detect if edge DF creation will fail
+    if minimum(df[!, :net_save_tick]) != 0
 
-    for group in groupby(main_df, [:b,:c])
-        push!(heatmaps,correlation_heatmaps(create_edge_df(group, analysis_params)))
+        b_c_vals = unique(df[!,:c])
+        heatmaps = Vector{Plots.Plot}(undef,0)
+        main_df = df[df.nnet .== nnet, :]
+
+        for group in groupby(main_df, [:b,:c])
+            push!(heatmaps,correlation_heatmaps(create_edge_df(group, analysis_params)))
+        end
+        filestr = pwd()*"/"*analysis_params.filepath*"/edge_weight_w_heatmaps/"*string("fitness_edge_weight_heatmap_nnet_", nnet, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
+        savefig(plot(heatmaps..., layout = (length(b_c_vals), length(b_c_vals))), filestr)
     end
-    filestr = pwd()*"/"*analysis_params.filepath*"/edge_weight_w_heatmaps/"*string("fitness_edge_weight_heatmap_nnet_", nnet, "_tstart_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
-    savefig(plot(heatmaps..., layout = (length(b_c_vals), length(b_c_vals))), filestr)
 end
 
 ## for a DataFrame group, returns figures similar to those created in cooperateion_analysis.jl
@@ -378,7 +390,8 @@ function create_mean_w_violin_plots(group::SubDataFrame, analysis_params::analys
     w_means = zeros(Float64, 0)
     for replicate in eachrow(group)
         push!(nnets, replicate[:nnet])
-        push!(w_means, last(rolling_mean(replicate[:w_mean_history][analysis_params.t_start:analysis_params.t_end], analysis_params.k)))
+        # push!(w_means, last(rolling_mean(replicate[:w_mean_history][analysis_params.t_start:analysis_params.t_end], analysis_params.k)))
+        push!(w_means, replicate[:w_mean_history][analysis_params.t_end_i])
     end
     temp_df = DataFrame(nnet=nnets, w_mean = w_means)
     @df temp_df violin(:nnet, :w_mean, title = "Mean Fitness", legend = :none)
@@ -392,7 +405,9 @@ function create_mean_init_violin_plots(group::SubDataFrame, analysis_params::ana
     inits = zeros(Float64,0)
     for replicate in eachrow(group)
         push!(nnets, replicate[:nnet])
-        push!(inits, last(rolling_mean(replicate[:init_mean_history][analysis_params.t_start:analysis_params.t_end], analysis_params.k)))
+        # push!(inits, last(rolling_mean(replicate[:init_mean_history][analysis_params.t_start:analysis_params.t_end], analysis_params.k)))
+        push!(inits, replicate[:init_mean_history][analysis_params.t_end_i])
+
     end
     temp_df = DataFrame(nnet=nnets, inits = inits)
     @df temp_df violin(:nnet, :inits, title = "Mean Initial Offer", legend = :none)
@@ -471,16 +486,22 @@ function create_mean_init_payoff_and_fitness_plots(group::DataFrame, analysis_pa
                 i = 0
                 # tmax = maximum(group[!, :tmax])
                 
-                fitness_array = zeros(Float64, (analysis_params.t_end - analysis_params.t_start + 1))
-                init_array = zeros(Float64, (analysis_params.t_end - analysis_params.t_start + 1))
-                coop_array = zeros(Float64, (analysis_params.t_end - analysis_params.t_start + 1))
+                # fitness_array = zeros(Float64, (analysis_params.t_end - analysis_params.t_start + 1))
+                # init_array = zeros(Float64, (analysis_params.t_end - analysis_params.t_start + 1))
+                # coop_array = zeros(Float64, (analysis_params.t_end - analysis_params.t_start + 1))
+                fitness_array = zeros(Float64, (analysis_params.t_end_i))
+                init_array = zeros(Float64, (analysis_params.t_end_i))
+                coop_array = zeros(Float64, (analysis_params.t_end_i))
 
                 ## finding the element wise mean for the conditions
                 for replicate in eachrow(subset(group, :b => ByRow(==(b)), :c => ByRow(==(c)), :nnet => ByRow(==(nnet))))
                     ## summing the rolling mean of each replicate
-                    fitness_array .+= rolling_mean(replicate.w_mean_history[analysis_params.t_start:analysis_params.t_end], analysis_params.k)
-                    init_array .+= rolling_mean(replicate.init_mean_history[analysis_params.t_start:analysis_params.t_end], analysis_params.k)
-                    coop_array .+= rolling_mean(replicate.coop_mean_history[analysis_params.t_start:analysis_params.t_end], analysis_params.k)
+                    # fitness_array .+= rolling_mean(replicate.w_mean_history[analysis_params.t_start_i:analysis_params.t_end_i], analysis_params.k)
+                    # init_array .+= rolling_mean(replicate.init_mean_history[analysis_params.t_start_i:analysis_params.t_end_i], analysis_params.k)
+                    # coop_array .+= rolling_mean(replicate.coop_mean_history[analysis_params.t_start_i:analysis_params.t_end_i], analysis_params.k)
+                    fitness_array .+= replicate.w_mean_history[analysis_params.t_start_i:analysis_params.t_end_i]
+                    init_array .+= replicate.init_mean_history[analysis_params.t_start_i:analysis_params.t_end_i]
+                    coop_array .+= replicate.coop_mean_history[analysis_params.t_start_i:analysis_params.t_end_i]
                     i+=1
                 end
                 ## dividing sum of replicates by # of reps
@@ -530,7 +551,7 @@ function analysis_arg_parsing()
     ## I'm sure there's a way to do this iteratively 
     analysis_params = analysis_parameters(parsed_args["k"], parsed_args["max_rows"],
                                         parsed_args["use_random"], parsed_args["t_start"],
-                                        parsed_args["t_end"], parsed_args["output_folder"], "filepath")
+                                        parsed_args["t_end"], 0, 0, parsed_args["output_folder"], "filepath")
     return analysis_params
 end
 
