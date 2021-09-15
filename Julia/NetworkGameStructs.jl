@@ -32,6 +32,7 @@ mutable struct simulation_parameters
     net_save_tick::Int64
     activation_scale::Float64
     #file/simulation params
+    # output_save_tick::Int64
     seed::Int64
     filename::String
     init_freq_resolution::Float64

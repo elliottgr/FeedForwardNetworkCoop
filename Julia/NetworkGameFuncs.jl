@@ -558,17 +558,26 @@ function simulation(pop::population)
 ## WIP Note: Need to decide on output format, then create an easier to modify workflow for this.
 ## some kind of output struct that tracks whole sim statistics, and has vectors of timepoint statistics
 ## as well?
-
-outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
+if pop.parameters.net_save_tick > 0
+    outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
                             zeros(Int64, pop.parameters.tmax),
                             zeros(Float64, pop.parameters.tmax),
                             zeros(Float64, pop.parameters.tmax),
                             zeros(Float64, pop.parameters.tmax),
                             zeros(Float64, pop.parameters.tmax),
-                            Vector{network}(undef, pop.parameters.tmax),
+                            Vector{output_network}(undef, pop.parameters.tmax),
                             pop.parameters)
-
-
+else 
+    ## only saves the initial population mean network if not tracking edge weights
+    outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
+            zeros(Int64, pop.parameters.tmax),
+            zeros(Float64, pop.parameters.tmax),
+            zeros(Float64, pop.parameters.tmax),
+            zeros(Float64, pop.parameters.tmax),
+            zeros(Float64, pop.parameters.tmax),
+            Vector{output_network}([return_mean_network(pop)]),
+            pop.parameters)
+end
     ## pre allocating this array so it doesn't get reallocated each time a game is played
     global discount =  calc_discount(pop.parameters.δ, pop.parameters.rounds)
     global discount = SVector{pop.parameters.rounds}(discount/sum(discount))

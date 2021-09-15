@@ -5,7 +5,7 @@
 
 using Distributed, Random, InteractiveUtils
 
-# addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project())")
+addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project())")
 
 @everywhere using ArgParse, JLD2
 @everywhere begin
@@ -48,7 +48,7 @@ using Distributed, Random, InteractiveUtils
         c_vals = collect(parameters.game_param_min:parameters.game_param_step:parameters.game_param_max)
         nnet_vals = collect(parameters.nnet_min:parameters.nnet_step:parameters.nnet_max)
             
-        sim_outputs = Vector{Vector{simulation_ouput}}(undef, 0)
+        sim_outputs = Vector{Vector{simulation_output}}(undef, 0)
         Random.seed!(parameters.seed)
 
 
@@ -75,7 +75,7 @@ using Distributed, Random, InteractiveUtils
                         n_files += 1
                         parameters.filename = string(output_filename, "b_c_min_", replace(string(parameters.game_param_min), "." => "0"), "b_c_max", replace(string(parameters.game_param_max), "." => "0"), "_nreps_", parameters.nreps, "_tmax_", parameters.tmax, "part_", n_files, ".jld2")
                         jldsave(parameters.filename; sim_outputs)
-                        sim_outputs = sim_outputs = Vector{Vector{simulation_ouput}}(undef, 0)
+                        sim_outputs = Vector{Vector{simulation_ouput}}(undef, 0)
                     end
                     i+=1
                 end
