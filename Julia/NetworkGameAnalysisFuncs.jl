@@ -503,7 +503,7 @@ function analysis_arg_parsing()
         "--k"
             help = "number of datapoints for running mean in time series data"
             arg_type = Int64
-            default = 50
+            default = 1
         "--max_rows"
             help = "maximum number of edges to sample // setting too high will crash"
             arg_type = Int64

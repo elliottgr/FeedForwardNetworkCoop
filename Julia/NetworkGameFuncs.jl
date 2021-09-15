@@ -202,28 +202,35 @@ end
 
 function output!(t::Int64, pop::population, outputs::simulation_output)
     ## Updates output arrays
-    if count(i->(i==pop.genotypes[1]), pop.genotypes) == pop.parameters.N
-        outputs.fixations[t] = pop.genotypes[1]
-    else
-        outputs.fixations[t] = 0
+    # if mod(pop.parameters.output_save_tick, t) == 0
+    if mod(t, pop.parameters.output_save_tick) == 0
+        output_i = Int64(t/pop.parameters.output_save_tick)
+        if count(i->(i==pop.genotypes[1]), pop.genotypes) == pop.parameters.N
+            outputs.fixations[output_i] = pop.genotypes[1]
+        else
+            outputs.fixations[output_i] = 0
+        end
+        outputs.n_genotypes[output_i] = pop.n_genotypes
+        outputs.init_mean_history[output_i] = mean(return_initial_offer_array(pop))
+        outputs.w_mean_history[output_i] = pop.mean_w
+        outputs.payoff_mean_history[output_i] = mean(pop.payoffs)
+        outputs.coop_mean_history[output_i] = mean(pop.cooperation_vals)
     end
     ## Maximum or length of the set of keys should return the largest genotype index ever present because
     ## each iteration will guarantee it shows up in fit_dict via the shuffle method
 
     ## only calculates mean net on tick intervals to save calculations
     if pop.parameters.net_save_tick != 0
-        if mod(pop.parameters.net_save_tick, t) == 0
-            outputs.mean_net_history[t] = return_mean_network(pop)
-        else
-            outputs.mean_net_history[t] = outputs.mean_net_history[t-1]
+        if mod(t, pop.parameters.net_save_tick) == 0
+            outputs.mean_net_history[Int64(t/pop.parameters.net_save_tick)] = return_mean_network(pop)
+        # elseif length(outputs.mean_net_history) == 0
+        #     outputs.mean_net_history[t/pop.parameters.net_save_tick] = return_mean_network(pop)
+        
+        #     outputs.mean_net_history[t/pop.parameters.net_save_tick] = outputs.mean_net_history[t-1]
         end
     end
+    
 
-    outputs.n_genotypes[t] = pop.n_genotypes
-    outputs.init_mean_history[t] = mean(return_initial_offer_array(pop))
-    outputs.w_mean_history[t] = pop.mean_w
-    outputs.payoff_mean_history[t] = mean(pop.payoffs)
-    outputs.coop_mean_history[t] = mean(pop.cooperation_vals)
 end
 
 
@@ -498,6 +505,10 @@ function initial_arg_parsing()
         ########
         ## File/Simulation Parameters
         ########
+        "--output_save_tick"
+            help = "Number of timesteps to wait between saving of all simulation results EXCEPT mean network state"
+            arg_type = Int64
+            default = 250
         "--seed"
             help = "seed number for RNG"
             arg_type = Int64
@@ -522,7 +533,7 @@ function initial_arg_parsing()
                                         parsed_args["initial_offer"], parsed_args["init_freqs"], 
                                         parsed_args["nnet_min"], parsed_args["nnet_max"], parsed_args["nnet_step"],
                                         parsed_args["nnet"], parsed_args["mutsize"], parsed_args["mutinitsize"], parsed_args["mutlink"],
-                                        parsed_args["net_save_tick"], parsed_args["activation_scale"], parsed_args["seed"], parsed_args["filename"], parsed_args["init_freq_resolution"])
+                                        parsed_args["net_save_tick"], parsed_args["activation_scale"], parsed_args["output_save_tick"], parsed_args["seed"], parsed_args["filename"], parsed_args["init_freq_resolution"])
 
 
 
@@ -558,23 +569,25 @@ function simulation(pop::population)
 ## WIP Note: Need to decide on output format, then create an easier to modify workflow for this.
 ## some kind of output struct that tracks whole sim statistics, and has vectors of timepoint statistics
 ## as well?
+
+output_length = Int64(pop.parameters.tmax/pop.parameters.output_save_tick)
 if pop.parameters.net_save_tick > 0
-    outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
-                            zeros(Int64, pop.parameters.tmax),
-                            zeros(Float64, pop.parameters.tmax),
-                            zeros(Float64, pop.parameters.tmax),
-                            zeros(Float64, pop.parameters.tmax),
-                            zeros(Float64, pop.parameters.tmax),
-                            Vector{output_network}(undef, pop.parameters.tmax),
+    outputs = simulation_output(zeros(Int64, output_length),
+                            zeros(Int64, output_length),
+                            zeros(Float64, output_length),
+                            zeros(Float64, output_length),
+                            zeros(Float64, output_length),
+                            zeros(Float64, output_length),
+                            Vector{output_network}(undef, Int64(pop.parameters.tmax/pop.parameters.net_save_tick)),
                             pop.parameters)
 else 
     ## only saves the initial population mean network if not tracking edge weights
-    outputs = simulation_output(zeros(Int64, pop.parameters.tmax),
-            zeros(Int64, pop.parameters.tmax),
-            zeros(Float64, pop.parameters.tmax),
-            zeros(Float64, pop.parameters.tmax),
-            zeros(Float64, pop.parameters.tmax),
-            zeros(Float64, pop.parameters.tmax),
+    outputs = simulation_output(zeros(Int64, output_length),
+            zeros(Int64, output_length),
+            zeros(Float64, output_length),
+            zeros(Float64, output_length),
+            zeros(Float64, output_length),
+            zeros(Float64, output_length),
             Vector{output_network}([return_mean_network(pop)]),
             pop.parameters)
 end
@@ -598,8 +611,9 @@ end
             mutate!(pop)
         end
         # per-timestep counters, outputs going to disk
-        output!(t, pop, outputs)
-
+        if t > 1
+            output!(t, pop, outputs)
+        end
 
         ## ends the loop if only one genotype exists AND mutation is not enabled
         if pop.parameters.μ ==  0.0
