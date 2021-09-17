@@ -268,9 +268,14 @@ function population_construction(parameters::simulation_parameters)
     population_array = Vector{network}(undef, parameters.N)
     scale_freq(p, N) = convert(Int64, round((p*N), digits=0))
     for n::Int64 in 1:length(parameters.init_freqs)
-        Wm = SMatrix{parameters.nnet, parameters.nnet, Float64}(Matrix(UpperTriangular(randn((parameters.nnet,parameters.nnet)))))
-        Wb =  SVector{parameters.nnet, Float64}(randn(parameters.nnet))
-        # initOffer = range_check((1.0 + randn())/2)
+        if parameters.init_net_weights != 0.0
+            Wm = SMatrix{parameters.nnet, parameters.nnet, Float64}(Matrix(UpperTriangular(randn((parameters.nnet,parameters.nnet)))))
+            Wb =  SVector{parameters.nnet, Float64}(randn(parameters.nnet))
+        else
+            Wm = SMatrix{parameters.nnet, parameters.nnet, Float64}(Matrix(UpperTriangular(fill(parameters.init_net_weights, (parameters.nnet,parameters.nnet)))))
+            Wb =  SVector{parameters.nnet, Float64}(fill(parameters.init_net_weights, parameters.nnet))
+        end
+            # initOffer = range_check((1.0 + randn())/2)
         initOffer = copy(parameters.initial_offer)
 
         initialnetworks[n] = network(n, Wm, Wb, initOffer, initOffer)
@@ -393,7 +398,7 @@ function initial_arg_parsing()
         "--tmax"
             help = "Maximum number of timesteps"
             arg_type = Int64
-            default = 1000
+            default = 50000
         "--nreps"
             help = "number of replicates to run"
             arg_type = Int64
@@ -401,7 +406,7 @@ function initial_arg_parsing()
         "--N"   
             help = "population size"
             arg_type = Int64
-            default = 100
+            default = 500
         "--mu"
             help = "mutation probability per birth"
             arg_type = Float64
@@ -421,7 +426,7 @@ function initial_arg_parsing()
         "--fitness_benefit_scale"
             help = "scales the fitness payout of game rounds by this amount (payoff * scale). setting to 1.0 results in a crash, values between 0.01 and 0.1 work"
             arg_type = Float64
-            default = 0.01
+            default = 0.1
 
         "--b"
             help = "payoff benefit"
@@ -463,6 +468,10 @@ function initial_arg_parsing()
             help = "vector of initial genotype frequencies, must sum to 1"
             arg_type = Vector{Float64}
             default = [.99, 0.01]
+        "--init_net_weights"
+            help = "Initial weight of network nodes, from 0.0 to 1.0. Set to 0.0 to randomly sample"
+            arg_type = Float64
+            default = 0.50
         ########
         ## Network Parameters
         ########
@@ -530,7 +539,7 @@ function initial_arg_parsing()
                                         parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
                                         parsed_args["c"], parsed_args["d"], parsed_args["delta"],
                                         parsed_args["game_param_min"], parsed_args["game_param_max"], parsed_args["game_param_step"],
-                                        parsed_args["initial_offer"], parsed_args["init_freqs"], 
+                                        parsed_args["initial_offer"], parsed_args["init_freqs"], parsed_args["init_net_weights"],
                                         parsed_args["nnet_min"], parsed_args["nnet_max"], parsed_args["nnet_step"],
                                         parsed_args["nnet"], parsed_args["mutsize"], parsed_args["mutinitsize"], parsed_args["mutlink"],
                                         parsed_args["net_save_tick"], parsed_args["activation_scale"], parsed_args["output_save_tick"], parsed_args["seed"], parsed_args["filename"], parsed_args["init_freq_resolution"])

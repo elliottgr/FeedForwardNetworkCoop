@@ -21,6 +21,7 @@ mutable struct simulation_parameters
     game_param_step::Float64
     initial_offer::Float64
     init_freqs::Vector{Float64}
+    init_net_weights::Float64
     #network params
     nnet_min::Int64
     nnet_max::Int64
@@ -70,7 +71,7 @@ function Base.copy(parameters::simulation_parameters)
                                 parameters.resident_fitness_scale, parameters.rounds,
                                 parameters.fitness_benefit_scale,parameters.b,parameters.c,parameters.d,
                                 parameters.game_param_min, parameters.game_param_max, parameters.game_param_step,
-                                parameters.δ,parameters.initial_offer, parameters.init_freqs,
+                                parameters.δ,parameters.initial_offer, parameters.init_freqs, parameters.init_net_weights,
                                 parameters.nnet_min, parameters.nnet_max, parameters.nnet_step, parameters.nnet,
                                 parameters.mutsize,parameters.mutinitsize,parameters.mutlink,parameters.net_save_tick, parameters.activation_scale,
                                 parameters.output_save_tick, parameters.seed, parameters.filename, parameters.init_freq_resolution)
