@@ -494,11 +494,11 @@ function initial_arg_parsing()
         "--mutsize"
             help = "Size of mutant effects on network in Normal Dist. StdDevs"
             arg_type = Float64
-            default = 0.1
+            default = 0.01
         "--mutinitsize"
             help = "Size of mutant effects on initial offers in Normal Dist. StdDevs"
             arg_type = Float64
-            default = 0.1
+            default = 0.01
         "--mutlink"
             help = "Probability that a random edge or node be altered in a mutation event"
             arg_type = Float64
@@ -517,7 +517,7 @@ function initial_arg_parsing()
         "--output_save_tick"
             help = "Number of timesteps to wait between saving of all simulation results EXCEPT mean network state"
             arg_type = Int64
-            default = 250
+            default = 1000
         "--seed"
             help = "seed number for RNG"
             arg_type = Int64
