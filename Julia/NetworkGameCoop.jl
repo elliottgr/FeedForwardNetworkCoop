@@ -59,12 +59,16 @@ addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project(
         ## variables to handle larger datasets
         multi_file_flag = false
         n_files = 0
+        n_replicate_sets = length(b_vals) * length(c_vals) * length(nnet_vals)
+        rep_set_i = 0
         for b in b_vals
             replicate_parameters = copy(parameters)
             replicate_parameters.b = b
             for c in c_vals
                 replicate_parameters.c = c
                 for net_size in nnet_vals
+                    rep_set_i += 1
+                    print("\n Starting replicate set $rep_set_i of $n_replicate_sets \n")
                     replicate_parameters.nnet = net_size
                     @time push!(sim_outputs, RunReplicates(replicate_parameters))
 
