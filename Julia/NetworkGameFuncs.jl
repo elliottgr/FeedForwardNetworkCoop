@@ -236,8 +236,8 @@ end
 
 ## returns number if 0 < number < 1, else returns 0, 1
 function range_check(number::Float64)
-    if number < 0
-        return 0
+    if number < -1
+        return -1
     elseif number > 1
         return 1
     else
@@ -275,7 +275,7 @@ function population_construction(parameters::simulation_parameters)
             Wm = SMatrix{parameters.nnet, parameters.nnet, Float64}(Matrix(UpperTriangular(fill(parameters.init_net_weights, (parameters.nnet,parameters.nnet)))))
             Wb =  SVector{parameters.nnet, Float64}(fill(parameters.init_net_weights, parameters.nnet))
         end
-            # initOffer = range_check((1.0 + randn())/2)
+
         initOffer = copy(parameters.initial_offer)
 
         initialnetworks[n] = network(n, Wm, Wb, initOffer, initOffer)
@@ -375,8 +375,8 @@ function mutate!(pop::population)
             pop.networks[i] = network(pop.n_genotypes,
                                         (outWm),
                                         (outWb),
-                                        range_check(pop.networks[i].InitialOffer + mutInit),
-                                        range_check(pop.networks[i].InitialOffer + mutInit),
+                                        (pop.networks[i].InitialOffer + mutInit),
+                                        (pop.networks[i].InitialOffer + mutInit),
                                         )
         end
     end
@@ -471,7 +471,7 @@ function initial_arg_parsing()
         "--init_net_weights"
             help = "Initial weight of network nodes, from 0.0 to 1.0. Set to 0.0 to randomly sample"
             arg_type = Float64
-            default = 0.50
+            default = 0.00
         ########
         ## Network Parameters
         ########
