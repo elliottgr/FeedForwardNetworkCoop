@@ -4,7 +4,7 @@ include("NetworkGameAnalysisFuncs.jl")
 
 ## creates a plot of b/c ratio versus the evolved edge weight of node 1 to node 2
 function w12_heatmap(edge_df, analysis_params)
-    subset = edge_df[(edge_df.e1 .== 1) .& (edge_df.e2 .== 2), :]
+    subset = edge_df[(edge_df.e1 .== 1) .& (edge_df.e2 .== 2) .& (edge_df.timestep .== max(edge_df.timestep)), :]
     filestr_mean = pwd()*"/"*analysis_params.filepath*"/b_c_coop_heatmaps/"*string("bc_ratio_scatterplot_t_start_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
     savefig(scatter(((subset.b)./(subset.c)), subset.edge_weight))
 end
