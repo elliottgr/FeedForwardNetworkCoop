@@ -4,12 +4,16 @@ include("NetworkGameAnalysisFuncs.jl")
 
 ## creates a plot of b/c ratio versus the evolved edge weight of node 1 to node 2
 function w12_heatmap(edge_df, analysis_params)
-    subset = edge_df[(edge_df.e1 .== 1) .& (edge_df.e2 .== 2) .& (edge_df.timestep .== max(edge_df.timestep)), :]
-    filestr_mean = pwd()*"/"*analysis_params.filepath*"/b_c_coop_heatmaps/"*string("bc_ratio_scatterplot_t_start_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
-    savefig(scatter(((subset.b)./(subset.c)), subset.edge_weight))
+    subset = edge_df[(edge_df.e1 .== 1) .& (edge_df.e2 .== 2) .& (edge_df.timestep .== maximum(edge_df.timestep)), :]
+    filestr = pwd()*"/"*analysis_params.filepath*"/scatter_plots/"*string("bc_ratio_scatterplot_t_start_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
+    savefig(scatter(((subset.b)./(subset.c)), subset.edge_weight), filestr)
 end
 
-
+function time_edgeweight_scatterplot(edge_df, analysis_params)
+    subset = edge_df[(edge_df.e1 .== 1) .& (edge_df.e2 .== 2) , :]
+    filestr = pwd()*"/"*analysis_params.filepath*"/scatter_plots/"*string("time_edgeweight_scatterplot_t_start_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
+    savefig(scatter(subset.timestep, subset.edge_weight), filestr)
+end   
 function main()
     include("NetworkGameAnalysisFuncs.jl")
     files, folder_name = load_files()
@@ -21,7 +25,7 @@ function main()
     # analysis_params = analysis_parameters(k, max_rows, use_random, t_start, t_end, "figure_outputs")
     analysis_params = analysis_arg_parsing()
     analysis_params.t_start = 1
-    analysis_params.t_end = 500
+    analysis_params.t_end = 50000
     main_df = create_df(files, analysis_params)
 
     print("Done!" , "\n")
@@ -57,8 +61,9 @@ function main()
         #############################
     # create_mean_init_payoff_and_fitness_plots(main_df, analysis_params)
     # create_all_violin_plots(groupby(main_df, [:b, :c]), analysis_params)
-    w12_heatmap(create_edge_df(main_df, analysis_params), analysis_params)
-
+    test_edges = create_edge_df(groupby(main_df, [:nnet])[1], analysis_params)
+    w12_heatmap(test_edges, analysis_params)
+    time_edgeweight_scatterplot(test_edges, analysis_params)
 
 end
 
