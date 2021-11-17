@@ -9,6 +9,12 @@ function w12_heatmap(edge_df, analysis_params)
     savefig(scatter(((subset.b)./(subset.c)), subset.edge_weight), filestr)
 end
 
+function time_edgeweight_scatterplot(edge_df, analysis_params)
+    subset = edge_df[(edge_df.e1 .== 1) .& (edge_df.e2 .== 2) , :]
+    filestr = pwd()*"/"*analysis_params.filepath*"/scatter_plots/"*string("time_edgeweight_scatterplot_t_start_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
+    savefig(scatter(subset.timestep, subset.edge_weight), filestr)
+end   
+
 function init_vs_edge_weight_scatter(edge_df, analysis_params)
     subset = edge_df[(edge_df.e1 .== 1) .& (edge_df.e2 .== 2) .& (edge_df.timestep .== max(edge_df.timestep)), :]
     filestr = pwd()*"/"*analysis_params.filepath*"/scatter_plots/"*string("bc_ratio_scatterplot_t_start_", analysis_params.t_start, "_tend_", analysis_params.t_end, ".png")
