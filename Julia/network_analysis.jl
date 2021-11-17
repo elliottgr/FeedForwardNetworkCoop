@@ -27,7 +27,7 @@ function main()
     # analysis_params = analysis_parameters(k, max_rows, use_random, t_start, t_end, "figure_outputs")
     analysis_params = analysis_arg_parsing()
     analysis_params.t_start = 1
-    analysis_params.t_end = 500
+    analysis_params.t_end = 50000
     main_df = create_df(files, analysis_params)
 
     print("Done!" , "\n")
@@ -63,8 +63,9 @@ function main()
         #############################
     # create_mean_init_payoff_and_fitness_plots(main_df, analysis_params)
     # create_all_violin_plots(groupby(main_df, [:b, :c]), analysis_params)
-    w12_heatmap(create_edge_df(main_df, analysis_params), analysis_params)
-
+    test_edges = create_edge_df(groupby(main_df, [:nnet])[1], analysis_params)
+    w12_heatmap(test_edges, analysis_params)
+    time_edgeweight_scatterplot(test_edges, analysis_params)
 
 end
 
