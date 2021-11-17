@@ -47,6 +47,9 @@ function create_directories(analysis_params::analysis_parameters, folder_name)
     if isdir(string(pwd()*"/"*analysis_params.filepath*"/time_series/")) ==false
         mkdir(string(pwd()*"/"*analysis_params.filepath*"/time_series/"))
     end
+    if isdir(string(pwd()*"/"*analysis_params.filepath*"/scatter_plots/")) ==false
+        mkdir(string(pwd()*"/"*analysis_params.filepath*"/scatter_plots/"))
+    end
 end
 
 function create_log_file(df::DataFrame, analysis_params::analysis_parameters)
@@ -266,7 +269,7 @@ function create_edge_df(df_dict::SubDataFrame, analysis_params::analysis_paramet
     e1 = zeros(Int64, analysis_params.max_rows)
     e2 = zeros(Int64, analysis_params.max_rows)
     fitness = zeros(Float64, analysis_params.max_rows)
-
+    initial_offer = zeros(Float64, analysis_params.max_rows)
     ##pre allocating this array to prevent iterating over unused timepoints in the main loop
     # tmax_array = collect(1:df_dict[!, :net_save_tick][1][1]:(maximum(df_dict[!, :timestep])[end])-(analysis_params.t_start+analysis_params.t_end))
     # tmax_array = collect(1:df_dict[!, :net_save_tick][1][1]:(analysis_params.t_end - analysis_params.t_start))
@@ -302,6 +305,7 @@ function create_edge_df(df_dict::SubDataFrame, analysis_params::analysis_paramet
                     c_col[row] = df_dict[!, :c][i]
                     nnet[row] = df_dict[!, :nnet][i]
                     fitness[row] = df_dict[!, :w_mean_history][i][t]
+                    initial_offer[row] = df_dict[!, :init_mean_history][i][t]
                 end
                 ##Iterates over all edges
                 for n2 in n1:df_dict[!, :nnet][i]
@@ -317,6 +321,7 @@ function create_edge_df(df_dict::SubDataFrame, analysis_params::analysis_paramet
                             c_col[row] = df_dict[!, :c][i]
                             nnet[row] = df_dict[!, :nnet][i]
                             fitness[row] = df_dict[!, :w_mean_history][i][t]
+                            initial_offer[row] = df_dict[!, :init_mean_history][i][t]
                         end
                     end
                 end
@@ -331,7 +336,8 @@ function create_edge_df(df_dict::SubDataFrame, analysis_params::analysis_paramet
                     edge_weight = edge_weight,
                     fitness = fitness,
                     e1 = e1,
-                    e2 = e2)
+                    e2 = e2,
+                    initial_offer = initial_offer)
 end
 
 
