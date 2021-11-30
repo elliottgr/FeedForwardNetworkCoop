@@ -7,7 +7,8 @@ using LinearAlgebra, Random, Distributions, ArgParse, StatsBase
 include("NetworkGameStructs.jl")
 
 
-## Le Nagard's Activation function
+## no activation function
+
 function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::SVector)
     ##############################
     ## Iterates a single layer of the Feed Forward network
@@ -21,8 +22,25 @@ function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::
     end
     x += Wb[j]
 
-    return (1 - exp(-(x^2)))
+    return x
 end
+
+## Le Nagard's Activation function
+# function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::SVector)
+#     ##############################
+#     ## Iterates a single layer of the Feed Forward network
+#     ##############################
+
+#     ## dot product of Wm and prev_out, + node weights. Equivalent to x = dot(Wm[1:j,j], prev_out[1:j]) + Wb[j]
+#     ## doing it this way allows scalar indexing of the static arrays, which is significantly faster and avoids unnecessary array invocation
+#     x = 0
+#     for j_i in 1:j
+#         x += (Wm[j_i, j] * prev_out[j_i]) 
+#     end
+#     x += Wb[j]
+
+#     return (1 - exp(-(x^2)))
+# end
 
 ## JVC Activation function
 # function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::SVector)
