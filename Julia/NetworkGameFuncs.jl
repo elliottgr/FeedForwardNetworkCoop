@@ -1,4 +1,4 @@
-using LinearAlgebra, Random, Distributions, ArgParse, StatsBase
+using LinearAlgebra, Random, Distributions, ArgParse, StatsBase, DataFrames
 
 ####################################
 # Network Game Functions
@@ -236,64 +236,79 @@ function return_mean_network(pop::population)
 end
 
 
-function output!(t::Int64, pop::population, outputs::simulation_output)
-    ## Updates output arrays
-    # if mod(pop.parameters.output_save_tick, t) == 0
-    if mod(t, pop.parameters.output_save_tick) == 0
-        output_i = Int64(t/pop.parameters.output_save_tick)
-        if count(i->(i==pop.genotypes[1]), pop.genotypes) == pop.parameters.N
-            outputs.fixations[output_i] = pop.genotypes[1]
-        else
-            outputs.fixations[output_i] = 0
-        end
-        outputs.n_genotypes[output_i] = pop.n_genotypes
-        outputs.init_mean_history[output_i] = mean(return_initial_offer_array(pop))
-        outputs.w_mean_history[output_i] = pop.mean_w
-        outputs.payoff_mean_history[output_i] = mean(pop.payoffs)
-        outputs.coop_mean_history[output_i] = mean(pop.cooperation_vals)
-    end
-    ## Maximum or length of the set of keys should return the largest genotype index ever present because
-    ## each iteration will guarantee it shows up in fit_dict via the shuffle method
-
-    ## only calculates mean net on tick intervals to save calculations
-    if pop.parameters.net_save_tick != 0
-        if mod(t, pop.parameters.net_save_tick) == 0
-            outputs.mean_net_history[Int64(t/pop.parameters.net_save_tick)] = return_mean_network(pop)
-        # elseif length(outputs.mean_net_history) == 0
-        #     outputs.mean_net_history[t/pop.parameters.net_save_tick] = return_mean_network(pop)
-        
-        #     outputs.mean_net_history[t/pop.parameters.net_save_tick] = outputs.mean_net_history[t-1]
-        end
-    end
+function output!(t::Int64, pop::population, outputs::DataFrame)
+    ## Updates output dataframe
+    output_row = Int64(t/pop.parameters.output_save_tick)
     
+    outputs.generation[output_row] = t
+    outputs.n_genotypes[output_row] = pop.n_genotypes
+    outputs.mean_payoff[output_row] = mean(pop.payoffs)
+    outputs.mean_cooperation[output_row] = mean(pop.cooperation_vals)
+    outputs.mean_initial_offer[output_row] = mean(return_initial_offer_array(pop))
+    outputs.var_payoff[output_row] = var(pop.payoffs)
+    outputs.var_cooperation[output_row] = var(pop.cooperation_vals)
+    outputs.var_initial_offer[output_row] = var(return_initial_offer_array(pop))
 
-end
+    mean_network = return_mean_network(pop)
 
+    if pop.parameters.nnet >= 1
+    outputs.n1[output_row] = mean_network.Wb[1]
+    end 
 
-## returns number if 0 < number < 1, else returns 0, 1
-function range_check(number::Float64)
-    if number < -1
-        return -1
-    elseif number > 1
-        return 1
-    else
-        return number
+    if pop.parameters.nnet >= 2
+        outputs.n2[output_row] = mean_network.Wb[2]
+        outputs.e1_2[output_row] = mean_network.Wm[1,2]
+    end
+
+    if pop.parameters.nnet >= 3
+
+        outputs.n3[output_row] = mean_network.Wb[3]
+        outputs.e1_3[output_row] = mean_network.Wm[1,3]
+        outputs.e2_3[output_row] = mean_network.Wm[2,3]
+    end
+
+    if pop.parameters.nnet >= 4
+
+        outputs.n4[output_row] = mean_network.Wb[4]
+        outputs.e1_4[output_row] = mean_network.Wm[1,4]
+        outputs.e2_4[output_row] = mean_network.Wm[2,4]
+        outputs.e3_4[output_row] = mean_network.Wm[3,4]
+    end
+
+    if pop.parameters.nnet >= 5
+        outputs.n5[output_row] = mean_network.Wb[5]
+        outputs.e1_5[output_row] = mean_network.Wm[1,5]
+        outputs.e2_5[output_row] = mean_network.Wm[2,5]
+        outputs.e3_5[output_row] = mean_network.Wm[3,5]
+        outputs.e4_5[output_row] = mean_network.Wm[4,5]
     end
 end
 
-function range_check(vector::Vector{Float64})
-    for i in 1:length(vector)
-        vector[i] = range_check(vector[i])
-    end
-    return vector
-end
 
-function range_check(matrix::Matrix{Float64})
-    for i in eachindex(matrix)
-        matrix[i] = range_check(matrix[i])
-    end
-    return matrix
-end
+# ## returns number if 0 < number < 1, else returns 0, 1
+# function range_check(number::Float64)
+#     if number < -1
+#         return -1
+#     elseif number > 1
+#         return 1
+#     else
+#         return number
+#     end
+# end
+
+# function range_check(vector::Vector{Float64})
+#     for i in 1:length(vector)
+#         vector[i] = range_check(vector[i])
+#     end
+#     return vector
+# end
+
+# function range_check(matrix::Matrix{Float64})
+#     for i in eachindex(matrix)
+#         matrix[i] = range_check(matrix[i])
+#     end
+#     return matrix
+# end
         
 
 function population_construction(parameters::simulation_parameters)
@@ -344,15 +359,9 @@ function update_fit_dict!(pop::population)
             pop.coop_dict[pop.genotypes[n1]] = Dict{Int64, Vector{Float64}}()
         end
         if pop.genotypes[n2] ∉ keys(pop.fit_dict[pop.genotypes[n1]])
-            # if n1 != 1
                 pop.temp_arrays.gamePayoffTempArray = fitnessOutcome(pop.parameters, pop.networks[n2], pop.networks[n1], pop.temp_arrays)
                 pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = pop.temp_arrays.gamePayoffTempArray[1][1]
                 pop.coop_dict[pop.genotypes[n1]][pop.genotypes[n2]] = pop.temp_arrays.gamePayoffTempArray[2][1]
-                # pop.cooperation_vals[n1] = pop.gamePayoffTempArray[2][1]
-                # pop.payoffs[n1] = pop.gamePayoffTempArray[1][1]
-            # else 
-            #     pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = gameOutcome[1][1]
-            # end
         end
         pop.payoffs[n1] = pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]
         pop.cooperation_vals[n1] = pop.coop_dict[pop.genotypes[n1]][pop.genotypes[n2]]
@@ -616,28 +625,54 @@ function simulation(pop::population)
 ## as well?
 
 output_length = Int64(pop.parameters.tmax/pop.parameters.output_save_tick)
-if pop.parameters.net_save_tick > 0
-    outputs = simulation_output(zeros(Int64, output_length),
-                            zeros(Int64, output_length),
-                            zeros(Float64, output_length),
-                            zeros(Float64, output_length),
-                            zeros(Float64, output_length),
-                            zeros(Float64, output_length),
-                            Vector{output_network}(undef, Int64(pop.parameters.tmax/pop.parameters.net_save_tick)),
-                            pop.parameters)
-else 
-    ## only saves the initial population mean network if not tracking edge weights
-    outputs = simulation_output(zeros(Int64, output_length),
-            zeros(Int64, output_length),
-            zeros(Float64, output_length),
-            zeros(Float64, output_length),
-            zeros(Float64, output_length),
-            zeros(Float64, output_length),
-            Vector{output_network}([return_mean_network(pop)]),
-            pop.parameters)
-end
+
+    # ## Fixation Stats ##
+    # ## time points where an allele becomes 100% of the population
+    # fixations::Vector{Int64}
+    # ## number of genotypes at each time point
+    # n_genotypes::Vector{Int64}
+    # ## simulation results ##
+    # ## mean values of fitness and initial offer over the sim
+    # payoff_mean_history::Vector{Float64}
+    # coop_mean_history::Vector{Float64}
+    # w_mean_history::Vector{Float64}
+    # init_mean_history::Vector{Float64}
+    # mean_net_history::Vector{output_network}
+    # ## Output copy of parameters
+    # parameters::simulation_parameters
+
+ 
+
+outputs = DataFrame(b = fill(pop.parameters.b, output_length),
+                    c = fill(pop.parameters.c, output_length),
+                    nnet = fill(pop.parameters.nnet, output_length),
+                    
+                    generation = zeros(Int64, output_length),
+                    n_genotypes = zeros(Int64, output_length),
+                    mean_payoff = zeros(Float64, output_length),
+                    mean_cooperation = zeros(Float64, output_length), 
+                    mean_initial_offer = zeros(Float64, output_length), 
+                    var_payoff = zeros(Float64, output_length),
+                    var_cooperation = zeros(Float64, output_length),  
+                    var_initial_offer = zeros(Float64, output_length), 
+                    n1 = fill(NaN, output_length),
+                    n2 = fill(NaN, output_length),
+                    n3 = fill(NaN, output_length),
+                    n4 = fill(NaN, output_length),
+                    n5 = fill(NaN, output_length),
+                    e1_2 = fill(NaN, output_length),
+                    e1_3 = fill(NaN, output_length),
+                    e1_4 = fill(NaN, output_length),
+                    e1_5 = fill(NaN, output_length),
+                    e2_3 = fill(NaN, output_length),
+                    e2_4 = fill(NaN, output_length),
+                    e2_5 = fill(NaN, output_length),
+                    e3_4 = fill(NaN, output_length),
+                    e3_5 = fill(NaN, output_length),
+                    e4_5 = fill(NaN, output_length),)
+
     ## pre allocating this array so it doesn't get reallocated each time a game is played
-    global discount =  calc_discount(pop.parameters.δ, pop.parameters.rounds)
+    global discount = calc_discount(pop.parameters.δ, pop.parameters.rounds)
     global discount = SVector{pop.parameters.rounds}(discount/sum(discount))
     ############
     # Sim Loop #
@@ -655,27 +690,12 @@ end
         if pop.parameters.μ > 0
             mutate!(pop)
         end
+
         # per-timestep counters, outputs going to disk
-        if t > 1
+        if mod(t, pop.parameters.output_save_tick) == 0
             output!(t, pop, outputs)
         end
 
-        ## ends the loop if only one genotype exists AND mutation is not enabled
-        if pop.parameters.μ ==  0.0
-            if outputs.fixations[t] != 0
-                return outputs
-            end
-        end
-        ## should detect an error in genotype tracking. Will trip if there is <2 genotypes initially
-        # if pop.parameters.init_freqs[1] != 0.0
-        #     keyset = Set(keys(pop.fit_dict))
-        #     if length(keyset) != maximum(keyset)
-        #         print("Length: ", length(keyset), "\n")
-        #         print("Max: ", maximum(keyset), "\n")
-        #         print("Error in genotype tracking, dictionary of fitness values has missing genotypes", "\n")
-        #         break
-        #     end
-        # end
     end
 ## organize replicate data into appropriate data structure to be returned to main function and saved
 return outputs

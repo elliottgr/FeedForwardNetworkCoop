@@ -5,7 +5,7 @@
 
 using Distributed, Random, InteractiveUtils
 
-addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project())")
+addprocs(1, topology=:master_worker, exeflags="--project=$(Base.active_project())")
 
 @everywhere using ArgParse, JLD2
 @everywhere begin
@@ -27,7 +27,7 @@ addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project(
         rep_outputs = pmap(parameter_output_map, repeat([parameters], parameters.nreps))
         nreps = length(rep_outputs)
         print("$nreps replicates completed in: ")
-        return rep_outputs
+        return DataFrames.vcat(rep_outputs..., cols = :union)
     end
 
     ###################
@@ -48,7 +48,7 @@ addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project(
         c_vals = collect(parameters.game_param_min:parameters.game_param_step:parameters.game_param_max)
         nnet_vals = collect(parameters.nnet_min:parameters.nnet_step:parameters.nnet_max)
             
-        sim_outputs = Vector{Vector{simulation_output}}(undef, 0)
+        sim_outputs = Vector{DataFrame}(undef, 0)
         Random.seed!(parameters.seed)
 
 
@@ -79,7 +79,7 @@ addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project(
                         n_files += 1
                         parameters.filename = string(output_filename, "b_c_min_", replace(string(parameters.game_param_min), "." => "0"), "b_c_max", replace(string(parameters.game_param_max), "." => "0"), "_nreps_", parameters.nreps, "_tmax_", parameters.tmax, "part_", n_files, ".jld2")
                         jldsave(parameters.filename; sim_outputs)
-                        sim_outputs = Vector{Vector{simulation_ouput}}(undef, 0)
+                        sim_outputs = Vector{DataFrame}(undef, 0)
                     end
                     i+=1
                 end
@@ -87,9 +87,9 @@ addprocs(20, topology=:master_worker, exeflags="--project=$(Base.active_project(
         end
     output_filename = replace(parameters.filename, ".jld2"=>"")
     parameters.filename = string(output_filename, "b_c_min_", replace(string(parameters.game_param_min), "." => "0"), "b_c_max", replace(string(parameters.game_param_max), "." => "0"), "_nreps_", parameters.nreps, "_tmax_", parameters.tmax, ".jld2")
-        # parameters.filename = "NetworkGameCoop.jld2"
+    output_df = vcat(sim_outputs..., cols = :union)
     if multi_file_flag == false
-        jldsave(parameters.filename; sim_outputs)
+        jldsave(parameters.filename; output_df)
     end
     ###################
     #   Data Output   #     
