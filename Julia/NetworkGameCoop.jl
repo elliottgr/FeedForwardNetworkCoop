@@ -24,7 +24,11 @@ addprocs(1, topology=:master_worker, exeflags="--project=$(Base.active_project()
 
     function RunReplicates(parameters::simulation_parameters)
         print("Network Size = $(parameters.nnet)", "\n")
-        rep_outputs = pmap(parameter_output_map, repeat([parameters], parameters.nreps))
+        parameter_vector = repeat([parameters], parameters.nreps)
+        for i in 1:parameters.nreps
+            parameter_vector[i].replicate_id = i
+        end
+        rep_outputs = pmap(parameter_output_map, parameter_vector)
         nreps = length(rep_outputs)
         print("$nreps replicates completed in: ")
         return DataFrames.vcat(rep_outputs..., cols = :union)

@@ -646,7 +646,7 @@ output_length = Int64(pop.parameters.tmax/pop.parameters.output_save_tick)
 outputs = DataFrame(b = fill(pop.parameters.b, output_length),
                     c = fill(pop.parameters.c, output_length),
                     nnet = fill(pop.parameters.nnet, output_length),
-                    
+                    replicate_id = fill(pop.parameters.replicate_id, output_length),
                     generation = zeros(Int64, output_length),
                     n_genotypes = zeros(Int64, output_length),
                     mean_payoff = zeros(Float64, output_length),
