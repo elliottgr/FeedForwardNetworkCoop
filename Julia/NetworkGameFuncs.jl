@@ -563,6 +563,10 @@ function initial_arg_parsing()
             help = "Number of timesteps to wait between saving of all simulation results EXCEPT mean network state"
             arg_type = Int64
             default = 1000
+        "--replicate_id"
+            help = "Internal variable set to track each replicate in the final dataset"
+            arg_type = Int64
+            default = 0
         "--seed"
             help = "seed number for RNG"
             arg_type = Int64
@@ -587,7 +591,7 @@ function initial_arg_parsing()
                                         parsed_args["initial_offer"], parsed_args["init_freqs"], parsed_args["init_net_weights"],
                                         parsed_args["nnet_min"], parsed_args["nnet_max"], parsed_args["nnet_step"],
                                         parsed_args["nnet"], parsed_args["mutsize"], parsed_args["mutinitsize"], parsed_args["mutlink"],
-                                        parsed_args["net_save_tick"], parsed_args["activation_scale"], parsed_args["output_save_tick"], parsed_args["seed"], parsed_args["filename"], parsed_args["init_freq_resolution"])
+                                        parsed_args["net_save_tick"], parsed_args["replicate_id"], parsed_args["activation_scale"], parsed_args["output_save_tick"], parsed_args["seed"], parsed_args["filename"], parsed_args["init_freq_resolution"])
 
 
 
