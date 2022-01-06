@@ -16,14 +16,14 @@ function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::
 
     ## dot product of Wm and prev_out, + node weights. Equivalent to x = dot(Wm[1:j,j], prev_out[1:j]) + Wb[j]
     ## doing it this way allows scalar indexing of the static arrays, which is significantly faster and avoids unnecessary array invocation
-    x = 0
-    for j_i in 1:j
-        x += (Wm[j_i, j] * prev_out[j_i]) 
-    end
-    x += Wb[j]
+#     x = 0
+#     for j_i in 1:j
+#         x += (Wm[j_i, j] * prev_out[j_i]) 
+#     end
+#     x += Wb[j]
 
-    return x
-end
+#     return x
+# end
 
 ## Le Nagard's Activation function
 # function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::SVector)
@@ -49,15 +49,16 @@ end
 #     ##############################
 
 #     ## dot product of Wm and prev_out, + node weights. Equivalent to x = dot(Wm[1:j,j], prev_out[1:j]) + Wb[j]
-#     ## doing it this way allows scalar indexing of the static arrays, which is significantly faster and avoids unnecessary array invocation
-#     x = 0
-#     for j_i in 1:j
-#         x += (Wm[j_i, j] * prev_out[j_i]) 
-#     end
-#     x += Wb[j]
+    ## doing it this way allows scalar indexing of the static arrays, which is significantly faster and avoids unnecessary array invocation
+    x = 0
+    for j_i in 1:j
+        x += (Wm[j_i, j] * prev_out[j_i]) 
+    end
+    x += Wb[j]
+   
 
-#     return (1/(1+exp(-x * activation_scale)))
-# end
+    return (1/(1+exp(-x * activation_scale))) 
+end
 
 function iterateNetwork(activation_scale::Float64, input::Float64, Wm::SMatrix, Wb::SVector, prev_out::MVector)
     ##############################
@@ -79,8 +80,10 @@ function networkGameRound(parameters::simulation_parameters, mutNet::network, re
     ## Iterates above functions over a pair of networks,
     ## constitutes a single game round
     ##############################
+    # print(iterateNetwork(parameters.activation_scale, resNet.CurrentOffer, mutNet.Wm, mutNet.Wb, prev_out)[parameters.nnet]    )
     mutNet.CurrentOffer = iterateNetwork(parameters.activation_scale, resNet.CurrentOffer, mutNet.Wm, mutNet.Wb, prev_out)[parameters.nnet]
     resNet.CurrentOffer = iterateNetwork(parameters.activation_scale, mutNet.CurrentOffer, resNet.Wm, resNet.Wb, prev_out)[parameters.nnet]
+   
     # return [iterateNetwork(parameters.activation_scale, resNet.CurrentOffer, mutNet.Wm, mutNet.Wb)[parameters.nnet], iterateNetwork(parameters.activation_scale, mutNet.CurrentOffer, resNet.Wm, resNet.Wb)[parameters.nnet]]
     # return [mutOut, resOut]
 
@@ -111,10 +114,15 @@ function repeatedNetworkGame(parameters::simulation_parameters, mutNet::network,
         networkGameRound(parameters, mutNet, resNet, prev_out)
         # mutNet.GameHistory[i] = mutNet.CurrentOffer
         # resNet.GameHistory[i] = resNet.CurrentOffer
-        mutHist[i] = mutNet.CurrentOffer
-        resHist[i] = mutNet.CurrentOffer
+  
+        mutHist[i] = copy(mutNet.CurrentOffer)
+        resHist[i] = copy(resNet.CurrentOffer)
     end
 
+    ## Note 1/6/22 
+    ## When looked at directly, the mutant and resident values do not change significantly after multiple rounds
+    # print(mutHist)
+    # print("\n")
     if parameters.δ >= 0
         return [mutHist, resHist]
     elseif parameters.δ < 0
@@ -157,7 +165,6 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
         rmOut, mrOut = repeatedNetworkGame(parameters,mutNet,resNet, temp_arrays.prev_out)
         # discount = calc_discount(parameters.δ, parameters.rounds)
         # discount = discount/sum(discount)
-        
         # wmr = 1 + (dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
         # wmr_1 = calc_payoff(parameters, rmOut, mrOut, discount)
         # wrm = 1 + (dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
@@ -252,7 +259,7 @@ function output!(t::Int64, pop::population, outputs::DataFrame)
     mean_network = return_mean_network(pop)
 
     if pop.parameters.nnet >= 1
-    outputs.n1[output_row] = mean_network.Wb[1]
+       outputs.n1[output_row] = mean_network.Wb[1]
     end 
 
     if pop.parameters.nnet >= 2

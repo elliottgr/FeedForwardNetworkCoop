@@ -113,6 +113,20 @@ mutable struct population
 end
 
 
+## not currently used (1/5/22) in main file, used for testing
+function Base.copy(pop::population)
+    return(population(pop.parameters,
+                      pop.networks,
+                      pop.genotypes,
+                      pop.fit_dict,
+                      pop.coop_dict,
+                      pop.shuffled_indices,
+                      pop.n_genotypes,
+                      pop.payoffs,
+                      pop.cooperation_vals,
+                      pop.mean_w,
+                      pop.temp_arrays))
+end
 
 mutable struct simulation_output
     ## Fixation Stats ##

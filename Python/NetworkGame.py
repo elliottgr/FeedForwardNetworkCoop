@@ -106,7 +106,8 @@ def pairwise_fitness(population_array, repro_probabilities, genotypes_dict, resi
             fit_dict[n1] = {}
         if n2 not in fit_dict[n1].keys():
             fit_dict[n1][n2] = fitFunc(genotypes_dict[n2][0], genotypes_dict[n2][1], genotypes_dict[n2][2], genotypes_dict[n1][0], genotypes_dict[n1][1], genotypes_dict[n1][2])
-        
+             ## adding 1/6/22 to check outputs from the python version of fitnessOutcome() for comparison with Julia version
+            print(fit_dict[n1][n2])
         p = fit_dict[n1][n2][0]
         for w_i in range(2):
             if p[w_i] > w_max[w_i]:
