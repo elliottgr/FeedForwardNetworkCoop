@@ -145,7 +145,9 @@ for x in 1:pop.parameters.N
 end
 
 mean_error = mean(difference_array)
-print("This programming choice has resulted in a mean calculated fitness error of $mean_error  \n\n")
+max_error = maximum(difference_array)
+print("This programming choice has resulted in a mean calculated fitness error of $mean_error, \n 
+with a maximum error of $max_error  \n\n")
 
 ## Using G1 and G2 to show the difference of payoffs over multiple rounds
 
