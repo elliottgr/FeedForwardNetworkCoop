@@ -5,7 +5,7 @@
 ## include necessary files
 include("NetworkGameFuncs.jl")
 
-function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 100.0)
+function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 1.0)
 
 ## Import dummy parameters, defining global variables used in main files
 parameters = initial_arg_parsing() ## Can also use this to quickly check new params by altering NetworkGame defaults!
