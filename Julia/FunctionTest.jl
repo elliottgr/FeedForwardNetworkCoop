@@ -2,24 +2,18 @@
 ## expected. This may also prove useful if someone needs to see how the functions are being used
 ## in the main simulation
 
-
-
 ## include necessary files
-
 include("NetworkGameFuncs.jl")
 
-
-
-
-function main()
+function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 100.0)
 
 ## Import dummy parameters, defining global variables used in main files
-parameters = initial_arg_parsing()
+parameters = initial_arg_parsing() ## Can also use this to quickly check new params by altering NetworkGame defaults!
 global discount = calc_discount(parameters.δ, parameters.rounds)
 global discount = SVector{parameters.rounds}(discount/sum(discount))
 
 ## Setting the network size of the testing populations
-parameters.nnet = 5
+parameters.nnet = nnet
 
 ## Create a demo population
 
@@ -63,19 +57,21 @@ end
 
 if pop.genotypes == gen0.genotypes
     print("\n Reproduction with mutation is NOT mutating into a new population, something went wrong!")
+else
+    print("\nGood news! The mutate() function is changing the population!\n")
 end
 
 ## Resetting the population to check if game results actually impact reproduction
 pop = copy(initial_population)
 
 ## Setting b = 1.0, leaving c = 0.0 to encourage cooperation
-pop.parameters.b = 1.0
-pop.parameters.c = .5
+pop.parameters.b = b
+pop.parameters.c = c
 
 ## Setting this to 1.0 makes most networks return an activation of b/c
 pop.parameters.activation_scale = 100.0
-## Mutating the population a lot to differentiate genotypes
 
+## Hyper-mutating the population a lot to differentiate genotypes
 mutagenic_events = 500
 for μ in 1:mutagenic_events
     mutate!(pop)
@@ -98,7 +94,7 @@ print("Genotype 2: $g2 \n Network Weights: $n2 \n\n")
 print("Genotype 3: $g3 \n Network Weights: $n3 \n\n")
 
 if pop.networks[1] == pop.networks[pop.shuffled_indices[1]]
-    print("You're comparing the same network here :(")
+    print("\n ################ ERROR ################\n You're comparing the same network here :(\n################################\n")
 end
 
 ## fitnessOutcome as calculated in main simulation
@@ -115,9 +111,9 @@ if fitness_test1[1][1] != pop.fit_dict[g1][g2]
     expected_value = fitness_test1[1][1]
     diff = dictionary_value - expected_value
     percent = round(100*(diff/dictionary_value), digits = 3)
-    print("G1 (Genotype #$g1) is not saving the exact fitness in the fitness dictionary \n")
+    print("G1 (Genotype #$g1) is not saving the exact fitness in the fitness dictionary \n\n")
     print("Dictionary Value = $dictionary_value \n Expected Value = $expected_value \n")
-    print("Total Difference = $diff, a $percent% difference!")
+    print("Total Difference = $diff, a $percent% difference!\n")
 end
 
 fitness_test2 = fitnessOutcome(pop.parameters, pop.networks[1], pop.networks[pop.shuffled_indices[1]], pop.temp_arrays)
@@ -159,14 +155,14 @@ g1_post_round = outcome[1]
 g2_post_round = outcome[2]
 n_rounds = pop.parameters.rounds
 print("########################################################################\n")
-print("You can see here the results of G1 (Genotype # $g1) and G2 (Genotype # $g2) over $n_rounds round:\n")
+print("You can see here the results of G1 (Genotype # $g1) and G2 (Genotype # $g2) over $n_rounds rounds:\n")
 print("########################################################################\n\n")
 print("G1 Results: $g1_post_round \n\n")
 print("G2 Results: $g2_post_round \n\n")
 
 
 print("########################################################################\n")
-print("Reproduction testing of mutated population\n")
+print("Testing the reproduction() function on our hyper-mutated population\n")
 print("########################################################################\n\n")
 
 repro_array = pairwise_fitness_calc!(pop)
@@ -181,12 +177,11 @@ end
 n_parent_genotypes = length(unique(parent_ids))
 n_offspring_genotypes = length(unique(offspring_indices))
 
-print("$n_offspring_genotypes out of $n_parent_genotypes were kept after one round of reproduction!\n\n")
+print("$n_offspring_genotypes out of $n_parent_genotypes genotypes were kept after one round of reproduction!\n\n")
 
 mean_parent_payoffs = mean(pop.payoffs)
 offspring_payoffs = []
-kept = 0
-discarded = 0
+
 ## estimating using the parent shuffled_indices because it'd be tedious to recode that for this demo
 ## need to calculate all possible fitness values real quick
 
@@ -198,26 +193,34 @@ mean_offspring_payoffs = mean(offspring_payoffs)
 ## This should show that the underlying reproduction functions are selecting new genotypes with differing payoffs
 print("After one round of reproduction, the mean payoff changed from $mean_parent_payoffs to $mean_offspring_payoffs \n\n")
 
-
-
+########################################################################################
+## Testing the main simulation loop for a change in population payoffs
+########################################################################################
+print("########################################################################################\n")
+print("Testing the main NetworkGameFuncs.jl simulation() loop\n")
+print("########################################################################################\n\n")
 ## Now we'll show that the reproduction function is raising the average payoff
-sample_generations = 1000
-initial_payoff = copy(mean(pop.payoffs))
+sample_generations = 100
+initial_payoff = round(copy(mean(pop.payoffs)), digits = 5)
 print("_t_|_w_\n")
 for t in 1:sample_generations
     update_population!(pop)
     reproduce!(pop)
     mutate!(pop)
     print()
-    if mod(t, 100) == 0
+    if mod(t, sample_generations/10) == 0
         temp_payoff = round(mean(pop.payoffs), digits = 3)
-        @printf " $t | $temp_payoff \n"
+         print(" $t | $temp_payoff \n")
+    end
+    if t == 1
+        temp_payoff = round(mean(pop.payoffs), digits = 3)
+        print(" $t | $temp_payoff \n")
     end
 end
-final_payoff = copy(mean(pop.payoffs))
-print("Using the simulation() functions from NetworkGameCoop.jl, the mean payoff rose from $initial_payoff to $final_payoff over $sample_generations generations \n\n")
+final_payoff = round(copy(mean(pop.payoffs)), digits = 5)
+print("\nUsing the functions from NetworkGameCoop.jl's simulation() loop, the mean payoff rose from $initial_payoff to $final_payoff over $sample_generations generations \n\n")
 
 
 end ## end main FunctionTest.jl file
 
-main()
+main(1.0, 0.5, 5, 1.0)
