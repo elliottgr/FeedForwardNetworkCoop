@@ -160,6 +160,13 @@ print("########################################################################\
 print("G1 Results: $g1_post_round \n\n")
 print("G2 Results: $g2_post_round \n\n")
 
+print("Here's these arrays as a table: \n\n")
+print(" r |       G1       |       G2       \n")
+for x in 1:length(g1_post_round)
+    g1_round = g1_post_round[x]
+    g2_round = g2_post_round[x]
+    print(" $x | $g1_round | $g2_round \n")
+end
 
 print("########################################################################\n")
 print("Testing the reproduction() function on our hyper-mutated population\n")
