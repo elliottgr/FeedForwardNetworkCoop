@@ -393,6 +393,7 @@ function pairwise_fitness_calc!(pop::population)
         end
     end
     pop.mean_w = mean(repro_array)
+    # return repro_array./sum(repro_array)
     return repro_array./sum(repro_array)
 end
 

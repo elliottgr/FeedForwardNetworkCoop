@@ -71,6 +71,8 @@ pop = copy(initial_population)
 ## Setting b = 1.0, leaving c = 0.0 to encourage cooperation
 pop.parameters.b = 1.0
 pop.parameters.c = .5
+
+## Setting this to 1.0 makes most networks return an activation of b/c
 pop.parameters.activation_scale = 100.0
 ## Mutating the population a lot to differentiate genotypes
 
@@ -161,6 +163,60 @@ print("You can see here the results of G1 (Genotype # $g1) and G2 (Genotype # $g
 print("########################################################################\n\n")
 print("G1 Results: $g1_post_round \n\n")
 print("G2 Results: $g2_post_round \n\n")
+
+
+print("########################################################################\n")
+print("Reproduction testing of mutated population\n")
+print("########################################################################\n\n")
+
+repro_array = pairwise_fitness_calc!(pop)
+parent_ids = pop.genotypes
+offspring_indices = sample(1:pop.parameters.N, ProbabilityWeights(repro_array), pop.parameters.N, replace=true)
+offspring_genotype_ids = []
+offspring_networks = []
+for n in offspring_indices
+    push!(offspring_genotype_ids, pop.genotypes[n])
+    push!(offspring_networks, pop.networks[n])
+end
+n_parent_genotypes = length(unique(parent_ids))
+n_offspring_genotypes = length(unique(offspring_indices))
+
+print("$n_offspring_genotypes out of $n_parent_genotypes were kept after one round of reproduction!\n\n")
+
+mean_parent_payoffs = mean(pop.payoffs)
+offspring_payoffs = []
+kept = 0
+discarded = 0
+## estimating using the parent shuffled_indices because it'd be tedious to recode that for this demo
+## need to calculate all possible fitness values real quick
+
+for n in 1:pop.parameters.N
+    push!(offspring_payoffs, fitnessOutcome(pop.parameters, offspring_networks[pop.shuffled_indices[n]], offspring_networks[n], pop.temp_arrays)[1][1])
+end
+
+mean_offspring_payoffs = mean(offspring_payoffs)
+## This should show that the underlying reproduction functions are selecting new genotypes with differing payoffs
+print("After one round of reproduction, the mean payoff changed from $mean_parent_payoffs to $mean_offspring_payoffs \n\n")
+
+
+
+## Now we'll show that the reproduction function is raising the average payoff
+sample_generations = 1000
+initial_payoff = copy(mean(pop.payoffs))
+print("_t_|_w_\n")
+for t in 1:sample_generations
+    update_population!(pop)
+    reproduce!(pop)
+    mutate!(pop)
+    print()
+    if mod(t, 100) == 0
+        temp_payoff = round(mean(pop.payoffs), digits = 3)
+        @printf " $t | $temp_payoff \n"
+    end
+end
+final_payoff = copy(mean(pop.payoffs))
+print("Using the simulation() functions from NetworkGameCoop.jl, the mean payoff rose from $initial_payoff to $final_payoff over $sample_generations generations \n\n")
+
 
 end ## end main FunctionTest.jl file
 
