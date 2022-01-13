@@ -24,6 +24,7 @@ addprocs(1, topology=:master_worker, exeflags="--project=$(Base.active_project()
 
     function RunReplicates(parameters::simulation_parameters)
         print("Network Size = $(parameters.nnet)", "\n")
+        print("Activation Scale = $(parameters.activation_scale)", "\n")
         parameter_vector = repeat([parameters], parameters.nreps)
         for i in 1:parameters.nreps
             parameter_vector[i].replicate_id = i
@@ -55,9 +56,16 @@ addprocs(1, topology=:master_worker, exeflags="--project=$(Base.active_project()
         sim_outputs = Vector{DataFrame}(undef, 0)
         Random.seed!(parameters.seed)
 
-
+        param_tmax = parameters.tmax
+        param_activation_scale = parameters.activation_scale
+        param_output_save_tick = parameters.output_save_tick
+        param_seed = parameters.seed
         n_workers = nworkers()
         print("Starting replicates with $n_workers processes", "\n")
+        print("Parameter sets for this simulation run will include: \n Generations: $param_tmax \n 
+                Activation Function Scaling: $param_activation_scale \n 
+                Saving every $param_output_save_tick generations \n
+                RNG Seed: $param_seed")
         i = 1
 
         ## variables to handle larger datasets

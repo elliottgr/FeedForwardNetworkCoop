@@ -3,6 +3,7 @@
 ## in the main simulation
 
 ## include necessary files
+
 include("NetworkGameFuncs.jl")
 
 function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 1.0)
@@ -69,7 +70,7 @@ pop.parameters.b = b
 pop.parameters.c = c
 
 ## Setting this to 1.0 makes most networks return an activation of b/c
-pop.parameters.activation_scale = 100.0
+pop.parameters.activation_scale = activation_scale
 
 ## Hyper-mutating the population a lot to differentiate genotypes
 mutagenic_events = 500
@@ -208,13 +209,17 @@ print("Testing the main NetworkGameFuncs.jl simulation() loop\n")
 print("########################################################################################\n\n")
 ## Now we'll show that the reproduction function is raising the average payoff
 sample_generations = 100
+pop = population_construction(pop.parameters)
+pop.parameters.b = b
+pop.parameters.c = c
+pop.parameters.activation_scale = activation_scale
+update_population!(pop)
 initial_payoff = round(copy(mean(pop.payoffs)), digits = 5)
 print("_t_|_w_\n")
 for t in 1:sample_generations
     update_population!(pop)
     reproduce!(pop)
     mutate!(pop)
-    print()
     if mod(t, sample_generations/10) == 0
         temp_payoff = round(mean(pop.payoffs), digits = 3)
          print(" $t | $temp_payoff \n")
@@ -225,9 +230,26 @@ for t in 1:sample_generations
     end
 end
 final_payoff = round(copy(mean(pop.payoffs)), digits = 5)
-print("\nUsing the functions from NetworkGameCoop.jl's simulation() loop, the mean payoff rose from $initial_payoff to $final_payoff over $sample_generations generations \n\n")
+print("\nUsing the functions from NetworkGameCoop.jl's simulation() loop, the mean payoff changed from $initial_payoff to $final_payoff over $sample_generations generations \n\n")
+
+## Rerunning the above in the main simulation loop
+
+pop = copy(initial_population)
+pop.parameters.tmax = sample_generations
+pop.parameters.nnet = nnet
+pop.parameters.b = b
+pop.parameters.c = c
+pop.parameters.activation_scale = activation_scale
+initial_payoff = mean(pop.payoffs)
+
+
+outputs = simulation(pop)
+
+output_payoff = outputs[sample_generations, :mean_payoff]
+
+print("\n Using the main simulation() function, the mean payoff changed from $initial_payoff to $output_payoff")
 
 
 end ## end main FunctionTest.jl file
 
-main(1.0, 0.5, 5, 1.0)
+main(1.0, 0.0, 5, 100.0)

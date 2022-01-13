@@ -10,37 +10,6 @@ include("NetworkGameStructs.jl")
 ## no activation function
 
 function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::SVector)
-    ##############################
-    ## Iterates a single layer of the Feed Forward network
-    ##############################
-
-    ## dot product of Wm and prev_out, + node weights. Equivalent to x = dot(Wm[1:j,j], prev_out[1:j]) + Wb[j]
-    ## doing it this way allows scalar indexing of the static arrays, which is significantly faster and avoids unnecessary array invocation
-#     x = 0
-#     for j_i in 1:j
-#         x += (Wm[j_i, j] * prev_out[j_i]) 
-#     end
-#     x += Wb[j]
-
-#     return x
-# end
-
-## Le Nagard's Activation function
-# function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::SVector)
-#     ##############################
-#     ## Iterates a single layer of the Feed Forward network
-#     ##############################
-
-#     ## dot product of Wm and prev_out, + node weights. Equivalent to x = dot(Wm[1:j,j], prev_out[1:j]) + Wb[j]
-#     ## doing it this way allows scalar indexing of the static arrays, which is significantly faster and avoids unnecessary array invocation
-#     x = 0
-#     for j_i in 1:j
-#         x += (Wm[j_i, j] * prev_out[j_i]) 
-#     end
-#     x += Wb[j]
-
-#     return (1 - exp(-(x^2)))
-# end
 
 ## JVC Activation function
 # function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::SVector)
@@ -75,7 +44,7 @@ function iterateNetwork(activation_scale::Float64, input::Float64, Wm::SMatrix, 
     return prev_out
 end
 
-function networkGameRound(parameters::simulation_parameters, mutNet::network, resNet::network, prev_out)
+function networkGameRound!(parameters::simulation_parameters, mutNet::network, resNet::network, prev_out)
     ##############################
     ## Iterates above functions over a pair of networks,
     ## constitutes a single game round
@@ -111,7 +80,7 @@ function repeatedNetworkGame(parameters::simulation_parameters, mutNet::network,
     for i in 1:parameters.rounds
         # prev_out = @MVector zeros(Float64, length(Wb))
         # mutNet.CurrentOffer, resNet.CurrentOffer = networkGameRound(parameters, mutNet, resNet, prev_out)
-        networkGameRound(parameters, mutNet, resNet, prev_out)
+        networkGameRound!(parameters, mutNet, resNet, prev_out)
         # mutNet.GameHistory[i] = mutNet.CurrentOffer
         # resNet.GameHistory[i] = resNet.CurrentOffer
   
@@ -345,9 +314,6 @@ function population_construction(parameters::simulation_parameters)
             population_array[pop_iterator] = initialnetworks[init_freq_i]
         end
     end
-    if length(population_array) != parameters.N
-        return error("population array failed to generate $N networks")
-    end
     payoff_temp_array = [[0.0, 0.0], [0.0,0.0]]
     prev_out = @MVector zeros(Float64, parameters.nnet) 
     NetworkGameRound = @MVector zeros(Float64, 2)
@@ -475,12 +441,10 @@ function initial_arg_parsing()
             help = "number of rounds the game is played between individuals"
             arg_type = Int64
             default = 16
-
         "--fitness_benefit_scale"
             help = "scales the fitness payout of game rounds by this amount (payoff * scale). setting to 1.0 results in a crash, values between 0.01 and 0.1 work"
             arg_type = Float64
             default = 0.1
-
         "--b"
             help = "payoff benefit"
             arg_type = Float64
@@ -592,6 +556,7 @@ function initial_arg_parsing()
     ##passing command line arguments to simulation
     parsed_args = parse_args(ARGS, arg_parse_settings)
 
+
     parameters = simulation_parameters(parsed_args["tmax"], parsed_args["nreps"], parsed_args["N"], parsed_args["mu"], parsed_args["resident_fitness_scale"],
                                         parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
                                         parsed_args["c"], parsed_args["d"], parsed_args["delta"],
@@ -599,9 +564,14 @@ function initial_arg_parsing()
                                         parsed_args["initial_offer"], parsed_args["init_freqs"], parsed_args["init_net_weights"],
                                         parsed_args["nnet_min"], parsed_args["nnet_max"], parsed_args["nnet_step"],
                                         parsed_args["nnet"], parsed_args["mutsize"], parsed_args["mutinitsize"], parsed_args["mutlink"],
-                                        parsed_args["net_save_tick"], parsed_args["replicate_id"], parsed_args["activation_scale"], parsed_args["output_save_tick"], parsed_args["seed"], parsed_args["filename"], parsed_args["init_freq_resolution"])
+                                        parsed_args["net_save_tick"], parsed_args["replicate_id"], parsed_args["activation_scale"],
+                                         parsed_args["output_save_tick"], parsed_args["seed"], parsed_args["filename"], parsed_args["init_freq_resolution"])
 
-
+    ## 1/13/22
+    ## For some reason, the above simulation_parameters() decleration isn't importing parsed_args properly
+    ## resetting the arguments seems to do the trick
+    parameters.activation_scale = parsed_args["activation_scale"]
+    parameters.output_save_tick = parsed_args["output_save_tick"]
 
     ## Necessary sanity checks for params
     if mod(parameters.N, 2) != 0
@@ -689,7 +659,16 @@ outputs = DataFrame(b = fill(pop.parameters.b, output_length),
     ############
     # Sim Loop #
     ############
+            # 1/11/22 Testing a thing
+        # for μ in 1:500
+        #     mutate!(pop)
+        #     update_population!(pop)
+        # end
+    # update_population!(pop)
+    # initial_payoffs = mean(copy(pop.payoffs))
     for t in 1:pop.parameters.tmax
+
+
         # update population struct 
 
         update_population!(pop)
@@ -705,10 +684,14 @@ outputs = DataFrame(b = fill(pop.parameters.b, output_length),
 
         # per-timestep counters, outputs going to disk
         if mod(t, pop.parameters.output_save_tick) == 0
-            output!(t, pop, outputs)
+            output!(t, copy(pop), outputs)
         end
 
     end
+# print("Final Payoff: "*string(mean(pop.payoffs)))
+# if mean(pop.payoffs) == initial_payoffs
+#     print("Replicate did not evolve new payoffs")
+# end
 ## organize replicate data into appropriate data structure to be returned to main function and saved
 return outputs
 end
