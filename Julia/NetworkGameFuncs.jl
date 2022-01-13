@@ -44,60 +44,30 @@ function iterateNetwork(activation_scale::Float64, input::Float64, Wm::SMatrix, 
     return prev_out
 end
 
-function networkGameRound!(parameters::simulation_parameters, mutNet::network, resNet::network, prev_out)
-    ##############################
-    ## Iterates above functions over a pair of networks,
-    ## constitutes a single game round
-    ##############################
-    # print(iterateNetwork(parameters.activation_scale, resNet.CurrentOffer, mutNet.Wm, mutNet.Wb, prev_out)[parameters.nnet]    )
-    mutNet.CurrentOffer = iterateNetwork(parameters.activation_scale, resNet.CurrentOffer, mutNet.Wm, mutNet.Wb, prev_out)[parameters.nnet]
-    resNet.CurrentOffer = iterateNetwork(parameters.activation_scale, mutNet.CurrentOffer, resNet.Wm, resNet.Wb, prev_out)[parameters.nnet]
-   
-    # return [iterateNetwork(parameters.activation_scale, resNet.CurrentOffer, mutNet.Wm, mutNet.Wb)[parameters.nnet], iterateNetwork(parameters.activation_scale, mutNet.CurrentOffer, resNet.Wm, resNet.Wb)[parameters.nnet]]
-    # return [mutOut, resOut]
-
+function networkGameRound!(pop, mutI, resI)
+    pop.networks[mutI].CurrentOffer = iterateNetwork(pop.parameters.activation_scale, pop.networks[resI].CurrentOffer, pop.networks[mutI].Wm, pop.networks[mutI].Wb, pop.temp_arrays.prev_out)[pop.parameters.nnet]
+    pop.networks[resI].CurrentOffer = iterateNetwork(pop.parameters.activation_scale, pop.networks[mutI].CurrentOffer, pop.networks[resI].Wm, pop.networks[resI].Wb, pop.temp_arrays.prev_out)[pop.parameters.nnet]
 end
 
-function repeatedNetworkGame(parameters::simulation_parameters, mutNet::network, resNet::network, prev_out)
+
+function repeatedNetworkGame(pop, mutI, resI)
     ##############################
     ## Plays multiple rounds of the network game, returns differing 
     ## data types depending on whether a discount needs to be calculated
     ##############################
+    mutHist = zeros(Float64, pop.parameters.rounds)
+    resHist = zeros(Float64, pop.parameters.rounds)
 
-    # mutNet.CurrentOffer = mutNet.InitialOffer
-    # resNet.CurrentOffer = resNet.InitialOffer
-
-
-    ## Maybe make these network structures so they don't have to be reinitialized constantly?
-    mutHist = zeros(Float64, parameters.rounds)
-    resHist = zeros(Float64, parameters.rounds)
-    # mutNet_1 = copy(mutNet)
-    # resNet_1 = copy(resNet)
-
-
-    ## old method of calculating this. old != new if tested directly because of floating point error
-    ## new method is accurate to ~8 decimal places
-    for i in 1:parameters.rounds
-        # prev_out = @MVector zeros(Float64, length(Wb))
-        # mutNet.CurrentOffer, resNet.CurrentOffer = networkGameRound(parameters, mutNet, resNet, prev_out)
-        networkGameRound!(parameters, mutNet, resNet, prev_out)
-        # mutNet.GameHistory[i] = mutNet.CurrentOffer
-        # resNet.GameHistory[i] = resNet.CurrentOffer
-  
-        mutHist[i] = copy(mutNet.CurrentOffer)
-        resHist[i] = copy(resNet.CurrentOffer)
+    for i in 1:pop.parameters.rounds
+        networkGameRound!(pop, mutI, resI)
+        mutHist[i] = copy(pop.networks[mutI].CurrentOffer)
+        resHist[i] = copy(pop.networks[resI].CurrentOffer)
     end
-
-    ## Note 1/6/22 
-    ## When looked at directly, the mutant and resident values do not change significantly after multiple rounds
-    # print(mutHist)
-    # print("\n")
-    if parameters.δ >= 0
+    if pop.parameters.δ >= 0.0 
         return [mutHist, resHist]
-    elseif parameters.δ < 0
-        return [mutNet.CurrentOffer, resNet.CurrentOffer]
     end
 end
+
 
 function calc_discount(δ::Float64, rounds::Int64)
     return exp.(-δ.*(rounds.-1 .-range(1,rounds, step = 1)))
@@ -113,8 +83,8 @@ function calc_payoff(parameters::simulation_parameters, rmOut, mrOut, discount)
     end
     return 1 + (output * parameters.fitness_benefit_scale)
 end
-function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet::network, temp_arrays::sim_temp_array)
 
+function fitnessOutcome!(pop, mutI, resI)
     ####################################
     ## calulate resident-mutant fitness matrix from contributions throughout the game history. If
     ## discount is availible, applied at rate delta going from present to the past in the 
@@ -127,38 +97,15 @@ function fitnessOutcome(parameters::simulation_parameters,mutNet::network,resNet
     ##  discount formula before returning final fitness value
     ############################################################
 
-    ## 6/16 Note: Previous versions of this script returned an array of arrays, it now returns a single array
-    if parameters.δ >= 0.0
-        gamePayoffArray = temp_arrays.gamePayoffTempArray
-        # prev_out = @MVector zeros(Float64, parameters.nnet)
-        rmOut, mrOut = repeatedNetworkGame(parameters,mutNet,resNet, temp_arrays.prev_out)
-        # discount = calc_discount(parameters.δ, parameters.rounds)
-        # discount = discount/sum(discount)
-        # wmr = 1 + (dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
-        # wmr_1 = calc_payoff(parameters, rmOut, mrOut, discount)
-        # wrm = 1 + (dot((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
-        gamePayoffArray[1][1] = calc_payoff(parameters, mrOut, rmOut, discount)
-        gamePayoffArray[1][2] = calc_payoff(parameters, rmOut, mrOut, discount)
-        gamePayoffArray[2][1] = dot(rmOut, discount)
-        gamePayoffArray[2][2] = dot(mrOut, discount)
-        ## this will return the frequency of competitions in which
-        ## the the resident will outcompete the mutant in the reproduction game
-        ## P(mutant) + P(resident) = 1
-        # return wrm
-        ## Legacy code, changed 6/18/21
-        return gamePayoffArray
-    ############################################################
-    ## without discount, retrieves only the final value after all 
-    ## rounds played and returns it as w based on game parameters
-    ############################################################
-    elseif parameters.δ < 0.0
-        rmOut, mrOut = repeatedNetworkGameHistory(parameters, mutNet, resNet)
-        wmr = max(0.0, (1 + ((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
-        wrm = max(0.0, (1 + ((parameters.b * mrOut - parameters.c * rmOut + parameters.d * rmOut.*mrOut)*parameters.fitness_benefit_scale)))
-        # return wrm
-        return [[wrm, wmr], [rmOut, mrOut]]
+    if pop.parameters.δ >= 0.0
+        rmOut, mrOut = repeatedNetworkGame(pop, mutI, resI)
+        pop.temp_arrays.gamePayoffTempArray[1][1] = calc_payoff(pop.parameters, mrOut, rmOut, discount)
+        pop.temp_arrays.gamePayoffTempArray[1][2] = calc_payoff(pop.parameters, rmOut, mrOut, discount)
+        pop.temp_arrays.gamePayoffTempArray[2][1] = dot(rmOut, discount)
+        pop.temp_arrays.gamePayoffTempArray[1][2] = dot(mrOut, discount)
     end
 end
+
 
 ###############################
 # Population Simulation Funcs #
@@ -261,30 +208,6 @@ function output!(t::Int64, pop::population, outputs::DataFrame)
 end
 
 
-# ## returns number if 0 < number < 1, else returns 0, 1
-# function range_check(number::Float64)
-#     if number < -1
-#         return -1
-#     elseif number > 1
-#         return 1
-#     else
-#         return number
-#     end
-# end
-
-# function range_check(vector::Vector{Float64})
-#     for i in 1:length(vector)
-#         vector[i] = range_check(vector[i])
-#     end
-#     return vector
-# end
-
-# function range_check(matrix::Matrix{Float64})
-#     for i in eachindex(matrix)
-#         matrix[i] = range_check(matrix[i])
-#     end
-#     return matrix
-# end
         
 
 function population_construction(parameters::simulation_parameters)
@@ -332,7 +255,8 @@ function update_fit_dict!(pop::population)
             pop.coop_dict[pop.genotypes[n1]] = Dict{Int64, Vector{Float64}}()
         end
         if pop.genotypes[n2] ∉ keys(pop.fit_dict[pop.genotypes[n1]])
-                pop.temp_arrays.gamePayoffTempArray = fitnessOutcome(pop.parameters, pop.networks[n2], pop.networks[n1], pop.temp_arrays)
+                # pop.temp_arrays.gamePayoffTempArray = fitnessOutcome!(pop.parameters, pop.networks[n2], pop.networks[n1], pop.temp_arrays)
+                fitnessOutcome!(pop, n2, n1)
                 pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = pop.temp_arrays.gamePayoffTempArray[1][1]
                 pop.coop_dict[pop.genotypes[n1]][pop.genotypes[n2]] = pop.temp_arrays.gamePayoffTempArray[2][1]
         end
@@ -593,18 +517,6 @@ function simulation(pop::population)
 
 
 
-
-## EG 6/4/21
-## WIP Note: May need to pass a vector of initial networks + corresponding weights if want this to be 
-## generalizable. Trying to do this without touching anything inside the networks struct so that I can plug JVC's
-## julia network code in later.
-
-
-## arrays that track population statistics
-## EG 6/4/21
-## WIP Note: Need to decide on output format, then create an easier to modify workflow for this.
-## some kind of output struct that tracks whole sim statistics, and has vectors of timepoint statistics
-## as well?
 
 output_length = Int64(pop.parameters.tmax/pop.parameters.output_save_tick)
 

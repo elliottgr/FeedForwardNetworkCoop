@@ -101,7 +101,9 @@ end
 ## fitnessOutcome as calculated in main simulation
 ## This section shows that the fitness of G2 is not determined by the fitness of the G1 and G2 matchup
 ## Instead, G2s fitness is determined by 
-fitness_test1 = fitnessOutcome(pop.parameters,  pop.networks[pop.shuffled_indices[1]], pop.networks[1], pop.temp_arrays)
+# fitness_test1 = fitnessOutcome(pop.parameters,  pop.networks[pop.shuffled_indices[1]], pop.networks[1], pop.temp_arrays)
+fitnessOutcome!(pop, pop.shuffled_indices[1], 1)
+fitness_test1 = copy(pop.temp_arrays.gamePayoffTempArray)
 print(fitness_test1)
 print("\n\n########################################################################\n")
 print(" ## Testing fitness outcomes and their storage in the population array ## \n")
@@ -117,8 +119,10 @@ if fitness_test1[1][1] != pop.fit_dict[g1][g2]
     print("Total Difference = $diff, a $percent% difference!\n")
 end
 
-fitness_test2 = fitnessOutcome(pop.parameters, pop.networks[1], pop.networks[pop.shuffled_indices[1]], pop.temp_arrays)
- print(fitness_test2)
+# fitness_test2 = fitnessOutcome(pop.parameters, pop.networks[1], pop.networks[pop.shuffled_indices[1]], pop.temp_arrays)
+fitnessOutcome!(pop, 1, pop.shuffled_indices[1]) 
+fitness_test2 = pop.temp_arrays.gamePayoffTempArray
+print(fitness_test2)
 print("\n")
 
 
@@ -138,8 +142,11 @@ end
 
 difference_array = []
 for x in 1:pop.parameters.N
-    expected_outcome = fitnessOutcome(pop.parameters, pop.networks[pop.shuffled_indices[x]], pop.networks[x], pop.temp_arrays)[1][2]
-    realized_outcome = fitnessOutcome(pop.parameters, pop.networks[pop.shuffled_indices[pop.shuffled_indices[x]]], pop.networks[pop.shuffled_indices[x]], pop.temp_arrays)[1][1]
+    fitnessOutcome!(pop, pop.shuffled_indices[x], x)
+    expected_outcome = copy(pop.temp_arrays.gamePayoffTempArray[1][1])
+    fitnessOutcome!(pop, pop.shuffled_indices[pop.shuffled_indices[x]], pop.shuffled_indices[x])
+    realized_outcome = copy(pop.temp_arrays.gamePayoffTempArray[1][1])
+
     push!(difference_array, (expected_outcome-realized_outcome))
 end
 
@@ -150,8 +157,9 @@ with a maximum error of $max_error  \n\n")
 
 ## Using G1 and G2 to show the difference of payoffs over multiple rounds
 
-example_prev_out = @MVector zeros(Float64, parameters.nnet) 
-outcome = repeatedNetworkGame(pop.parameters, pop.networks[pop.shuffled_indices[1]], pop.networks[1], example_prev_out)
+pop.temp_arrays.prev_out = @MVector zeros(Float64, parameters.nnet) 
+# outcome = repeatedNetworkGame(pop.parameters, pop.networks[pop.shuffled_indices[1]], pop.networks[1], example_prev_out)
+outcome = repeatedNetworkGame(pop, pop.shuffled_indices[1], 1)
 g1_post_round = outcome[1]
 g2_post_round = outcome[2]
 n_rounds = pop.parameters.rounds
@@ -184,7 +192,9 @@ for n in offspring_indices
 end
 n_parent_genotypes = length(unique(parent_ids))
 n_offspring_genotypes = length(unique(offspring_indices))
-
+offspring_pop = copy(pop)
+offspring_pop.networks = offspring_networks
+offspring_pop.genotypes = offspring_genotype_ids
 print("$n_offspring_genotypes out of $n_parent_genotypes genotypes were kept after one round of reproduction!\n\n")
 
 mean_parent_payoffs = mean(pop.payoffs)
@@ -194,7 +204,8 @@ offspring_payoffs = []
 ## need to calculate all possible fitness values real quick
 
 for n in 1:pop.parameters.N
-    push!(offspring_payoffs, fitnessOutcome(pop.parameters, offspring_networks[pop.shuffled_indices[n]], offspring_networks[n], pop.temp_arrays)[1][1])
+    fitnessOutcome!(offspring_pop, offspring_pop.shuffled_indices[n], n)
+    push!(offspring_payoffs, offspring_pop.temp_arrays.gamePayoffTempArray[1][1])
 end
 
 mean_offspring_payoffs = mean(offspring_payoffs)
@@ -240,6 +251,7 @@ pop.parameters.nnet = nnet
 pop.parameters.b = b
 pop.parameters.c = c
 pop.parameters.activation_scale = activation_scale
+pop.parameters.output_save_tick = 1
 initial_payoff = mean(pop.payoffs)
 
 
