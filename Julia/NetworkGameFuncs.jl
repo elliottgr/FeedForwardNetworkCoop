@@ -102,7 +102,7 @@ function fitnessOutcome!(pop, mutI, resI)
         pop.temp_arrays.gamePayoffTempArray[1][1] = calc_payoff(pop.parameters, mrOut, rmOut, discount)
         pop.temp_arrays.gamePayoffTempArray[1][2] = calc_payoff(pop.parameters, rmOut, mrOut, discount)
         pop.temp_arrays.gamePayoffTempArray[2][1] = dot(rmOut, discount)
-        pop.temp_arrays.gamePayoffTempArray[1][2] = dot(mrOut, discount)
+        pop.temp_arrays.gamePayoffTempArray[2][2] = dot(mrOut, discount)
     end
 end
 
@@ -372,11 +372,11 @@ function initial_arg_parsing()
         "--b"
             help = "payoff benefit"
             arg_type = Float64
-            default = 0.0
+            default = 1.0
         "--c"
             help = "payoff cost"
             arg_type = Float64 
-            default = 0.0
+            default = 0.5
         "--d"
             help = "payoff synergy"
             arg_type = Float64
