@@ -58,6 +58,10 @@ function repeatedNetworkGame(pop, mutI, resI)
     mutHist = zeros(Float64, pop.parameters.rounds)
     resHist = zeros(Float64, pop.parameters.rounds)
 
+    # reset current offer to initial offer
+    pop.networks[mutI].CurrentOffer = pop.networks[mutI].InitialOffer
+    pop.networks[resI].CurrentOffer = pop.networks[resI].InitialOffer
+
     for i in 1:pop.parameters.rounds
         networkGameRound!(pop, mutI, resI)
         mutHist[i] = copy(pop.networks[mutI].CurrentOffer)
@@ -218,7 +222,7 @@ function population_construction(parameters::simulation_parameters)
     population_array = Vector{network}(undef, parameters.N)
     scale_freq(p, N) = convert(Int64, round((p*N), digits=0))
     for n::Int64 in 1:length(parameters.init_freqs)
-        if parameters.init_net_weights != 0.0
+        if parameters.init_net_weights == 0.0
             Wm = SMatrix{parameters.nnet, parameters.nnet, Float64}(Matrix(UpperTriangular(randn((parameters.nnet,parameters.nnet)))))
             Wb =  SVector{parameters.nnet, Float64}(randn(parameters.nnet))
         else
@@ -408,7 +412,7 @@ function initial_arg_parsing()
         "--init_freqs"
             help = "vector of initial genotype frequencies, must sum to 1"
             arg_type = Vector{Float64}
-            default = [.99, 0.01]
+            default = [0.5, 0.5]
         "--init_net_weights"
             help = "Initial weight of network nodes, from 0.0 to 1.0. Set to 0.0 to randomly sample"
             arg_type = Float64
