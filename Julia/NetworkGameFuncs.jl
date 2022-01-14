@@ -41,14 +41,17 @@ function iterateNetwork(activation_scale::Float64, input::Float64, Wm::SMatrix, 
     for j in 2:length(Wb)
         prev_out[j] = calcOj(activation_scale, j, prev_out, Wm, Wb)
     end
+    
     return prev_out
 end
 
 function networkGameRound!(pop, mutI, resI)
-    pop.networks[mutI].CurrentOffer = iterateNetwork(pop.parameters.activation_scale, pop.networks[resI].CurrentOffer, pop.networks[mutI].Wm, pop.networks[mutI].Wb, pop.temp_arrays.prev_out)[pop.parameters.nnet]
-    pop.networks[resI].CurrentOffer = iterateNetwork(pop.parameters.activation_scale, pop.networks[mutI].CurrentOffer, pop.networks[resI].Wm, pop.networks[resI].Wb, pop.temp_arrays.prev_out)[pop.parameters.nnet]
-end
+    input_mut = pop.networks[resI].CurrentOffer
+    input_res = pop.networks[mutI].CurrentOffer
 
+    pop.networks[mutI].CurrentOffer = iterateNetwork(pop.parameters.activation_scale, input_mut, pop.networks[mutI].Wm, pop.networks[mutI].Wb, pop.temp_arrays.prev_out)[pop.parameters.nnet]
+    pop.networks[resI].CurrentOffer = iterateNetwork(pop.parameters.activation_scale, input_res, pop.networks[resI].Wm, pop.networks[resI].Wb, pop.temp_arrays.prev_out)[pop.parameters.nnet]
+end
 
 function repeatedNetworkGame(pop, mutI, resI)
     ##############################
