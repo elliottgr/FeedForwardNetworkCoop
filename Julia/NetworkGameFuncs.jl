@@ -82,7 +82,6 @@ end
 
 function calc_payoff(parameters::simulation_parameters, rmOut, mrOut, discount)
     output = 0.0
-    # wmr = 1 + (dot((parameters.b * rmOut - parameters.c * mrOut + parameters.d * rmOut.*mrOut), discount) * parameters.fitness_benefit_scale)
     for i in 1:parameters.rounds
         output += (parameters.b * rmOut[i] - parameters.c * mrOut[i] + (parameters.d * rmOut[i] * mrOut[i])) * discount[i]
     end
@@ -104,10 +103,10 @@ function fitnessOutcome!(pop, mutI, resI)
 
     if pop.parameters.δ >= 0.0
         rmOut, mrOut = repeatedNetworkGame(pop, mutI, resI)
-        pop.temp_arrays.gamePayoffTempArray[1][1] = calc_payoff(pop.parameters, mrOut, rmOut, discount)
-        pop.temp_arrays.gamePayoffTempArray[1][2] = calc_payoff(pop.parameters, rmOut, mrOut, discount)
-        pop.temp_arrays.gamePayoffTempArray[2][1] = dot(rmOut, discount)
-        pop.temp_arrays.gamePayoffTempArray[2][2] = dot(mrOut, discount)
+        pop.temp_arrays.gamePayoffTempArray[1][1] = calc_payoff(pop.parameters, mrOut, rmOut, pop.discount_vector)
+        pop.temp_arrays.gamePayoffTempArray[1][2] = calc_payoff(pop.parameters, rmOut, mrOut, pop.discount_vector)
+        pop.temp_arrays.gamePayoffTempArray[2][1] = dot(rmOut, pop.discount_vector)
+        pop.temp_arrays.gamePayoffTempArray[2][2] = dot(mrOut, pop.discount_vector)
     end
 end
 
@@ -246,7 +245,7 @@ function population_construction(parameters::simulation_parameters)
     prev_out = @MVector zeros(Float64, parameters.nnet) 
     NetworkGameRound = @MVector zeros(Float64, 2)
     temp_arrays = sim_temp_array(payoff_temp_array, prev_out, NetworkGameRound)
-    discount = calc_discount(parameters.δ, parameters.rounds)
+    discount = exp.(-δ.*(parameters.rounds.-1 .-range(1,parameters.rounds, step = 1)))
     discount = SVector{parameters.rounds}(discount/sum(discount))
     return population(parameters, population_array, return_genotype_id_array(population_array), Dict{Vector{Int64}, Float64}(), Dict{Vector{Int64}, Float64}(), shuffle(1:parameters.N), length(parameters.init_freqs), zeros(Float64, parameters.N), zeros(Float64, parameters.N), 0, temp_arrays, discount)
 end
@@ -255,7 +254,9 @@ end
 # Pairwise fitness
 ##################
 function update_fit_dict!(pop::population)
-    for (n1::Int64, n2::Int64) in zip(1:pop.parameters.N, pop.shuffled_indices)
+    for n in 1:2:(pop.parameters.N-1)
+        n1 = pop.shuffled_indices[n]
+        n2 = pop.shuffled_indices[n+1]
         if [pop.genotypes[n1], pop.genotypes[n2]] ∉ keys(pop.fit_dict)
           fitnessOutcome!(pop, n2, n1)
           pop.fit_dict[[pop.genotypes[n1], pop.genotypes[n2]]] = pop.temp_arrays.gamePayoffTempArray[1][1]
@@ -272,36 +273,13 @@ function update_fit_dict!(pop::population)
     end
 end
 
-
-##################
-# Pairwise fitness
-##################
-
-
-function pairwise_fitness_calc!(pop::population)
-    ## shuffles the population array, returns the fitness of the resident at each point calculated by
-    ## running the fitness outcome function along both the original and shuffled array
-    
-    repro_array = zeros(Float64, pop.parameters.N)
-    for (n1,n2) in zip(1:pop.parameters.N, pop.shuffled_indices)
-        
-        if pop.genotypes[n1] == 1
-            repro_array[n1] = pop.fit_dict[[pop.genotypes[n1], pop.genotypes[n2]]]*pop.parameters.resident_fitness_scale
-        else
-            repro_array[n1] = pop.fit_dict[[pop.genotypes[n1], pop.genotypes[n2]]]
-        end
-    end
-    pop.mean_w = mean(repro_array)
-    # return repro_array./sum(repro_array)
-    return repro_array./sum(repro_array)
-end
-
 ##################
 # Reproduction function
 ##################
 
 function reproduce!(pop::population)
-    repro_array = pairwise_fitness_calc!(pop)
+    pop.mean_w = mean(pop.payoffs)
+    repro_array = pop.payoffs./sum(pop.payoffs)
     genotype_i_array = sample(1:pop.parameters.N, ProbabilityWeights(repro_array), pop.parameters.N, replace=true)
     old_networks = copy(pop.networks)
     for (res_i, offspring_i) in zip(1:pop.parameters.N, genotype_i_array)
@@ -579,13 +557,7 @@ outputs = DataFrame(b = fill(pop.parameters.b, output_length),
     ############
     # Sim Loop #
     ############
-            # 1/11/22 Testing a thing
-        # for μ in 1:500
-        #     mutate!(pop)
-        #     update_population!(pop)
-        # end
-    # update_population!(pop)
-    # initial_payoffs = mean(copy(pop.payoffs))
+  
     for t in 1:pop.parameters.tmax
 
 

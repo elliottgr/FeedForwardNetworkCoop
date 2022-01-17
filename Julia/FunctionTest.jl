@@ -10,8 +10,7 @@ function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 1.0)
 
 ## Import dummy parameters, defining global variables used in main files
 parameters = initial_arg_parsing() ## Can also use this to quickly check new params by altering NetworkGame defaults!
-global discount = calc_discount(parameters.δ, parameters.rounds)
-global discount = SVector{parameters.rounds}(discount/sum(discount))
+
 
 ## Setting the network size of the testing populations
 parameters.nnet = nnet
@@ -81,12 +80,13 @@ end
 
 ## Testing the fitness results of the first genotype and its shuffled partner
 update_population!(pop)
-g1 = pop.genotypes[1]
-n1 = pop.networks[1]
-g2 = pop.genotypes[pop.shuffled_indices[1]]
-n2 = pop.networks[pop.shuffled_indices[1]]
-g3 = pop.genotypes[pop.shuffled_indices[pop.shuffled_indices[1]]]
-n3 = pop.networks[pop.shuffled_indices[pop.shuffled_indices[1]]]
+
+g1 = pop.genotypes[pop.shuffled_indices[1]]
+n1 = pop.networks[pop.shuffled_indices[1]]
+g2 = pop.genotypes[pop.shuffled_indices[2]]
+n2 = pop.networks[pop.shuffled_indices[2]]
+g3 = pop.genotypes[pop.shuffled_indices[3]]
+n3 = pop.networks[pop.shuffled_indices[3]]
 print("\n\n ########################################################################\n")
 print("## Randomly Sampled Network Stats ## \n ")
 print("########################################################################\n\n")
@@ -102,6 +102,7 @@ end
 ## This section shows that the fitness of G2 is not determined by the fitness of the G1 and G2 matchup
 ## Instead, G2s fitness is determined by 
 # fitness_test1 = fitnessOutcome(pop.parameters,  pop.networks[pop.shuffled_indices[1]], pop.networks[1], pop.temp_arrays)
+# update_population!(pop)
 fitnessOutcome!(pop, pop.shuffled_indices[1], 1)
 fitness_test1 = copy(pop.temp_arrays.gamePayoffTempArray)
 print(fitness_test1)
@@ -130,13 +131,13 @@ print("\n")
 ## This part does not work like you'd expect under Wright-Fisher because of how the fitness dictionary is constructed
 ## partners in the simulation are only one way, rather than each partner calculating its fitness based on each
 ## partner. Not sure if this is an issue or explains why the evolution of networks isn't occurring 
-if fitness_test2[1][2] != pop.fit_dict[[g2, g3]]
-    dictionary_value = pop.fit_dict[[g2,g3]]
-    expected_value = fitness_test1[1][2]
-    diff = dictionary_value - expected_value
-    print("\n\n G2's fitness is NOT determined by the fitness derived from the G1 vs G2 game \n")
-    print("Dictionary Value = $dictionary_value \n Expected Value = $expected_value \n\n Difference = $diff \n\n")
-end
+# if fitness_test2[1][2] != pop.fit_dict[[g2, g3]]
+#     dictionary_value = pop.fit_dict[[g2,g3]]
+#     expected_value = fitness_test1[1][2]
+#     diff = dictionary_value - expected_value
+#     print("\n\n G2's fitness is NOT determined by the fitness derived from the G1 vs G2 game \n")
+#     print("Dictionary Value = $dictionary_value \n Expected Value = $expected_value \n\n Difference = $diff \n\n")
+# end
 
 ## Calculating the mean difference caused by this effect over the entire population
 
@@ -181,7 +182,8 @@ print("########################################################################\
 print("Testing the reproduction() function on our hyper-mutated population\n")
 print("########################################################################\n\n")
 
-repro_array = pairwise_fitness_calc!(pop)
+# repro_array = pairwise_fitness_calc!(pop)
+repro_array = pop.payoffs
 parent_ids = pop.genotypes
 offspring_indices = sample(1:pop.parameters.N, ProbabilityWeights(repro_array), pop.parameters.N, replace=true)
 offspring_genotype_ids = []
@@ -216,7 +218,7 @@ print("After one round of reproduction, the mean payoff changed from $mean_paren
 ## Testing the main simulation loop for a change in population payoffs
 ########################################################################################
 print("########################################################################################\n")
-print("Testing the main NetworkGameFuncs.jl simulation() loop\n")
+print("Testing the main NetworkGameFuncs.jl simulation() loop on a hyper-mutated population\n")
 print("########################################################################################\n\n")
 ## Now we'll show that the reproduction function is raising the average payoff
 sample_generations = 100
@@ -227,6 +229,13 @@ pop.parameters.activation_scale = activation_scale
 update_population!(pop)
 initial_payoff = round(copy(mean(pop.payoffs)), digits = 5)
 print("_t_|_w_\n")
+
+
+for μ in 1:mutagenic_events
+    mutate!(pop)
+    update_population!(pop)
+end
+
 for t in 1:sample_generations
     update_population!(pop)
     reproduce!(pop)
