@@ -100,8 +100,9 @@ mutable struct population
     parameters::simulation_parameters
     networks::Vector{network}
     genotypes::Vector{Int64}
-    fit_dict::Dict{Int64, Dict{Int64, Float64}}
-    coop_dict::Dict{Int64, Dict{Int64, Float64}}
+    # fit_dict::Dict{Int64, Dict{Int64, Float64}} ## Changed to dictionary of vector keys 1/17/22
+    fit_dict::Dict{Vector{Int64}, Float64}
+    coop_dict::Dict{Vector{Int64}, Float64}
     shuffled_indices::Vector{Int64}
     n_genotypes::Int64
     payoffs::Vector{Float64}

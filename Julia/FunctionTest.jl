@@ -109,8 +109,8 @@ print("\n\n#####################################################################
 print(" ## Testing fitness outcomes and their storage in the population array ## \n")
 print("########################################################################\n\n")
 
-if fitness_test1[1][1] != pop.fit_dict[g1][g2]
-    dictionary_value = pop.fit_dict[g1][g2]
+if fitness_test1[1][1] != pop.fit_dict[[g1, g2]]
+    dictionary_value = pop.fit_dict[[g1, g2]]
     expected_value = fitness_test1[1][1]
     diff = dictionary_value - expected_value
     percent = round(100*(diff/dictionary_value), digits = 3)
@@ -130,8 +130,8 @@ print("\n")
 ## This part does not work like you'd expect under Wright-Fisher because of how the fitness dictionary is constructed
 ## partners in the simulation are only one way, rather than each partner calculating its fitness based on each
 ## partner. Not sure if this is an issue or explains why the evolution of networks isn't occurring 
-if fitness_test2[1][2] != pop.fit_dict[g2][g3]
-    dictionary_value = pop.fit_dict[g2][g3]
+if fitness_test2[1][2] != pop.fit_dict[[g2, g3]]
+    dictionary_value = pop.fit_dict[[g2,g3]]
     expected_value = fitness_test1[1][2]
     diff = dictionary_value - expected_value
     print("\n\n G2's fitness is NOT determined by the fitness derived from the G1 vs G2 game \n")

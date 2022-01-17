@@ -254,22 +254,39 @@ end
 # Pairwise fitness
 ##################
 function update_fit_dict!(pop::population)
-
     for (n1::Int64, n2::Int64) in zip(1:pop.parameters.N, pop.shuffled_indices)
-        if pop.genotypes[n1] ∉ keys(pop.fit_dict)
-            pop.fit_dict[pop.genotypes[n1]] = Dict{Int64, Vector{Float64}}()
-            pop.coop_dict[pop.genotypes[n1]] = Dict{Int64, Vector{Float64}}()
+        if [pop.genotypes[n1], pop.genotypes[n2]] ∉ keys(pop.fit_dict)
+          fitnessOutcome!(pop, n2, n1)
+          pop.fit_dict[[pop.genotypes[n1], pop.genotypes[n2]]] = pop.temp_arrays.gamePayoffTempArray[1][1]
+          pop.coop_dict[[pop.genotypes[n1], pop.genotypes[n2]]] = pop.temp_arrays.gamePayoffTempArray[2][1]
+          if [pop.genotypes[n2], pop.genotypes[n1]] ∉ keys(pop.fit_dict)
+            pop.fit_dict[[pop.genotypes[n2], pop.genotypes[n1]]] = pop.temp_arrays.gamePayoffTempArray[1][2]
+            pop.coop_dict[[pop.genotypes[n2], pop.genotypes[n1]]] = pop.temp_arrays.gamePayoffTempArray[2][2]
+          end
         end
-        if pop.genotypes[n2] ∉ keys(pop.fit_dict[pop.genotypes[n1]])
-                # pop.temp_arrays.gamePayoffTempArray = fitnessOutcome!(pop.parameters, pop.networks[n2], pop.networks[n1], pop.temp_arrays)
-                fitnessOutcome!(pop, n2, n1)
-                pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = pop.temp_arrays.gamePayoffTempArray[1][1]
-                pop.coop_dict[pop.genotypes[n1]][pop.genotypes[n2]] = pop.temp_arrays.gamePayoffTempArray[2][1]
-        end
-        pop.payoffs[n1] = pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]
-        pop.cooperation_vals[n1] = pop.coop_dict[pop.genotypes[n1]][pop.genotypes[n2]]
+    pop.payoffs[n1] = pop.fit_dict[[pop.genotypes[n1], pop.genotypes[n2]]]
+    pop.payoffs[n2] = pop.fit_dict[[pop.genotypes[n2], pop.genotypes[n1]]]
+    pop.cooperation_vals[n1] = pop.coop_dict[[pop.genotypes[n1], pop.genotypes[n2]]]
+    pop.cooperation_vals[n2] = pop.coop_dict[[pop.genotypes[n2], pop.genotypes[n1]]]
     end
 end
+# function update_fit_dict!(pop::population)
+
+#     for (n1::Int64, n2::Int64) in zip(1:pop.parameters.N, pop.shuffled_indices)
+#         if pop.genotypes[n1] ∉ keys(pop.fit_dict)
+#             pop.fit_dict[pop.genotypes[n1]] = Dict{Int64, Vector{Float64}}()
+#             pop.coop_dict[pop.genotypes[n1]] = Dict{Int64, Vector{Float64}}()
+#         end
+#         if pop.genotypes[n2] ∉ keys(pop.fit_dict[pop.genotypes[n1]])
+#                 # pop.temp_arrays.gamePayoffTempArray = fitnessOutcome!(pop.parameters, pop.networks[n2], pop.networks[n1], pop.temp_arrays)
+#                 fitnessOutcome!(pop, n2, n1)
+#                 pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = pop.temp_arrays.gamePayoffTempArray[1][1]
+#                 pop.coop_dict[pop.genotypes[n1]][pop.genotypes[n2]] = pop.temp_arrays.gamePayoffTempArray[2][1]
+#         end
+#         pop.payoffs[n1] = pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]
+#         pop.cooperation_vals[n1] = pop.coop_dict[pop.genotypes[n1]][pop.genotypes[n2]]
+#     end
+# end
 
 ##################
 # Pairwise fitness
@@ -282,10 +299,11 @@ function pairwise_fitness_calc!(pop::population)
     
     repro_array = zeros(Float64, pop.parameters.N)
     for (n1,n2) in zip(1:pop.parameters.N, pop.shuffled_indices)
+        
         if pop.genotypes[n1] == 1
-            repro_array[n1] = pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]*pop.parameters.resident_fitness_scale
+            repro_array[n1] = pop.fit_dict[[pop.genotypes[n1], pop.genotypes[n2]]]*pop.parameters.resident_fitness_scale
         else
-            repro_array[n1] = pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]
+            repro_array[n1] = pop.fit_dict[[pop.genotypes[n1], pop.genotypes[n2]]]
         end
     end
     pop.mean_w = mean(repro_array)
