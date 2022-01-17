@@ -69,9 +69,8 @@ function repeatedNetworkGame(pop, mutI, resI)
         mutHist[i] = pop.networks[mutI].CurrentOffer
         resHist[i] = pop.networks[resI].CurrentOffer
     end
-    if pop.parameters.δ >= 0.0 
-        return [mutHist, resHist]
-    end
+    return [mutHist, resHist]
+
 end
 
 
