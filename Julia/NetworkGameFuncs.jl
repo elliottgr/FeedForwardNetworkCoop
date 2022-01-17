@@ -247,7 +247,7 @@ function population_construction(parameters::simulation_parameters)
     prev_out = @MVector zeros(Float64, parameters.nnet) 
     NetworkGameRound = @MVector zeros(Float64, 2)
     temp_arrays = sim_temp_array(payoff_temp_array, prev_out, NetworkGameRound)
-    return population(parameters, shuffle!(population_array), return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Float64}}(), Dict{Int64, Dict{Int64, Float64}}(), shuffle(1:parameters.N), length(parameters.init_freqs), zeros(Float64, parameters.N), zeros(Float64, parameters.N), 0, temp_arrays)
+    return population(parameters, population_array, return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Float64}}(), Dict{Int64, Dict{Int64, Float64}}(), shuffle(1:parameters.N), length(parameters.init_freqs), zeros(Float64, parameters.N), zeros(Float64, parameters.N), 0, temp_arrays)
 end
 
 ##################
