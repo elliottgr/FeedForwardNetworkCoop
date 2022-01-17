@@ -247,7 +247,9 @@ function population_construction(parameters::simulation_parameters)
     prev_out = @MVector zeros(Float64, parameters.nnet) 
     NetworkGameRound = @MVector zeros(Float64, 2)
     temp_arrays = sim_temp_array(payoff_temp_array, prev_out, NetworkGameRound)
-    return population(parameters, population_array, return_genotype_id_array(population_array), Dict{Int64, Dict{Int64, Float64}}(), Dict{Int64, Dict{Int64, Float64}}(), shuffle(1:parameters.N), length(parameters.init_freqs), zeros(Float64, parameters.N), zeros(Float64, parameters.N), 0, temp_arrays)
+    discount = calc_discount(parameters.δ, parameters.rounds)
+    discount = SVector{parameters.rounds}(discount/sum(discount))
+    return population(parameters, population_array, return_genotype_id_array(population_array), Dict{Vector{Int64}, Float64}(), Dict{Vector{Int64}, Float64}(), shuffle(1:parameters.N), length(parameters.init_freqs), zeros(Float64, parameters.N), zeros(Float64, parameters.N), 0, temp_arrays, discount)
 end
 
 ##################
@@ -574,8 +576,7 @@ outputs = DataFrame(b = fill(pop.parameters.b, output_length),
                     e4_5 = fill(NaN, output_length),)
 
     ## pre allocating this array so it doesn't get reallocated each time a game is played
-    global discount = calc_discount(pop.parameters.δ, pop.parameters.rounds)
-    global discount = SVector{pop.parameters.rounds}(discount/sum(discount))
+
     ############
     # Sim Loop #
     ############

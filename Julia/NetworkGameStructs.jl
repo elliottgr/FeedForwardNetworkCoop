@@ -111,6 +111,7 @@ mutable struct population
     # gamePayoffTempArray::Vector{Vector{Float64}}
     # prev_out::MVector
     temp_arrays::sim_temp_array
+    discount_vector::SVector
 end
 
 
@@ -126,7 +127,8 @@ function Base.copy(pop::population)
                       pop.payoffs,
                       pop.cooperation_vals,
                       pop.mean_w,
-                      pop.temp_arrays))
+                      pop.temp_arrays,
+                      pop.discount_vector))
 end
 
 mutable struct simulation_output
