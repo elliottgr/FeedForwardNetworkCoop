@@ -66,8 +66,8 @@ function repeatedNetworkGame(pop, mutI, resI)
 
     for i in 1:pop.parameters.rounds
         networkGameRound!(pop, mutI, resI)
-        mutHist[i] = copy(pop.networks[mutI].CurrentOffer)
-        resHist[i] = copy(pop.networks[resI].CurrentOffer)
+        mutHist[i] = pop.networks[mutI].CurrentOffer
+        resHist[i] = pop.networks[resI].CurrentOffer
     end
     if pop.parameters.δ >= 0.0 
         return [mutHist, resHist]
@@ -270,23 +270,7 @@ function update_fit_dict!(pop::population)
     pop.cooperation_vals[n2] = pop.coop_dict[[pop.genotypes[n2], pop.genotypes[n1]]]
     end
 end
-# function update_fit_dict!(pop::population)
 
-#     for (n1::Int64, n2::Int64) in zip(1:pop.parameters.N, pop.shuffled_indices)
-#         if pop.genotypes[n1] ∉ keys(pop.fit_dict)
-#             pop.fit_dict[pop.genotypes[n1]] = Dict{Int64, Vector{Float64}}()
-#             pop.coop_dict[pop.genotypes[n1]] = Dict{Int64, Vector{Float64}}()
-#         end
-#         if pop.genotypes[n2] ∉ keys(pop.fit_dict[pop.genotypes[n1]])
-#                 # pop.temp_arrays.gamePayoffTempArray = fitnessOutcome!(pop.parameters, pop.networks[n2], pop.networks[n1], pop.temp_arrays)
-#                 fitnessOutcome!(pop, n2, n1)
-#                 pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]] = pop.temp_arrays.gamePayoffTempArray[1][1]
-#                 pop.coop_dict[pop.genotypes[n1]][pop.genotypes[n2]] = pop.temp_arrays.gamePayoffTempArray[2][1]
-#         end
-#         pop.payoffs[n1] = pop.fit_dict[pop.genotypes[n1]][pop.genotypes[n2]]
-#         pop.cooperation_vals[n1] = pop.coop_dict[pop.genotypes[n1]][pop.genotypes[n2]]
-#     end
-# end
 
 ##################
 # Pairwise fitness
