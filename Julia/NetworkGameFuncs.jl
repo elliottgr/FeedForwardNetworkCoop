@@ -74,12 +74,6 @@ function repeatedNetworkGame(pop, mutI, resI)
 end
 
 
-function calc_discount(δ::Float64, rounds::Int64)
-    return exp.(-δ.*(rounds.-1 .-range(1,rounds, step = 1)))
-end
-
-
-
 function calc_payoff(parameters::simulation_parameters, rmOut, mrOut, discount)
     output = 0.0
     for i in 1:parameters.rounds
@@ -245,7 +239,7 @@ function population_construction(parameters::simulation_parameters)
     prev_out = @MVector zeros(Float64, parameters.nnet) 
     NetworkGameRound = @MVector zeros(Float64, 2)
     temp_arrays = sim_temp_array(payoff_temp_array, prev_out, NetworkGameRound)
-    discount = exp.(-δ.*(parameters.rounds.-1 .-range(1,parameters.rounds, step = 1)))
+    discount = exp.(-parameters.δ.*(parameters.rounds.-1 .-range(1,parameters.rounds, step = 1)))
     discount = SVector{parameters.rounds}(discount/sum(discount))
     return population(parameters, population_array, return_genotype_id_array(population_array), Dict{Vector{Int64}, Float64}(), Dict{Vector{Int64}, Float64}(), shuffle(1:parameters.N), length(parameters.init_freqs), zeros(Float64, parameters.N), zeros(Float64, parameters.N), 0, temp_arrays, discount)
 end
