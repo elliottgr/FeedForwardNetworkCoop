@@ -17,7 +17,7 @@ function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::
 #     ## Iterates a single layer of the Feed Forward network
 #     ##############################
 
-#     ## dot product of Wm and prev_out, + node weights. Equivalent to x = dot(Wm[1:j,j], prev_out[1:j]) + Wb[j]
+    ## dot product of Wm and prev_out, + node weights. Equivalent to x = dot(Wm[1:j,j], prev_out[1:j]) + Wb[j]
     ## doing it this way allows scalar indexing of the static arrays, which is significantly faster and avoids unnecessary array invocation
     x = 0
     for i in 1:j-1
@@ -95,6 +95,7 @@ function fitnessOutcome!(pop, mutI, resI)
     ##  discount formula before returning final fitness value
     ############################################################
 
+    ## 1/18/22 running the dot product with δ = 0.0 introduces some floating point innaccuracy 
     if pop.parameters.δ >= 0.0
         rmOut, mrOut = repeatedNetworkGame(pop, mutI, resI)
         pop.temp_arrays.gamePayoffTempArray[1][1] = calc_payoff(pop.parameters, mrOut, rmOut, pop.discount_vector)
@@ -172,6 +173,8 @@ function output!(t::Int64, pop::population, outputs::DataFrame)
 
     mean_network = return_mean_network(pop)
 
+    ## Didn't condense this into a for loop because it calls column names explicitly
+    ## Definitely possible to do so, I'm just lazy
     if pop.parameters.nnet >= 1
        outputs.n1[output_row] = mean_network.Wb[1]
     end 
@@ -204,8 +207,6 @@ function output!(t::Int64, pop::population, outputs::DataFrame)
         outputs.e4_5[output_row] = mean_network.Wm[4,5]
     end
 end
-
-
         
 
 function population_construction(parameters::simulation_parameters)
@@ -223,9 +224,7 @@ function population_construction(parameters::simulation_parameters)
             Wm = SMatrix{parameters.nnet, parameters.nnet, Float64}(Matrix(UpperTriangular(fill(parameters.init_net_weights, (parameters.nnet,parameters.nnet)))))
             Wb =  SVector{parameters.nnet, Float64}(fill(parameters.init_net_weights, parameters.nnet))
         end
-
         initOffer = copy(parameters.initial_offer)
-
         initialnetworks[n] = network(n, Wm, Wb, initOffer, initOffer)
     end
     pop_iterator = 0
@@ -485,39 +484,13 @@ function initial_arg_parsing()
     return parameters
 end
 
-
-## following similar format to NetworkGame.py
-
-
-
 function simulation(pop::population)
 
 ############
 # Sim init #
 ############
 
-
-
-
 output_length = Int64(pop.parameters.tmax/pop.parameters.output_save_tick)
-
-    # ## Fixation Stats ##
-    # ## time points where an allele becomes 100% of the population
-    # fixations::Vector{Int64}
-    # ## number of genotypes at each time point
-    # n_genotypes::Vector{Int64}
-    # ## simulation results ##
-    # ## mean values of fitness and initial offer over the sim
-    # payoff_mean_history::Vector{Float64}
-    # coop_mean_history::Vector{Float64}
-    # w_mean_history::Vector{Float64}
-    # init_mean_history::Vector{Float64}
-    # mean_net_history::Vector{output_network}
-    # ## Output copy of parameters
-    # parameters::simulation_parameters
-
- 
-
 outputs = DataFrame(b = fill(pop.parameters.b, output_length),
                     c = fill(pop.parameters.c, output_length),
                     nnet = fill(pop.parameters.nnet, output_length),
@@ -546,8 +519,6 @@ outputs = DataFrame(b = fill(pop.parameters.b, output_length),
                     e3_5 = fill(NaN, output_length),
                     e4_5 = fill(NaN, output_length),)
 
-    ## pre allocating this array so it doesn't get reallocated each time a game is played
-
     ############
     # Sim Loop #
     ############
@@ -559,11 +530,11 @@ outputs = DataFrame(b = fill(pop.parameters.b, output_length),
 
         update_population!(pop)
 
-        # reproduction function / produce and save t+1 population array
+        # reproduction function to produce and save t+1 population array
 
         reproduce!(pop)
 
-        # mutation function / iterates over population and mutates at chance probability μ
+        # mutation function  iterates over population and mutates at chance probability μ
         if pop.parameters.μ > 0
             mutate!(pop)
         end
@@ -574,11 +545,5 @@ outputs = DataFrame(b = fill(pop.parameters.b, output_length),
         end
 
     end
-# print("Final Payoff: "*string(mean(pop.payoffs)))
-# if mean(pop.payoffs) == initial_payoffs
-#     print("Replicate did not evolve new payoffs")
-# end
-## organize replicate data into appropriate data structure to be returned to main function and saved
 return outputs
 end
-
