@@ -25,6 +25,15 @@ function create_directory(file_path::String, sub_folder::String)
         if isdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder)) == false
             mkdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder))
         end
+        ## manually adding initial_offer and payoff folders for time_series
+        if subfolder == "/time_series/"
+            if isdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"payoff/")) == false
+                mkdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"payoff/"))
+            end
+            if isdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"initial_offer/")) == false
+                mkdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"initial_offer/"))
+            end
+        end
     end
 end
 
@@ -89,7 +98,7 @@ end
 function fitness_timeseries_plots(df)
     b = df.b[1]
     c = df.c[1]
-    plt = plot(title = "b=$b & c=$c")
+    plt = plot(title = "Payoff timeseries for b=$b & c=$c", xlabel = "Generation", ylabel = "Relative Fitness")
     colors = palette(:tab10)
     color_i = 1
     # df = sort(df, :generation)
@@ -104,6 +113,33 @@ function fitness_timeseries_plots(df)
         for t in unique(group.generation)
             push!(ts, t)
             w_hat = mean(group.mean_payoff[group.generation .== t, :])
+            push!(ws, w_hat)
+        end
+
+        plt = plot!(ts, ws, color = color_i, label = "")
+        color_i += 1
+    end
+    return plt
+end
+
+function initoffer_timeseries_plots(df)
+    b = df.b[1]
+    c = df.c[1]
+    plt = plot(title = "Initial offer timeseries for b=$b & c=$c", xlabel = "Generation", ylabel = "Initial Offer")
+    colors = palette(:tab10)
+    color_i = 1
+    # df = sort(df, :generation)
+    for group in groupby(df, :nnet)
+        ts = []
+        ws = []
+        for replicate in groupby(group, :replicate_id)
+            label_str = string("Network Size: ", group.nnet[1])
+            # sort!(replicate, :generation)
+            plt = plot!(replicate.generation, replicate.mean_initial_offer, legend = :none, alpha = .2)
+        end
+        for t in unique(group.generation)
+            push!(ts, t)
+            w_hat = mean(group.mean_initial_offer[group.generation .== t, :])
             push!(ws, w_hat)
         end
 
