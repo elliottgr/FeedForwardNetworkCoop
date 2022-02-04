@@ -1,7 +1,7 @@
 ## This file contains all the functions and imports necessary to call plotting commands
 ## for other parts of the GRN cooperation simulation
 
-using DataFrames, JLD2, Plots, StatsPlots, Statistics, ColorSchemes
+using DataFrames, JLD2, Plots, StatsPlots, Statistics, ColorSchemes, Dates
 include("NetworkGameStructs.jl")
 
 
@@ -107,8 +107,8 @@ function fitness_timeseries_plots(df)
         ws = []
         for replicate in groupby(group, :replicate_id)
             label_str = string("Network Size: ", group.nnet[1])
-            # sort!(replicate, :generation)
-            plt = plot!(replicate.generation, replicate.mean_payoff, legend = :none, alpha = .2)
+            plt = plot!(replicate.generation, replicate.mean_payoff, alpha = .2, label = label_str, color = color_i)
+
         end
         for t in unique(group.generation)
             push!(ts, t)
@@ -135,7 +135,7 @@ function initoffer_timeseries_plots(df)
         for replicate in groupby(group, :replicate_id)
             label_str = string("Network Size: ", group.nnet[1])
             # sort!(replicate, :generation)
-            plt = plot!(replicate.generation, replicate.mean_initial_offer, legend = :none, alpha = .2)
+            plt = plot!(replicate.generation, replicate.mean_initial_offer, legend = :none, alpha = .2, color = color_i)
         end
         for t in unique(group.generation)
             push!(ts, t)
@@ -147,4 +147,35 @@ function initoffer_timeseries_plots(df)
         color_i += 1
     end
     return plt
+end
+
+
+## using the λ * b - c = 0 result from Andre & Day (2007) to determine if networks
+## are evolving towards an ESS for the case of nnet <= 2
+function ess_plot(df::DataFrame)
+    plt = plot( title = "Evolutionary Stable Strategy Detection")
+    for group in groupby(df, [:nnet])
+        label_str = "Network Size: "*string(group[!,:nnet][1])
+        λ =  (group[!, :e1_2] .+ group[!, :n2]) 
+        λb = λ .* group[!, :b]
+        #rescaling the alpha of datapoints by the generation they appeared in
+        alpha_vector = (group[!, :generation] ./ maximum(group[!, :generation])).^2
+        plt = plot!(λb, group[!,:c], seriestype = :scatter, xlabel = "λ * b", ylabel = "c", label = label_str, alpha = alpha_vector)
+    end
+    return plt
+end
+
+function create_log_file(df::DataFrame, filepath, subfolder)
+    # logfilestr = string(filepath, "/parameter_info_", string(now()), ".txt")
+    logfilestr = string(pwd()*"/"*filepath*"/"*sub_folder*"/"*string(now())*".txt")
+    io = open(logfilestr, "w")
+    println(io, "log file for network_analysis.jl")
+    println(io, now())
+    println(io, "simulation_parameters (NetworkGameCoop.jl):")
+    println(io, "#####################")
+    for parameter in ["b", "c", "nnet"]
+        values = unique(df[!, parameter])
+        println(io, string(parameter*": "*string(values)))
+    end
+    println(io, "tmax: "*string(maximum(df[!,"generation"])))
 end

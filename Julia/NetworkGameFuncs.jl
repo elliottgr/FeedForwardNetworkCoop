@@ -217,7 +217,7 @@ function population_construction(parameters::simulation_parameters)
     population_array = Vector{network}(undef, parameters.N)
     scale_freq(p, N) = convert(Int64, round((p*N), digits=0))
     for n::Int64 in 1:length(parameters.init_freqs)
-        if parameters.init_net_weights == 0.0
+        if parameters.init_net_weights < 0.0
             Wm = SMatrix{parameters.nnet, parameters.nnet, Float64}(Matrix(UpperTriangular(randn((parameters.nnet,parameters.nnet)))))
             Wb =  SVector{parameters.nnet, Float64}(randn(parameters.nnet))
         else
