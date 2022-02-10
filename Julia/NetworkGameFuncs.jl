@@ -74,10 +74,10 @@ function repeatedNetworkGame(pop, mutI, resI)
 end
 
 
-function calc_payoff(parameters::simulation_parameters, rmOut, mrOut, discount)
+function calc_payoff(parameters::simulation_parameters, mutHist, resHist, discount)
     output = 0.0
     for i in 1:parameters.rounds
-        output += (parameters.b * rmOut[i] - parameters.c * mrOut[i] + (parameters.d * rmOut[i] * mrOut[i])) * discount[i]
+        output += (parameters.b * mutHist[i] - parameters.c * resHist[i] + (parameters.d * mutHist[i] * resHist[i])) * discount[i]
     end
     return 1 + (output * parameters.fitness_benefit_scale)
 end
@@ -97,11 +97,13 @@ function fitnessOutcome!(pop, mutI, resI)
 
     ## 1/18/22 running the dot product with δ = 0.0 introduces some floating point innaccuracy 
     if pop.parameters.δ >= 0.0
-        rmOut, mrOut = repeatedNetworkGame(pop, mutI, resI)
-        pop.temp_arrays.gamePayoffTempArray[1][1] = calc_payoff(pop.parameters, mrOut, rmOut, pop.discount_vector)
-        pop.temp_arrays.gamePayoffTempArray[1][2] = calc_payoff(pop.parameters, rmOut, mrOut, pop.discount_vector)
-        pop.temp_arrays.gamePayoffTempArray[2][1] = dot(rmOut, pop.discount_vector)
-        pop.temp_arrays.gamePayoffTempArray[2][2] = dot(mrOut, pop.discount_vector)
+        # 2/10/22 Renaming these variables to be more clear
+        # rmOut, mrOut = repeatedNetworkGame(pop, mutI, resI)
+        mutHist, resHist = repeatedNetworkGame(pop, mutI, resI)
+        pop.temp_arrays.gamePayoffTempArray[1][1] = calc_payoff(pop.parameters, resHist, mutHist, pop.discount_vector)
+        pop.temp_arrays.gamePayoffTempArray[1][2] = calc_payoff(pop.parameters, mutHist, resHist, pop.discount_vector)
+        pop.temp_arrays.gamePayoffTempArray[2][1] = dot(mutHist, pop.discount_vector)
+        pop.temp_arrays.gamePayoffTempArray[2][2] = dot(resHist, pop.discount_vector)
     end
 end
 
@@ -431,7 +433,7 @@ function initial_arg_parsing()
         "--activation_scale"
             help = "Adjust layer activation function. Formula is (1/(1+exp(-x * activation_scale))). Higher values will filter more activation noise, lower values will allow intermediate activation to propogate through layers."
             arg_type = Float64
-            default = 1.0
+            default = 5.0
         ########
         ## File/Simulation Parameters
         ########
