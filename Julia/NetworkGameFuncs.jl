@@ -6,9 +6,6 @@ using LinearAlgebra, Random, Distributions, ArgParse, StatsBase, DataFrames
 
 include("NetworkGameStructs.jl")
 
-
-## no activation function
-
 function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::SVector)
 
 ## JVC Activation function
@@ -16,7 +13,6 @@ function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::
 #     ##############################
 #     ## Iterates a single layer of the Feed Forward network
 #     ##############################
-
     ## dot product of Wm and prev_out, + node weights. Equivalent to x = dot(Wm[1:j,j], prev_out[1:j]) + Wb[j]
     ## doing it this way allows scalar indexing of the static arrays, which is significantly faster and avoids unnecessary array invocation
     x = 0
@@ -40,14 +36,12 @@ function iterateNetwork(activation_scale::Float64, input::Float64, Wm::SMatrix, 
     for j in 2:length(Wb)
         prev_out[j] = calcOj(activation_scale, j, prev_out, Wm, Wb)
     end
-    
     return prev_out
 end
 
 function networkGameRound!(pop, mutI, resI)
     input_mut = pop.networks[resI].CurrentOffer
     input_res = pop.networks[mutI].CurrentOffer
-
     pop.networks[mutI].CurrentOffer = iterateNetwork(pop.parameters.activation_scale, input_mut, pop.networks[mutI].Wm, pop.networks[mutI].Wb, pop.temp_arrays.prev_out)[pop.parameters.nnet]
     pop.networks[resI].CurrentOffer = iterateNetwork(pop.parameters.activation_scale, input_res, pop.networks[resI].Wm, pop.networks[resI].Wb, pop.temp_arrays.prev_out)[pop.parameters.nnet]
 end
