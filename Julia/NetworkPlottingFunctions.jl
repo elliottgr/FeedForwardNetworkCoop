@@ -122,6 +122,33 @@ function fitness_timeseries_plots(df)
     return plt
 end
 
+function cooperation_timeseries_plots(df)
+    b = df.b[1]
+    c = df.c[1]
+    plt = plot(title = "Cooperation timeseries for b=$b & c=$c", xlabel = "Generation", ylabel = "Cooperation")
+    colors = palette(:tab10)
+    color_i = 1
+    # df = sort(df, :generation)
+    for group in groupby(df, :nnet)
+        ts = []
+        ws = []
+        for replicate in groupby(group, :replicate_id)
+            label_str = string("Network Size: ", group.nnet[1])
+            # sort!(replicate, :generation)
+            plt = plot!(replicate.generation, replicate.mean_cooperation, legend = :none, alpha = .2, color = color_i)
+        end
+        for t in unique(group.generation)
+            push!(ts, t)
+            w_hat = mean(group.mean_cooperation[group.generation .== t, :])
+            push!(ws, w_hat)
+        end
+
+        plt = plot!(ts, ws, color = color_i, label = "")
+        color_i += 1
+    end
+    return plt
+end
+
 function initoffer_timeseries_plots(df)
     b = df.b[1]
     c = df.c[1]
@@ -154,9 +181,12 @@ end
 ## are evolving towards an ESS for the case of nnet <= 2
 function ess_plot(df::DataFrame)
     plt = plot( title = "Evolutionary Stable Strategy Detection")
-    for group in groupby(df, [:nnet])
+    end_df = df[df[!, :generation] .== maximum(df[!, :generation]), :]
+    for group in groupby(end_df, [:nnet])
         label_str = "Network Size: "*string(group[!,:nnet][1])
-        λ =  (group[!, :e1_2] .+ group[!, :n2]) 
+        # λ =  (group[!, :e1_2] .+ group[!, :n2]) 
+        λ = group[!, :e1_2] ## JVC suggestion from 2/10/22
+
         λb = λ .* group[!, :b]
         #rescaling the alpha of datapoints by the generation they appeared in
         alpha_vector = (group[!, :generation] ./ maximum(group[!, :generation])).^2
