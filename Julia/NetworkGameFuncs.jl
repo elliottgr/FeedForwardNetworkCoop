@@ -330,10 +330,6 @@ function initial_arg_parsing()
             help = "mutation probability per birth"
             arg_type = Float64
             default = 0.01
-        "--resident_fitness_scale"
-            help = "scales the initial resident fitness for debugging pop gen funcs"
-            arg_type = Float64
-            default = 1.0
         ########
         ## Game Parameters
         ########
@@ -420,10 +416,6 @@ function initial_arg_parsing()
             help = "Probability that a random edge or node be altered in a mutation event"
             arg_type = Float64
             default = 0.5
-        "--net_save_tick"
-            help = "Computes and saves the mean network values ever [x] timesteps. x = 0 does not save"
-            arg_type = Int64
-            default = 1000
         "--activation_function"
             help = "Activation function to be used for network loop"
             arg_type = String
@@ -451,10 +443,6 @@ function initial_arg_parsing()
             help = "Filename to save outputs to (please include .jld2 extension)"
             arg_type = String
             default = "NetworkGameTests.jld2"
-        "--init_freq_resolution"
-            help = "Step-size between initial frequencies if iterating over them"
-            arg_type = Float64
-            default = 0.05
     end
 
     ##passing command line arguments to simulation
@@ -468,7 +456,6 @@ function initial_arg_parsing()
                                         parsed_args["nreps"], 
                                         parsed_args["N"], 
                                         parsed_args["mu"], 
-                                        parsed_args["resident_fitness_scale"],
                                         parsed_args["rounds"], 
                                         parsed_args["fitness_benefit_scale"], 
                                         parsed_args["b"], 
@@ -488,14 +475,13 @@ function initial_arg_parsing()
                                         parsed_args["mutsize"],
                                         parsed_args["mutinitsize"], 
                                         parsed_args["mutlink"],
-                                        parsed_args["net_save_tick"],  
                                         getfield(Main, Symbol(parsed_args["activation_function"])), 
                                         parsed_args["activation_scale"],
                                         parsed_args["output_save_tick"],
                                         parsed_args["replicate_id"], 
                                         parsed_args["seed"], 
-                                        parsed_args["filename"], 
-                                        parsed_args["init_freq_resolution"])
+                                        parsed_args["filename"]
+                                        )
 
     ## 1/13/22
     ## For some reason, the above simulation_parameters() decleration isn't importing parsed_args properly

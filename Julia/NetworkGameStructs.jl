@@ -8,7 +8,6 @@ mutable struct simulation_parameters
     nreps::Int64
     N::Int64
     μ::Float64 
-    resident_fitness_scale::Float64
     #game params
     rounds::Int64
     fitness_benefit_scale::Float64
@@ -30,7 +29,6 @@ mutable struct simulation_parameters
     mutsize::Float64
     mutinitsize::Float64
     mutlink::Float64
-    net_save_tick::Int64
     activation_function::Function
     activation_scale::Float64
     #file/simulation params
@@ -38,7 +36,6 @@ mutable struct simulation_parameters
     replicate_id::Int64
     seed::Int64
     filename::String
-    init_freq_resolution::Float64
 end
 
 ## smallest type necessary to play a complete round of the game 
@@ -46,8 +43,6 @@ mutable struct network
     genotype_id::Int64
     Wm::SMatrix
     Wb::SVector
-    # Wm::StridedView{Float64, 2, Vector{Float64}}
-    # Wb::StridedView{Float64, 1, Vector{Float64}}
     InitialOffer::Float64
     CurrentOffer::Float64
 end
@@ -69,14 +64,14 @@ end
 
 ## need to be able to create copies of the parameters and networks structs
 function Base.copy(parameters::simulation_parameters)
-    return simulation_parameters(parameters.tmax, parameters.nreps,parameters.N,parameters.μ, 
-                                parameters.resident_fitness_scale, parameters.rounds,
+    return simulation_parameters(parameters.tmax, parameters.nreps,parameters.N,parameters.μ, parameters.rounds,
                                 parameters.fitness_benefit_scale,parameters.b,parameters.c,parameters.d,
                                 parameters.game_param_min, parameters.game_param_max, parameters.game_param_step,
                                 parameters.δ,parameters.initial_offer, parameters.init_freqs, parameters.init_net_weights,
                                 parameters.nnet_min, parameters.nnet_max, parameters.nnet_step, parameters.nnet,
-                                parameters.mutsize,parameters.mutinitsize,parameters.mutlink,parameters.net_save_tick, parameters.activation_scale,
-                                parameters.output_save_tick, parameters.replicate_id, parameters.seed, parameters.filename, parameters.init_freq_resolution)
+                                parameters.mutsize,parameters.mutinitsize,parameters.mutlink, 
+                                parameters.activation_function, parameters.activation_scale,
+                                parameters.output_save_tick, parameters.replicate_id, parameters.seed, parameters.filename)
 end
 
 function Base.copy(networks::Vector{network})
@@ -101,7 +96,6 @@ mutable struct population
     parameters::simulation_parameters
     networks::Vector{network}
     genotypes::Vector{Int64}
-    # fit_dict::Dict{Int64, Dict{Int64, Float64}} ## Changed to dictionary of vector keys 1/17/22
     fit_dict::Dict{Vector{Int64}, Float64}
     coop_dict::Dict{Vector{Int64}, Float64}
     shuffled_indices::Vector{Int64}
@@ -109,8 +103,6 @@ mutable struct population
     payoffs::Vector{Float64}
     cooperation_vals::Vector{Float64}
     mean_w::Float64
-    # gamePayoffTempArray::Vector{Vector{Float64}}
-    # prev_out::MVector
     temp_arrays::sim_temp_array
     discount_vector::SVector
 end
