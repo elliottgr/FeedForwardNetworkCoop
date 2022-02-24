@@ -5,8 +5,8 @@ using LinearAlgebra, Random, Distributions, ArgParse, StatsBase, DataFrames
 ####################################
 
 include("NetworkGameStructs.jl")
-
-function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::SVector)
+include("activationFuncs.jl")
+function calcOj(activation_function::Function, activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::SVector)
 
 ## JVC Activation function
 # function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::SVector)
@@ -20,11 +20,11 @@ function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::
         x += (Wm[i, j] * prev_out[i]) 
     end
     x += Wb[j]
-
-    return (1/(1+exp(-x * activation_scale))) 
+    return(activation_function(activation_scale * x))
+    # return (1/(1+exp(-x * activation_scale))) 
 end
 
-function iterateNetwork(activation_scale::Float64, input::Float64, Wm::SMatrix, Wb::SVector, prev_out::MVector)
+function iterateNetwork(activation_function, activation_scale::Float64, input::Float64, Wm::SMatrix, Wb::SVector, prev_out::MVector)
     ##############################
     ## Calculates the total output of the network,
     ## iterating over calcOj() for each layer
@@ -34,7 +34,7 @@ function iterateNetwork(activation_scale::Float64, input::Float64, Wm::SMatrix, 
     # prev_out = @MVector zeros(Float64, length(Wb))
     prev_out[1] = input
     for j in 2:length(Wb)
-        prev_out[j] = calcOj(activation_scale, j, prev_out, Wm, Wb)
+        prev_out[j] = calcOj(activation_function, activation_scale, j, prev_out, Wm, Wb)
     end
     return prev_out
 end
@@ -42,8 +42,8 @@ end
 function networkGameRound!(pop, mutI, resI)
     input_mut = pop.networks[resI].CurrentOffer
     input_res = pop.networks[mutI].CurrentOffer
-    pop.networks[mutI].CurrentOffer = iterateNetwork(pop.parameters.activation_scale, input_mut, pop.networks[mutI].Wm, pop.networks[mutI].Wb, pop.temp_arrays.prev_out)[pop.parameters.nnet]
-    pop.networks[resI].CurrentOffer = iterateNetwork(pop.parameters.activation_scale, input_res, pop.networks[resI].Wm, pop.networks[resI].Wb, pop.temp_arrays.prev_out)[pop.parameters.nnet]
+    pop.networks[mutI].CurrentOffer = iterateNetwork(pop.parameters.activation_function, pop.parameters.activation_scale, input_mut, pop.networks[mutI].Wm, pop.networks[mutI].Wb, pop.temp_arrays.prev_out)[pop.parameters.nnet]
+    pop.networks[resI].CurrentOffer = iterateNetwork(pop.parameters.activation_function, pop.parameters.activation_scale, input_res, pop.networks[resI].Wm, pop.networks[resI].Wb, pop.temp_arrays.prev_out)[pop.parameters.nnet]
 end
 
 function repeatedNetworkGame(pop, mutI, resI)
@@ -424,6 +424,10 @@ function initial_arg_parsing()
             help = "Computes and saves the mean network values ever [x] timesteps. x = 0 does not save"
             arg_type = Int64
             default = 1000
+        "--activation_function"
+            help = "Activation function to be used for network loop"
+            arg_type = String
+            default = "jvc_exp"
         "--activation_scale"
             help = "Adjust layer activation function. Formula is (1/(1+exp(-x * activation_scale))). Higher values will filter more activation noise, lower values will allow intermediate activation to propogate through layers."
             arg_type = Float64
@@ -455,17 +459,43 @@ function initial_arg_parsing()
 
     ##passing command line arguments to simulation
     parsed_args = parse_args(ARGS, arg_parse_settings)
-
-
-    parameters = simulation_parameters(parsed_args["tmax"], parsed_args["nreps"], parsed_args["N"], parsed_args["mu"], parsed_args["resident_fitness_scale"],
-                                        parsed_args["rounds"], parsed_args["fitness_benefit_scale"], parsed_args["b"], 
-                                        parsed_args["c"], parsed_args["d"], parsed_args["delta"],
-                                        parsed_args["game_param_min"], parsed_args["game_param_max"], parsed_args["game_param_step"],
-                                        parsed_args["initial_offer"], parsed_args["init_freqs"], parsed_args["init_net_weights"],
-                                        parsed_args["nnet_min"], parsed_args["nnet_max"], parsed_args["nnet_step"],
-                                        parsed_args["nnet"], parsed_args["mutsize"], parsed_args["mutinitsize"], parsed_args["mutlink"],
-                                        parsed_args["net_save_tick"], parsed_args["replicate_id"], parsed_args["activation_scale"],
-                                         parsed_args["output_save_tick"], parsed_args["seed"], parsed_args["filename"], parsed_args["init_freq_resolution"])
+    # print(parsed_args["activation_function"], "\n")
+    # print(typeof(function_dict[parsed_args["activation_function"]]), "\n")
+    # print(function_dict[parsed_args["activation_function"]](1), "\n")
+    # activationFuncs = activationFunctions(linear, jvc_exp, lenagard_exp)
+    # print(getfield(Main, Symbol(parsed_args["activation_function"])))
+    parameters = simulation_parameters(parsed_args["tmax"], 
+                                        parsed_args["nreps"], 
+                                        parsed_args["N"], 
+                                        parsed_args["mu"], 
+                                        parsed_args["resident_fitness_scale"],
+                                        parsed_args["rounds"], 
+                                        parsed_args["fitness_benefit_scale"], 
+                                        parsed_args["b"], 
+                                        parsed_args["c"],
+                                        parsed_args["d"],
+                                        parsed_args["delta"],
+                                        parsed_args["game_param_min"], 
+                                        parsed_args["game_param_max"], 
+                                        parsed_args["game_param_step"],
+                                        parsed_args["initial_offer"], 
+                                        parsed_args["init_freqs"], 
+                                        parsed_args["init_net_weights"],
+                                        parsed_args["nnet_min"], 
+                                        parsed_args["nnet_max"], 
+                                        parsed_args["nnet_step"],
+                                        parsed_args["nnet"], 
+                                        parsed_args["mutsize"],
+                                        parsed_args["mutinitsize"], 
+                                        parsed_args["mutlink"],
+                                        parsed_args["net_save_tick"],  
+                                        getfield(Main, Symbol(parsed_args["activation_function"])), 
+                                        parsed_args["activation_scale"],
+                                        parsed_args["output_save_tick"],
+                                        parsed_args["replicate_id"], 
+                                        parsed_args["seed"], 
+                                        parsed_args["filename"], 
+                                        parsed_args["init_freq_resolution"])
 
     ## 1/13/22
     ## For some reason, the above simulation_parameters() decleration isn't importing parsed_args properly

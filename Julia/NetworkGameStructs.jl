@@ -31,6 +31,7 @@ mutable struct simulation_parameters
     mutinitsize::Float64
     mutlink::Float64
     net_save_tick::Int64
+    activation_function::Function
     activation_scale::Float64
     #file/simulation params
     output_save_tick::Int64

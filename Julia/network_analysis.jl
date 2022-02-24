@@ -1,4 +1,3 @@
-
 include("NetworkPlottingFunctions.jl")
 
 function main()
@@ -43,6 +42,7 @@ function main()
             combined_timeseries = plot([payoff_timeseries, init_timeseries, coop_timeseries]..., layout = (3,1), size = (800,900))
             
             ## Saving each of the generated plots
+            savefig(edge_weight_timeseries(group), string(pwd()*"/"*filepath*"/"*sub_folder*"/"*"/time_series/edge_weights/"*filestr))
             savefig(fitness_violin_plots(group), string(pwd()*"/"*filepath*"/"*sub_folder*"/"*"/violin_plots/"*filestr))
             savefig(init_offer_payoff_scatter(group), string(pwd()*"/"*filepath*"/"*sub_folder*"/"*"/scatter_plots/"*filestr))
             savefig(combined_timeseries, string(pwd()*"/"*filepath*"/"*sub_folder*"/"*"/time_series/"*filestr))

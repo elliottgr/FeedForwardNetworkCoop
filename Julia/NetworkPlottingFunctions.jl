@@ -33,6 +33,9 @@ function create_directory(file_path::String, sub_folder::String)
             if isdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"initial_offer/")) == false
                 mkdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"initial_offer/"))
             end
+            if isdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"edge_weights/")) == false
+                mkdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"edge_weights/"))
+            end
         end
     end
 end
@@ -55,7 +58,38 @@ function fitness_violin_plots(df)
     return @df end_df violin(:nnet, :mean_payoff, title = "Mean Fitness at Final Timestep for b = $b and c = $c", ylabel = "Mean Fitness", xlabel = "Network Length", legend = :none)
 end
 
+function edge_weight_timeseries(df)
+    edges = ["e1_2", "e1_3", "e1_4", "e1_5", "e2_3", "e2_4", "e2_5", "e3_4", "e3_5", "e4_5"]
+    b = df.b[1]
+    c = df.c[1]
+    nnet = df.nnet[1]
+    plt = plot(title = "Edge weight timeseries for \n b = $b, c = $c, & Network Size = $nnet", xlabel = "Generation", ylabel = "Weight")
+    colors = palette(:tab10)
+    color_i = 1
 
+    for group in groupby(df, :nnet)
+        color_i = 1
+        edge_weights = []
+        ts = []
+        for edge in edges
+            if replicate[1,edge] != NaN
+                for replicate in groupby(group, :replicate_id)
+                    plt = plot!(replicate.generation, replicate[!, edge], label = "", alpha = .1, color = color_i)
+                end
+                for t in unique(group.generation)
+                    push!(ts, t)
+                    mean_edge_weight = mean(group[group.generation .== t, edge])
+                    push!(edge_weights, mean_edge_weight)
+                end
+                plt = plot!(ts, edge_weights, color = color_i, label = "Nnnet = $nnet")
+                color_i += 1
+
+            end
+
+        end
+    end
+    return(plt)
+end
 ## Creating a heatmap to show correlation of fitness and edge-weights
 ## gonna be messy but need to map each correlation of edge column and fitness to a matrix
 function edge_weight_fitness_plot(df)
