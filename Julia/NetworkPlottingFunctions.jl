@@ -72,7 +72,8 @@ function edge_weight_timeseries(df)
         edge_weights = []
         ts = []
         for edge in edges
-            if replicate[1,edge] != NaN
+            if group[1,edge] != NaN
+                # print(group[1, edge])
                 for replicate in groupby(group, :replicate_id)
                     plt = plot!(replicate.generation, replicate[!, edge], label = "", alpha = .1, color = color_i)
                 end
@@ -81,7 +82,7 @@ function edge_weight_timeseries(df)
                     mean_edge_weight = mean(group[group.generation .== t, edge])
                     push!(edge_weights, mean_edge_weight)
                 end
-                plt = plot!(ts, edge_weights, color = color_i, label = "Nnnet = $nnet")
+                plt = plot!(ts, edge_weights, color = color_i, label = "edge = $edge")
                 color_i += 1
 
             end

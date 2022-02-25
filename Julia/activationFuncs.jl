@@ -13,15 +13,3 @@ end
 function lenagard_exp(x)
     return (1 - exp(-(x^2)))
 end
-
-# struct activationFunctions
-#     linear::Function
-#     jvc_exp::Function
-#     lenagard_exp::Function
-# end
-
-# activationFuncs = activationFunctions(linear, jvc_exp, lenagard_exp)
-# # function_dict = Dict([("linear", linear),
-# #                  ("jvc_exp", jvc_exp),
-# #                  ("lenagard_exp", lenagard_exp)]
-# #                  )

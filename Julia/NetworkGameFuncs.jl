@@ -486,8 +486,8 @@ function initial_arg_parsing()
     ## 1/13/22
     ## For some reason, the above simulation_parameters() decleration isn't importing parsed_args properly
     ## resetting the arguments seems to do the trick
-    parameters.activation_scale = parsed_args["activation_scale"]
-    parameters.output_save_tick = parsed_args["output_save_tick"]
+    # parameters.activation_scale = parsed_args["activation_scale"]
+    # parameters.output_save_tick = parsed_args["output_save_tick"]
 
     ## Necessary sanity checks for params
     if mod(parameters.N, 2) != 0
