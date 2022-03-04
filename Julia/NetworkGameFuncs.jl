@@ -8,11 +8,10 @@ include("NetworkGameStructs.jl")
 include("activationFuncs.jl")
 function calcOj(activation_function::Function, activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::SVector)
 
-## JVC Activation function
-# function calcOj(activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::SVector)
-#     ##############################
-#     ## Iterates a single layer of the Feed Forward network
-#     ##############################
+
+    ##############################
+    ## Iterates a single layer of the Feed Forward network
+    ##############################
     ## dot product of Wm and prev_out, + node weights. Equivalent to x = dot(Wm[1:j,j], prev_out[1:j]) + Wb[j]
     ## doing it this way allows scalar indexing of the static arrays, which is significantly faster and avoids unnecessary array invocation
     x = 0
@@ -20,8 +19,7 @@ function calcOj(activation_function::Function, activation_scale::Float64, j::Int
         x += (Wm[i, j] * prev_out[i]) 
     end
     x += Wb[j]
-    return(activation_function(activation_scale * x))
-    # return (1/(1+exp(-x * activation_scale))) 
+    return(activation_function(activation_scale * x)) 
 end
 
 function iterateNetwork(activation_function, activation_scale::Float64, input::Float64, Wm::SMatrix, Wb::SVector, prev_out::MVector)
@@ -30,8 +28,6 @@ function iterateNetwork(activation_function, activation_scale::Float64, input::F
     ## iterating over calcOj() for each layer
     ##############################
 
-    # prev_out = zeros(Float64, length(Wb))
-    # prev_out = @MVector zeros(Float64, length(Wb))
     prev_out[1] = input
     for j in 2:length(Wb)
         prev_out[j] = calcOj(activation_function, activation_scale, j, prev_out, Wm, Wb)
@@ -268,8 +264,7 @@ end
 
 function reproduce!(pop::population)
     pop.mean_w = mean(pop.payoffs)
-    repro_array = pop.payoffs./sum(pop.payoffs)
-    genotype_i_array = sample(1:pop.parameters.N, ProbabilityWeights(repro_array), pop.parameters.N, replace=true)
+    genotype_i_array = sample(1:pop.parameters.N, ProbabilityWeights(pop.payoffs), pop.parameters.N, replace=true)
     old_networks = copy(pop.networks)
     for (res_i, offspring_i) in zip(1:pop.parameters.N, genotype_i_array)
         pop.networks[res_i] = old_networks[offspring_i]
@@ -447,11 +442,6 @@ function initial_arg_parsing()
 
     ##passing command line arguments to simulation
     parsed_args = parse_args(ARGS, arg_parse_settings)
-    # print(parsed_args["activation_function"], "\n")
-    # print(typeof(function_dict[parsed_args["activation_function"]]), "\n")
-    # print(function_dict[parsed_args["activation_function"]](1), "\n")
-    # activationFuncs = activationFunctions(linear, jvc_exp, lenagard_exp)
-    # print(getfield(Main, Symbol(parsed_args["activation_function"])))
     parameters = simulation_parameters(parsed_args["tmax"], 
                                         parsed_args["nreps"], 
                                         parsed_args["N"], 
