@@ -67,7 +67,7 @@ end
 function calc_payoff(parameters::simulation_parameters, mutHist, resHist, discount)
     output = 0.0
     for i in 1:parameters.rounds
-        output += (parameters.b * mutHist[i] - parameters.c * resHist[i] + (parameters.d * mutHist[i] * resHist[i])) * discount[i]
+        output += (parameters.b * resHist[i] - parameters.c * mutHist[i] + (parameters.d * mutHist[i] * resHist[i])) * discount[i]
     end
     return 1 + (output * parameters.fitness_benefit_scale)
 end
