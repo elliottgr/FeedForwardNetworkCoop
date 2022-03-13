@@ -5,7 +5,8 @@ using LinearAlgebra, Random, Distributions, ArgParse, StatsBase, DataFrames
 ####################################
 
 include("NetworkGameStructs.jl")
-include("activationFuncs.jl")
+include("ActivationFuncs.jl")
+
 function calcOj(activation_function::Function, activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::SVector)
 
 
@@ -72,9 +73,9 @@ function calc_payoff(parameters::simulation_parameters, mutHist, resHist, discou
     return 1 + (output * parameters.fitness_benefit_scale)
 end
 
-function fitnessOutcome!(pop, mutI, resI)
+function interactionOutcome!(pop, mutI, resI)
     ####################################
-    ## calulate resident-mutant fitness matrix from contributions throughout the game history. If
+    ## calulate resident-mutant payoff matrix from contributions throughout the game history. If
     ## discount is availible, applied at rate delta going from present to the past in the 
     ## repeated cooperative investment game
     ##
@@ -106,8 +107,6 @@ function update_population!(pop::population)
     ## runs functions necessary at every timestep of the simulation
     ## updates pop struct with new partner indices and genotype ID arrays
     pop.genotypes = return_genotype_id_array(pop.networks)
-    pop.shuffled_indices = shuffle(pop.shuffled_indices)
-    update_fit_dict!(pop)
 end
 
 function return_initial_offer_array(pop::population)
@@ -238,21 +237,22 @@ end
 ##################
 # Pairwise fitness
 ##################
-function update_fit_dict!(pop::population)
+function social_interactions!(pop::population)
+    shuffle!(pop.shuffled_indices)
     for n in 1:2:(pop.parameters.N-1)
         n1 = pop.shuffled_indices[n]
         n2 = pop.shuffled_indices[n+1]
-        if [pop.genotypes[n1], pop.genotypes[n2]] ∉ keys(pop.fit_dict)
-          fitnessOutcome!(pop, n2, n1)
-          pop.fit_dict[[pop.genotypes[n1], pop.genotypes[n2]]] = pop.temp_arrays.gamePayoffTempArray[1][1]
+        if [pop.genotypes[n1], pop.genotypes[n2]] ∉ keys(pop.payoff_dict)
+          interactionOutcome!(pop, n1, n2)
+          pop.payoff_dict[[pop.genotypes[n1], pop.genotypes[n2]]] = pop.temp_arrays.gamePayoffTempArray[1][1]
           pop.coop_dict[[pop.genotypes[n1], pop.genotypes[n2]]] = pop.temp_arrays.gamePayoffTempArray[2][1]
-          if [pop.genotypes[n2], pop.genotypes[n1]] ∉ keys(pop.fit_dict)
-            pop.fit_dict[[pop.genotypes[n2], pop.genotypes[n1]]] = pop.temp_arrays.gamePayoffTempArray[1][2]
+          if [pop.genotypes[n2], pop.genotypes[n1]] ∉ keys(pop.payoff_dict)
+            pop.payoff_dict[[pop.genotypes[n2], pop.genotypes[n1]]] = pop.temp_arrays.gamePayoffTempArray[1][2]
             pop.coop_dict[[pop.genotypes[n2], pop.genotypes[n1]]] = pop.temp_arrays.gamePayoffTempArray[2][2]
           end
         end
-    pop.payoffs[n1] = pop.fit_dict[[pop.genotypes[n1], pop.genotypes[n2]]]
-    pop.payoffs[n2] = pop.fit_dict[[pop.genotypes[n2], pop.genotypes[n1]]]
+    pop.payoffs[n1] = pop.payoff_dict[[pop.genotypes[n1], pop.genotypes[n2]]]
+    pop.payoffs[n2] = pop.payoff_dict[[pop.genotypes[n2], pop.genotypes[n1]]]
     pop.cooperation_vals[n1] = pop.coop_dict[[pop.genotypes[n1], pop.genotypes[n2]]]
     pop.cooperation_vals[n2] = pop.coop_dict[[pop.genotypes[n2], pop.genotypes[n1]]]
     end
@@ -527,13 +527,13 @@ outputs = DataFrame(b = fill(pop.parameters.b, output_length),
   
     for t in 1:pop.parameters.tmax
 
-
         # update population struct 
-
         update_population!(pop)
 
-        # reproduction function to produce and save t+1 population array
+        # execute social interactions and calculate payoffs
+        social_interactions!(pop)
 
+        # reproduction function to produce and save t+1 population array
         reproduce!(pop)
 
         # mutation function  iterates over population and mutates at chance probability μ

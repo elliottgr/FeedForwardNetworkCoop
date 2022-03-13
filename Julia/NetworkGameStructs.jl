@@ -96,7 +96,7 @@ mutable struct population
     parameters::simulation_parameters
     networks::Vector{network}
     genotypes::Vector{Int64}
-    fit_dict::Dict{Vector{Int64}, Float64}
+    payoff_dict::Dict{Vector{Int64}, Float64}
     coop_dict::Dict{Vector{Int64}, Float64}
     shuffled_indices::Vector{Int64}
     n_genotypes::Int64
@@ -113,7 +113,7 @@ function Base.copy(pop::population)
     return(population(pop.parameters,
                       pop.networks,
                       pop.genotypes,
-                      pop.fit_dict,
+                      pop.payoff_dict,
                       pop.coop_dict,
                       pop.shuffled_indices,
                       pop.n_genotypes,
