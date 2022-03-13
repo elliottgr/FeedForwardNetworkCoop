@@ -129,8 +129,8 @@ end
 
 ## Will iterate over each network and save the mean value of each vertex/edge
 function return_mean_network(pop::population)
-    Wm_out = Matrix{Float64}(undef, (pop.parameters.nnet,pop.parameters.nnet))
-    Wb_out = Vector{Float64}(undef, pop.parameters.nnet)
+    Wm_out = zeros(pop.parameters.nnet,pop.parameters.nnet)
+    Wb_out = zeros(pop.parameters.nnet)
 
     init_out = Vector{Float64}(undef, length(pop.networks))
 
@@ -151,7 +151,7 @@ end
 
 function output!(t::Int64, pop::population, outputs::DataFrame)
     ## Updates output dataframe
-    output_row = Int64(t/pop.parameters.output_save_tick)
+    output_row = floor(Int64, t/pop.parameters.output_save_tick)
     
     outputs.generation[output_row] = t
     outputs.n_genotypes[output_row] = pop.n_genotypes
