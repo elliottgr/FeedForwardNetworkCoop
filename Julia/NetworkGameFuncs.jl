@@ -199,7 +199,6 @@ function output!(t::Int64, pop::population, outputs::DataFrame)
     end
 end
         
-
 function population_construction(parameters::simulation_parameters)
     ## constructs a population array when supplied with parameters and a list of networks
     ## should default to a full array of a randomly chosen resident genotype unless
@@ -237,9 +236,18 @@ end
 ##################
 # Pairwise fitness
 ##################
+
 function social_interactions!(pop::population)
-    shuffle!(pop.shuffled_indices)
-    for n in 1:2:(pop.parameters.N-1)
+    # match individuals randomly in pairs
+    if pop.parameters.N % 2 == 0
+        pop.shuffled_indices = shuffle(1:pop.parameters.N)
+    else
+        # if population size is odd, last individual plays themself
+        shfld = shuffle(1:pop.parameters.N)
+        pop.shuffled_indices = [shfld; shfld[end]]
+    end
+
+    for n in 1:2:(length(pop.shuffled_indices)-1)
         n1 = pop.shuffled_indices[n]
         n2 = pop.shuffled_indices[n+1]
         if [pop.genotypes[n1], pop.genotypes[n2]] ∉ keys(pop.payoff_dict)
@@ -251,10 +259,10 @@ function social_interactions!(pop::population)
             pop.coop_dict[[pop.genotypes[n2], pop.genotypes[n1]]] = pop.temp_arrays.gamePayoffTempArray[2][2]
           end
         end
-    pop.payoffs[n1] = pop.payoff_dict[[pop.genotypes[n1], pop.genotypes[n2]]]
-    pop.payoffs[n2] = pop.payoff_dict[[pop.genotypes[n2], pop.genotypes[n1]]]
-    pop.cooperation_vals[n1] = pop.coop_dict[[pop.genotypes[n1], pop.genotypes[n2]]]
-    pop.cooperation_vals[n2] = pop.coop_dict[[pop.genotypes[n2], pop.genotypes[n1]]]
+        pop.payoffs[n1] = pop.payoff_dict[[pop.genotypes[n1], pop.genotypes[n2]]]
+        pop.payoffs[n2] = pop.payoff_dict[[pop.genotypes[n2], pop.genotypes[n1]]]
+        pop.cooperation_vals[n1] = pop.coop_dict[[pop.genotypes[n1], pop.genotypes[n2]]]
+        pop.cooperation_vals[n2] = pop.coop_dict[[pop.genotypes[n2], pop.genotypes[n1]]]
     end
 end
 
