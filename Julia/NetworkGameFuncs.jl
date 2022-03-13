@@ -500,7 +500,7 @@ function simulation(pop::population)
 # Sim init #
 ############
 
-output_length = Int64(pop.parameters.tmax/pop.parameters.output_save_tick)
+output_length = floor(Int64, pop.parameters.tmax/pop.parameters.output_save_tick)
 outputs = DataFrame(b = fill(pop.parameters.b, output_length),
                     c = fill(pop.parameters.c, output_length),
                     nnet = fill(pop.parameters.nnet, output_length),
@@ -550,7 +550,7 @@ outputs = DataFrame(b = fill(pop.parameters.b, output_length),
         end
 
         # per-timestep counters, outputs going to disk
-        if mod(t, pop.parameters.output_save_tick) == 0
+        if t % pop.parameters.output_save_tick == 0
             output!(t, copy(pop), outputs)
         end
 
