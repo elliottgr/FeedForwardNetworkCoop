@@ -5,7 +5,7 @@ using AlgebraOfGraphics
 using DataFramesMeta
 using Chain
 
-nproc = 40
+nproc = 100
 addprocs(nproc)
 @everywhere begin
     include("NetworkGameFuncs.jl")
@@ -52,29 +52,29 @@ pars_reps = [copy(pars) for i in 1:pars.nreps];
 [pars_reps[i].replicate_id = i for i in 1:pars.nreps];
 
 output = vcat(pmap((x)->simulation(population_construction(x)), pars_reps)...);
+mean_output = @chain output groupby(:generation) combine([:b, :c, :mean_payoff, :mean_cooperation, :n1, :n2, :e1_2, :mean_initial_offer] .=> mean, renamecols=false)
 
 ##
 
-mean_output = @chain output groupby(:generation) combine([:b, :c, :mean_payoff, :mean_cooperation, :n1, :n2, :e1_2, :mean_initial_offer] .=> mean, renamecols=false)
+mean_output_slice = @chain mean_output @subset(:generation .< 7.5e3)
 
 draw(
-    data(@chain mean_output stack([:mean_payoff, :mean_cooperation])) * 
+    data(@chain mean_output_slice stack([:mean_payoff, :mean_cooperation])) * 
     mapping(:generation, :value, color = :variable) *
     visual(Lines); 
     axis = (width = 400, height = 200)
 )
 
 draw(
-    data(@chain mean_output stack([:n1, :n2, :e1_2, :mean_initial_offer])) * 
+    data(@chain mean_output_slice stack([:n1, :n2, :e1_2, :mean_initial_offer])) * 
     mapping(:generation, :value, color = :variable) *
     visual(Lines); 
     axis = (width = 400, height = 200)
 )
 
 draw(
-    data(@chain mean_output transform([:b, :c, :e1_2] => (@. (b,c,λ)->b*λ-c) => :bmc)) * 
+    data(@chain mean_output_slice @transform(:bmc = @. :b * :e1_2 - :c )) * 
     mapping(:generation, :bmc) *
     visual(Lines); 
     axis = (width = 400, height = 200)
 )
-    
