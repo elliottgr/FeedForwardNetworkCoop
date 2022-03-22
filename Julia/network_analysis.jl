@@ -1,3 +1,4 @@
+using Chain, DataFramesMeta, AlgebraOfGraphics, CairoMakie
 include("NetworkPlottingFunctions.jl")
 
 function main()
@@ -19,22 +20,13 @@ function main()
         global sub_folder = replace(input_file, ".jld2" => "")
         create_directory(filepath, sub_folder)
         df = jldopen(input_file)["output_df"]
-        print(names(df))
         create_log_file(df, filepath,sub_folder)
-
-        
-        ## These plots generate from the whole data frame
-
-        edge_weight_fitness_plot(df)
-        savefig(ess_plot(df), string(pwd()*"/"*filepath*"/"*sub_folder*"/ess_test.png"))
-
 
         ## These plots are generated based on individual game parameter sets
         for group in groupby(df, [:b, :c])  
-
-            ## Creating the generic file string for saving plots
+            # ## Creating the generic file string for saving plots
             filestr = "CoopGameTest_b_"*replace(string(group[!, :b][1]), "."=>"0")*"_c_"*replace(string(group[!, :c][1]), "."=>"0")
-        
+            savefig(ess_plot(group), string(pwd()*"/"*filepath*"/"*sub_folder*"/"*"/time_series/ESS/"*filestr))
             ## Generating the timeseries plots
             payoff_timeseries = fitness_timeseries_plots(group)
             init_timeseries = initoffer_timeseries_plots(group)
@@ -48,6 +40,40 @@ function main()
             savefig(combined_timeseries, string(pwd()*"/"*filepath*"/"*sub_folder*"/"*"/time_series/"*filestr))
             savefig(payoff_timeseries, string(pwd()*"/"*filepath*"/"*sub_folder*"/"*"/time_series/payoff/"*filestr))
             savefig(init_timeseries, string(pwd()*"/"*filepath*"/"*sub_folder*"/"*"/time_series/initial_offer/"*filestr))
+            
+
+            # Generating plots from JVCs test file
+            for nnet_slice in groupby(group, :nnet)
+
+                group_b = nnet_slice.b[1]
+                group_c = nnet_slice.c[1]
+                group_nnet = nnet_slice.nnet[1]
+                mean_output_slice = @chain nnet_slice groupby(:generation) combine([:b, :c, :mean_payoff, :mean_cooperation, :n1, :n2, :e1_2, :mean_initial_offer] .=> mean, renamecols=false)
+                coop_payoff = draw(
+                    data(@chain mean_output_slice stack([:mean_payoff, :mean_cooperation])) * 
+                    mapping(:generation, :value, color = :variable) *
+                    visual(Lines); 
+                    axis = (width = 400, height = 200, title = "b = $group_b, c = $group_c, net size = $group_nnet")
+                )
+                net_weights = draw(
+                    data(@chain mean_output_slice stack([:n1, :n2, :e1_2, :mean_initial_offer])) * 
+                    mapping(:generation, :value, color = :variable) *
+                    visual(Lines); 
+                    axis = (width = 400, height = 200, title = "b = $group_b, c = $group_c, net size = $group_nnet")
+                )
+                if group_nnet == 2  ## Plot is only setup for this network size currently
+                    bmc = draw(
+                        data(@chain mean_output_slice @transform(:bmc = @. :b * :e1_2 - :c )) * 
+                        mapping(:generation, :bmc) *
+                        visual(Lines); 
+                        axis = (width = 400, height = 200, title = "b = $group_b, c = $group_c, net size = $group_nnet")
+                    )
+                    save(string(pwd()*"/"*filepath*"/"*sub_folder*"/jvc_plots/bmc/"*filestr*"_nnet_$group_nnet.png"), bmc, px_per_unit = 3)
+                end
+                save(string(pwd()*"/"*filepath*"/"*sub_folder*"/jvc_plots/coop_payoff/"*filestr*"_nnet_$group_nnet.png"), coop_payoff, px_per_unit = 3)
+                save(string(pwd()*"/"*filepath*"/"*sub_folder*"/jvc_plots/net_weights/"*filestr*"_nnet_$group_nnet.png"), net_weights, px_per_unit = 3)
+                end
+
         end
     end  ## End of the loop for each file
 

@@ -34,6 +34,7 @@ function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 1.0)
     ## Testing population updating (first step of main loop)
     initial_population = copy(pop) ## saved version of the population as initialized via parameters
     update_population!(pop)
+    social_interactions!(pop)
     if pop.shuffled_indices == initial_population.shuffled_indices
         print("Population shuffling failed! Something may be broken! \n")
     end
@@ -103,28 +104,28 @@ function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 1.0)
     ## Instead, G2s fitness is determined by 
     # fitness_test1 = fitnessOutcome(pop.parameters,  pop.networks[pop.shuffled_indices[1]], pop.networks[1], pop.temp_arrays)
     # update_population!(pop)
-    fitnessOutcome!(pop, pop.shuffled_indices[1], 1)
-    fitness_test1 = copy(pop.temp_arrays.gamePayoffTempArray)
-    print(fitness_test1)
-    print("\n\n########################################################################\n")
-    print(" ## Testing fitness outcomes and their storage in the population array ## \n")
-    print("########################################################################\n\n")
+    # interactionOutcome!(pop, pop.shuffled_indices[1], 1)
+    # fitness_test1 = copy(pop.temp_arrays.gamePayoffTempArray)
+    # print(fitness_test1)
+    # print("\n\n########################################################################\n")
+    # print(" ## Testing fitness outcomes and their storage in the population array ## \n")
+    # print("########################################################################\n\n")
 
-    if fitness_test1[1][1] != pop.fit_dict[[g1, g2]]
-        dictionary_value = pop.fit_dict[[g1, g2]]
-        expected_value = fitness_test1[1][1]
-        diff = dictionary_value - expected_value
-        percent = round(100*(diff/dictionary_value), digits = 3)
-        print("G1 (Genotype #$g1) is not saving the exact fitness in the fitness dictionary \n\n")
-        print("Dictionary Value = $dictionary_value \n Expected Value = $expected_value \n")
-        print("Total Difference = $diff, a $percent% difference!\n")
-    end
+    # if fitness_test1[1][1] != pop.fit_dict[[g1, g2]]
+    #     dictionary_value = pop.fit_dict[[g1, g2]]
+    #     expected_value = fitness_test1[1][1]
+    #     diff = dictionary_value - expected_value
+    #     percent = round(100*(diff/dictionary_value), digits = 3)
+    #     print("G1 (Genotype #$g1) is not saving the exact fitness in the fitness dictionary \n\n")
+    #     print("Dictionary Value = $dictionary_value \n Expected Value = $expected_value \n")
+    #     print("Total Difference = $diff, a $percent% difference!\n")
+    # end
 
-    # fitness_test2 = fitnessOutcome(pop.parameters, pop.networks[1], pop.networks[pop.shuffled_indices[1]], pop.temp_arrays)
-    fitnessOutcome!(pop, 1, pop.shuffled_indices[1]) 
-    fitness_test2 = pop.temp_arrays.gamePayoffTempArray
-    print(fitness_test2)
-    print("\n")
+    # # fitness_test2 = fitnessOutcome(pop.parameters, pop.networks[1], pop.networks[pop.shuffled_indices[1]], pop.temp_arrays)
+    # fitnessOutcome!(pop, 1, pop.shuffled_indices[1]) 
+    # fitness_test2 = pop.temp_arrays.gamePayoffTempArray
+    # print(fitness_test2)
+    # print("\n")
 
 
 
@@ -141,20 +142,20 @@ function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 1.0)
 
     ## Calculating the mean difference caused by this effect over the entire population
 
-    difference_array = []
-    for x in 1:pop.parameters.N
-        fitnessOutcome!(pop, pop.shuffled_indices[x], x)
-        expected_outcome = copy(pop.temp_arrays.gamePayoffTempArray[1][1])
-        fitnessOutcome!(pop, pop.shuffled_indices[pop.shuffled_indices[x]], pop.shuffled_indices[x])
-        realized_outcome = copy(pop.temp_arrays.gamePayoffTempArray[1][1])
+    # difference_array = []
+    # for x in 1:pop.parameters.N
+    #     fitnessOutcome!(pop, pop.shuffled_indices[x], x)
+    #     expected_outcome = copy(pop.temp_arrays.gamePayoffTempArray[1][1])
+    #     fitnessOutcome!(pop, pop.shuffled_indices[pop.shuffled_indices[x]], pop.shuffled_indices[x])
+    #     realized_outcome = copy(pop.temp_arrays.gamePayoffTempArray[1][1])
 
-        push!(difference_array, (expected_outcome-realized_outcome))
-    end
+    #     push!(difference_array, (expected_outcome-realized_outcome))
+    # end
 
-    mean_error = mean(difference_array)
-    max_error = maximum(difference_array)
-    print("This programming choice has resulted in a mean calculated fitness error of $mean_error, \n 
-    with a maximum error of $max_error  \n\n")
+    # mean_error = mean(difference_array)
+    # max_error = maximum(difference_array)
+    # print("This programming choice has resulted in a mean calculated fitness error of $mean_error, \n 
+    # with a maximum error of $max_error  \n\n")
 
     ## Using G1 and G2 to show the difference of payoffs over multiple rounds
 
@@ -206,7 +207,7 @@ function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 1.0)
     ## need to calculate all possible fitness values real quick
 
     for n in 1:pop.parameters.N
-        fitnessOutcome!(offspring_pop, offspring_pop.shuffled_indices[n], n)
+        interactionOutcome!(offspring_pop, offspring_pop.shuffled_indices[n], n)
         push!(offspring_payoffs, offspring_pop.temp_arrays.gamePayoffTempArray[1][1])
     end
 
@@ -227,7 +228,9 @@ function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 1.0)
     pop.parameters.c = c
     pop.parameters.activation_scale = activation_scale
     update_population!(pop)
+    social_interactions!(pop)
     initial_payoff = round(copy(mean(pop.payoffs)), digits = 5)
+    initial_coop = round(copy(mean(pop.cooperation_vals)), digits = 5)
     print("_t_|_w_\n")
 
 
@@ -238,19 +241,27 @@ function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 1.0)
 
     for t in 1:sample_generations
         update_population!(pop)
+        social_interactions!(pop)
         reproduce!(pop)
         mutate!(pop)
         if mod(t, sample_generations/10) == 0
             temp_payoff = round(mean(pop.payoffs), digits = 3)
-            print(" $t | $temp_payoff \n")
+            temp_coop = round(mean(pop.cooperation_vals), digits = 3)
+            print(" $t | $temp_payoff | $temp_coop \n")
         end
         if t == 1
             temp_payoff = round(mean(pop.payoffs), digits = 3)
-            print(" $t | $temp_payoff \n")
+            temp_coop = round(mean(pop.cooperation_vals), digits = 3)
+            print(" $t | $temp_payoff | $temp_coop \n")
         end
     end
     final_payoff = round(copy(mean(pop.payoffs)), digits = 5)
-    print("\nUsing the functions from NetworkGameCoop.jl's simulation() loop, the mean payoff changed from $initial_payoff to $final_payoff over $sample_generations generations \n\n")
+    final_cooperation = round(copy(mean(pop.cooperation_vals)), digits = 5)
+    print("\nUsing the functions from NetworkGameCoop.jl's simulation() loop, \n 
+    the mean payoff changed from $initial_payoff to $final_payoff \n
+    the mean cooperation changed from $initial_coop to $final_cooperation \n
+    over $sample_generations generations \n
+    \n")
 
     ## Rerunning the above in the main simulation loop
 
@@ -273,4 +284,4 @@ function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 1.0)
 
 end ## end main FunctionTest.jl file
 
-main(1.0, 0.0, 5, 100.0)
+main(1.0, 0.0, 2, 100.0)

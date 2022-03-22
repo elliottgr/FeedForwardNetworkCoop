@@ -320,7 +320,7 @@ function initial_arg_parsing()
         "--tmax"
             help = "Maximum number of timesteps"
             arg_type = Int64
-            default = 50000
+            default = 10000
         "--nreps"
             help = "number of replicates to run"
             arg_type = Int64
@@ -339,11 +339,11 @@ function initial_arg_parsing()
         "--rounds"
             help = "number of rounds the game is played between individuals"
             arg_type = Int64
-            default = 16
+            default = 20
         "--fitness_benefit_scale"
             help = "scales the fitness payout of game rounds by this amount (payoff * scale). setting to 1.0 results in a crash, values between 0.01 and 0.1 work"
             arg_type = Float64
-            default = 0.1
+            default = 0.2
         "--b"
             help = "payoff benefit"
             arg_type = Float64
@@ -371,11 +371,11 @@ function initial_arg_parsing()
         "--game_param_max"
             help = "final value of b/c for replicates"
             arg_type = Float64
-            default = 2.0
+            default = 1.0
         "--game_param_step"
             help = "step size of iterations for b/c"
             arg_type = Float64
-            default = 1.0
+            default = 0.25
         "--initial_offer"
             help = "the default value of initial offers for the initial residents."
             arg_type = Float64
@@ -394,11 +394,11 @@ function initial_arg_parsing()
         "--nnet_min"
             help = "smallest n x n network size of replicates. def = 1"
             arg_type = Int64
-            default = 1
+            default = 2
         "--nnet_max"
             help = "largest n x n network size of replicates. def = 15"
             arg_type = Int64
-            default = 5
+            default = 2
         "--nnet_step"
             help = "step size of network iterations. def = 1"
             arg_type = Int64
@@ -410,11 +410,11 @@ function initial_arg_parsing()
         "--mutsize"
             help = "Size of mutant effects on network in Normal Dist. StdDevs"
             arg_type = Float64
-            default = 0.01
+            default = 0.05
         "--mutinitsize"
             help = "Size of mutant effects on initial offers in Normal Dist. StdDevs"
             arg_type = Float64
-            default = 0.01
+            default = 0.05
         "--mutlink"
             help = "Probability that a random edge or node be altered in a mutation event"
             arg_type = Float64
@@ -422,18 +422,18 @@ function initial_arg_parsing()
         "--activation_function"
             help = "Activation function to be used for network loop"
             arg_type = String
-            default = "jvc_exp"
+            default = "linear"
         "--activation_scale"
             help = "Adjust layer activation function. Formula is (1/(1+exp(-x * activation_scale))). Higher values will filter more activation noise, lower values will allow intermediate activation to propogate through layers."
             arg_type = Float64
-            default = 5.0
+            default = 1.0
         ########
         ## File/Simulation Parameters
         ########
         "--output_save_tick"
             help = "Number of timesteps to wait between saving of all simulation results EXCEPT mean network state"
             arg_type = Int64
-            default = 1000
+            default = 100
         "--replicate_id"
             help = "Internal variable set to track each replicate in the final dataset"
             arg_type = Int64

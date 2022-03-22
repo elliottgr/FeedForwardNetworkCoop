@@ -15,11 +15,12 @@ function create_directory(file_path::String, sub_folder::String)
         mkdir(string(pwd(), "/", file_path, "/", sub_folder, "/"))
     end
 
-    subfolders = ["/b_c_coop_heatmaps/",
-                  "/edge_weight_w_heatmaps/",
-                  "/violin_plots/",
+    #  ["/b_c_coop_heatmaps/", ## Depreceated 
+    #               "/edge_weight_w_heatmaps/",
+    subfolders =  ["/violin_plots/",
                   "/time_series/",
-                  "/scatter_plots/"]
+                  "/scatter_plots/",
+                  "/jvc_plots/"] ## Using the functions from jvc_test.jl
 
     for subfolder in subfolders
         if isdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder)) == false
@@ -36,6 +37,21 @@ function create_directory(file_path::String, sub_folder::String)
             if isdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"edge_weights/")) == false
                 mkdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"edge_weights/"))
             end
+            if isdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"ESS/")) == false
+                mkdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"ESS/"))
+            end
+        end
+        if subfolder == "/jvc_plots/"
+            if isdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"coop_payoff/")) == false
+                mkdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"coop_payoff/"))
+            end
+            if isdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"net_weights/")) == false
+                mkdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"net_weights/"))
+            end
+            if isdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"bmc/")) == false
+                mkdir(string(pwd()*"/"*file_path*"/"*sub_folder*subfolder*"bmc/"))
+            end
+
         end
     end
 end
@@ -55,15 +71,15 @@ function fitness_violin_plots(df)
     end_df = df[df[!, :generation] .== maximum(df[!, :generation]), :]
     b = df.b[1]
     c = df.c[1]
-    return @df end_df violin(:nnet, :mean_payoff, title = "Mean Fitness at Final Timestep for b = $b and c = $c", ylabel = "Mean Fitness", xlabel = "Network Length", legend = :none)
+    return @df end_df violin(:nnet, :mean_payoff, title = "Mean Payoff at Final Timestep for b = $b and c = $c", ylabel = "Mean Payoff", xlabel = "Network Length", legend = :none)
 end
 
 function edge_weight_timeseries(df)
     edges = ["e1_2", "e1_3", "e1_4", "e1_5", "e2_3", "e2_4", "e2_5", "e3_4", "e3_5", "e4_5"]
     b = df.b[1]
     c = df.c[1]
-    nnet = df.nnet[1]
-    plt = plot(title = "Edge weight timeseries for \n b = $b, c = $c, & Network Size = $nnet", xlabel = "Generation", ylabel = "Weight")
+    nnet = maximum(df.nnet)
+    plt = plot(title = "Edge weight timeseries for \n b = $b, c = $c, & Maximum Network Size = $nnet", xlabel = "Generation", legend = :none, ylabel = "Weight")
     colors = palette(:tab10)
     color_i = 1
 
@@ -75,14 +91,14 @@ function edge_weight_timeseries(df)
             if group[1,edge] != NaN
                 # print(group[1, edge])
                 for replicate in groupby(group, :replicate_id)
-                    plt = plot!(replicate.generation, replicate[!, edge], label = "", alpha = .1, color = color_i)
+                    plt = plot!(replicate.generation, replicate[!, edge], label = "", legend = :none, alpha = .1, color = color_i)
                 end
                 for t in unique(group.generation)
                     push!(ts, t)
                     mean_edge_weight = mean(group[group.generation .== t, edge])
                     push!(edge_weights, mean_edge_weight)
                 end
-                plt = plot!(ts, edge_weights, color = color_i, label = "edge = $edge")
+                plt = plot!(ts, edge_weights, color = color_i)
                 color_i += 1
 
             end
@@ -119,7 +135,7 @@ function edge_weight_fitness_plot(df)
             correlation_matrix[5,5] = cor(b_c_group.mean_payoff, b_c_group.n5)
         
             filestr = "b_"*string(b_c_group.b[1])*"_c_"*string(b_c_group.c[1])*"_nnet_"*string(b_c_group.nnet[1])*".png"
-            title = "Edge/Fitness Correlation for b = "*string(b_c_group.b[1])*" c = "*string(b_c_group.c[1])*" nnet = "*string(b_c_group.nnet[1])*".png"
+            title = "Edge/Payoff Correlation for b = "*string(b_c_group.b[1])*" c = "*string(b_c_group.c[1])*" nnet = "*string(b_c_group.nnet[1])*".png"
 
             savefig(heatmap(correlation_matrix,
                             xlabel = "Node 1",
@@ -133,7 +149,7 @@ end
 function fitness_timeseries_plots(df)
     b = df.b[1]
     c = df.c[1]
-    plt = plot(title = "Payoff timeseries for b=$b & c=$c", xlabel = "Generation", ylabel = "Relative Fitness")
+    plt = plot(title = "Payoff timeseries for b=$b & c=$c", xlabel = "Generation", ylabel = "Payoff")
     colors = palette(:tab10)
     color_i = 1
     # df = sort(df, :generation)
@@ -150,8 +166,8 @@ function fitness_timeseries_plots(df)
             w_hat = mean(group.mean_payoff[group.generation .== t, :])
             push!(ws, w_hat)
         end
-
-        plt = plot!(ts, ws, color = color_i, label = "")
+    
+        plt = plot!(ts, ws, color = color_i)
         color_i += 1
     end
     return plt
@@ -214,19 +230,29 @@ end
 
 ## using the λ * b - c = 0 result from Andre & Day (2007) to determine if networks
 ## are evolving towards an ESS for the case of nnet <= 2
-function ess_plot(df::DataFrame)
-    plt = plot( title = "Evolutionary Stable Strategy Detection")
-    end_df = df[df[!, :generation] .== maximum(df[!, :generation]), :]
-    for group in groupby(end_df, [:nnet])
-        label_str = "Network Size: "*string(group[!,:nnet][1])
-        # λ =  (group[!, :e1_2] .+ group[!, :n2]) 
-        λ = group[!, :e1_2] ## JVC suggestion from 2/10/22
-
-        λb = λ .* group[!, :b]
-        #rescaling the alpha of datapoints by the generation they appeared in
-        alpha_vector = (group[!, :generation] ./ maximum(group[!, :generation])).^2
-        plt = plot!(λb, group[!,:c], seriestype = :scatter, xlabel = "λ * b", ylabel = "c", label = label_str, alpha = alpha_vector)
+function ess_plot(df)
+    b = df.b[1]
+    c = df.c[1]
+    plt = plot(title = "Evo Stable Strategy for b = $b, c = $c")
+    mean_λbcs = []
+    ts = []
+    colors = palette(:tab10)
+    color_i = 1
+    for group in groupby(df, [:nnet])
+        for replicate in groupby(group, [:replicate_id])
+            # λ =  ## JVC suggestion from 2/10/22
+            λbc = replicate[!, :e1_2] .* replicate[!, :b] .- replicate[!, :c]
+            plt = plot!(group[!, :generation], λbc, xlabel = "Generation", ylabel = "λb - c", alpha = .2,color = color_i)
+        end
+        for t in unique(group.generation)
+            mean_λbc = mean(group.e1_2[group.generation .== t, :] .* group.b[group.generation .== t, :] .- group.c[group.generation .== t, :])
+            push!(ts, t)
+            push!(mean_λbcs, mean_λbc)
+        end
+        plt = plot!(ts, mean_λbcs, xlabel = "Generation", ylabel = "λb - c", label = string(group.nnet[1]),color = color_i)
+        color_i += 1
     end
+
     return plt
 end
 
