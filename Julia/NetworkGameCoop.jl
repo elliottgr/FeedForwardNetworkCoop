@@ -86,6 +86,7 @@ addprocs(5, topology=:master_worker, exeflags="--project=$(Base.active_project()
                         multi_file_flag = true
                         n_files += 1
                         parameters.filename = string(output_filename, "b_c_min_", replace(string(parameters.game_param_min), "." => "0"), "b_c_max", replace(string(parameters.game_param_max), "." => "0"), "_nreps_", parameters.nreps, "_tmax_", parameters.tmax, "part_", n_files, ".jld2")
+                        print("You went over the maximum filesize (25GB)!!! Are you sure you meant to do that?")
                         jldsave(parameters.filename; sim_outputs)
                         sim_outputs = Vector{DataFrame}(undef, 0)
                     end
@@ -97,7 +98,7 @@ addprocs(5, topology=:master_worker, exeflags="--project=$(Base.active_project()
     parameters.filename = string(output_filename, "b_c_min_", replace(string(parameters.game_param_min), "." => "0"), "b_c_max", replace(string(parameters.game_param_max), "." => "0"), "_nreps_", parameters.nreps, "_tmax_", parameters.tmax, ".jld2")
     output_df = vcat(sim_outputs..., cols = :union)
     if multi_file_flag == false
-        jldsave(parameters.filename; output_df)
+        jldsave(parameters.filename; parameters = parameters, output_df = output_df)
     end
     ###################
     #   Data Output   #     
