@@ -19,7 +19,7 @@ end
 @sync [@async remotecall_fetch(Random.seed!, w, w) for w in workers()] # set seeds on all workers
 
 pars = simulation_parameters(
-    5000,         # tmax
+    25000,         # tmax
     nproc,          # nreps
     500,            # N
     0.01,           # mutation rate per individual
@@ -42,8 +42,8 @@ pars = simulation_parameters(
     0.05,           # mut std for network weight 
     0.05,           # mut std for initial offer
     0.5,            # probability of mutating node or edge
-    linear,         # threshold function
-    1.0,            # scale for network output into threshold function    
+    jvc_exp,         # threshold function
+    5.0,            # scale for network output into threshold function    
     100,            # time step for output
     0,              # replicate id
     314,            # seed
@@ -57,7 +57,7 @@ mean_output = @chain output groupby(:generation) combine([:b, :c, :mean_payoff, 
 
 ##
 
-mean_output_slice = @chain mean_output @subset(:generation .< 7.5e3)
+mean_output_slice = @chain mean_output @subset(:generation .< 25e3)
 
 draw(
     data(@chain mean_output_slice stack([:mean_payoff, :mean_cooperation])) * 
@@ -73,11 +73,9 @@ draw(
     axis = (width = 400, height = 200)
 )
 
-df_dx = 
-
 draw(
-    data(@chain mean_output_slice @transform(:bmc = @. :b * ForwardDiff(pars.activation_function, :e1_2) - :c )) * 
+    data(@chain mean_output_slice @transform(:bmc = @. :b * ForwardDiff.derivative(pars.activation_function, :mean_initial_offer) * :e1_2  - :c )) * 
     mapping(:generation, :bmc) *
     visual(Lines); 
     axis = (width = 400, height = 200)
-)
+) 
