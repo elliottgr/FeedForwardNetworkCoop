@@ -1,8 +1,10 @@
 using Chain, DataFramesMeta, AlgebraOfGraphics, CairoMakie
 include("NetworkPlottingFunctions.jl")
+include("activationFuncs.jl")
 
-function jvc_exp_dx(x)
-    return (exp(-x)/((exp(-x)+1)^2))
+## Look into ForwardDiff.jl instead?
+function finite_dif(f::Function, x, h)
+    return (f(x + h*x) - f(x))/h
 end
 
 function main()
@@ -24,7 +26,7 @@ function main()
         global sub_folder = replace(input_file, ".jld2" => "")
         create_directory(filepath, sub_folder)
         current_file = jldopen(input_file)
-        parameters = current_file["parameters"]
+        # parameters = current_file["parameters"]
         df = current_file["output_df"]
         create_log_file(df, filepath,sub_folder)
 
@@ -71,8 +73,8 @@ function main()
                     bmc = draw(
                         data(@chain mean_output_slice @transform(:bmc = @. :b * :e1_2 - :c )) * 
                         mapping(:generation, :bmc) *
-                        visual(Lines); 
-                        axis = (width = 400, height = 200, title = "b = $group_b, c = $group_c, net size = $group_nnet")
+                        visual(Lines);
+                        axis = (width = 400, height = 200, xlabel = "Generation", ylabel = "(λ ⋅ b) - c", title = "b = $group_b, c = $group_c, net size = $group_nnet")
                     )
                     save(string(pwd()*"/"*filepath*"/"*sub_folder*"/jvc_plots/bmc/"*filestr*"_nnet_$group_nnet.png"), bmc, px_per_unit = 3)
                 end

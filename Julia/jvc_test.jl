@@ -4,6 +4,7 @@ using CairoMakie
 using AlgebraOfGraphics
 using DataFramesMeta
 using Chain
+using ForwardDiff
 
 nproc = 50
 addprocs(nproc)
@@ -41,7 +42,7 @@ pars = simulation_parameters(
     0.05,           # mut std for network weight 
     0.05,           # mut std for initial offer
     0.5,            # probability of mutating node or edge
-    jvc_exp,         # threshold function
+    linear,         # threshold function
     1.0,            # scale for network output into threshold function    
     100,            # time step for output
     0,              # replicate id
@@ -72,8 +73,10 @@ draw(
     axis = (width = 400, height = 200)
 )
 
+df_dx = 
+
 draw(
-    data(@chain mean_output_slice @transform(:bmc = @. :b * :e1_2 - :c )) * 
+    data(@chain mean_output_slice @transform(:bmc = @. :b * ForwardDiff(pars.activation_function, :e1_2) - :c )) * 
     mapping(:generation, :bmc) *
     visual(Lines); 
     axis = (width = 400, height = 200)
