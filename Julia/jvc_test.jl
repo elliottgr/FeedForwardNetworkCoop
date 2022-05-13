@@ -19,7 +19,7 @@ end
 @sync [@async remotecall_fetch(Random.seed!, w, w) for w in workers()] # set seeds on all workers
 
 pars = simulation_parameters(
-    25000,         # tmax
+    5000,         # tmax
     nproc,          # nreps
     500,            # N
     0.01,           # mutation rate per individual
@@ -56,8 +56,9 @@ output = vcat(pmap((x)->simulation(population_construction(x)), pars_reps)...);
 mean_output = @chain output groupby(:generation) combine([:b, :c, :mean_payoff, :mean_cooperation, :n1, :n2, :e1_2, :mean_initial_offer] .=> mean, renamecols=false)
 
 ##
-
 mean_output_slice = @chain mean_output @subset(:generation .< 25e3)
+## Scalar that (if the population reaches an ESS) should represent the slope at each timepoint
+df_dx = ForwardDiff.derivative(pars.activation_function, mean_output_slice[mean_output_slice.generation .== maximum(mean_output_slice.generation), :mean_initial_offer][1]) 
 
 draw(
     data(@chain mean_output_slice stack([:mean_payoff, :mean_cooperation])) * 
@@ -74,7 +75,7 @@ draw(
 )
 
 draw(
-    data(@chain mean_output_slice @transform(:bmc = @. :b * ForwardDiff.derivative(pars.activation_function, :mean_initial_offer) * :e1_2  - :c )) * 
+    data(@chain mean_output_slice @transform(:bmc = @. :b * df_dx * :e1_2  - :c )) * 
     mapping(:generation, :bmc) *
     visual(Lines); 
     axis = (width = 400, height = 200)
