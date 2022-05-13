@@ -57,8 +57,8 @@ function repeatedNetworkGame(pop, mutI, resI)
 
     for i in 1:pop.parameters.rounds
         networkGameRound!(pop, mutI, resI)
-        mutHist[i] = pop.networks[mutI].CurrentOffer
-        resHist[i] = pop.networks[resI].CurrentOffer
+        mutHist[i] = minimum([1, maximum([pop.networks[mutI].CurrentOffer])])
+        resHist[i] = minimum([1, maximum([pop.networks[resI].CurrentOffer])])
     end
     return [mutHist, resHist]
 
