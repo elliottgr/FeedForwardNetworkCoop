@@ -91,8 +91,8 @@ function interactionOutcome!(pop, mutI, resI)
         # 2/10/22 Renaming these variables to be more clear
         # rmOut, mrOut = repeatedNetworkGame(pop, mutI, resI)
         mutHist, resHist = repeatedNetworkGame(pop, mutI, resI)
-        pop.temp_arrays.gamePayoffTempArray[1][1] = maximum([0, calc_payoff(pop.parameters, mutHist, resHist, pop.discount_vector)])
-        pop.temp_arrays.gamePayoffTempArray[1][2] = maximum([0, calc_payoff(pop.parameters, resHist, mutHist, pop.discount_vector)])
+        pop.temp_arrays.gamePayoffTempArray[1][1] = calc_payoff(pop.parameters, mutHist, resHist, pop.discount_vector)
+        pop.temp_arrays.gamePayoffTempArray[1][2] = calc_payoff(pop.parameters, resHist, mutHist, pop.discount_vector)
         pop.temp_arrays.gamePayoffTempArray[2][1] = dot(mutHist, pop.discount_vector)
         pop.temp_arrays.gamePayoffTempArray[2][2] = dot(resHist, pop.discount_vector)
     end
