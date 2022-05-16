@@ -5,12 +5,16 @@
 ## include necessary files
 
 include("NetworkGameFuncs.jl")
+using Plots
 
 function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 1.0)
 
+    ## Making a dictionary for extracting data to plot
+    
+    out_dict = Dict()
+
     ## Import dummy parameters, defining global variables used in main files
     parameters = initial_arg_parsing() ## Can also use this to quickly check new params by altering NetworkGame defaults!
-
 
     ## Setting the network size of the testing populations
     parameters.nnet = nnet
@@ -99,68 +103,10 @@ function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 1.0)
         print("\n ################ ERROR ################\n You're comparing the same network here :(\n################################\n")
     end
 
-    ## fitnessOutcome as calculated in main simulation
-    ## This section shows that the fitness of G2 is not determined by the fitness of the G1 and G2 matchup
-    ## Instead, G2s fitness is determined by 
-    # fitness_test1 = fitnessOutcome(pop.parameters,  pop.networks[pop.shuffled_indices[1]], pop.networks[1], pop.temp_arrays)
-    # update_population!(pop)
-    # interactionOutcome!(pop, pop.shuffled_indices[1], 1)
-    # fitness_test1 = copy(pop.temp_arrays.gamePayoffTempArray)
-    # print(fitness_test1)
-    # print("\n\n########################################################################\n")
-    # print(" ## Testing fitness outcomes and their storage in the population array ## \n")
-    # print("########################################################################\n\n")
-
-    # if fitness_test1[1][1] != pop.fit_dict[[g1, g2]]
-    #     dictionary_value = pop.fit_dict[[g1, g2]]
-    #     expected_value = fitness_test1[1][1]
-    #     diff = dictionary_value - expected_value
-    #     percent = round(100*(diff/dictionary_value), digits = 3)
-    #     print("G1 (Genotype #$g1) is not saving the exact fitness in the fitness dictionary \n\n")
-    #     print("Dictionary Value = $dictionary_value \n Expected Value = $expected_value \n")
-    #     print("Total Difference = $diff, a $percent% difference!\n")
-    # end
-
-    # # fitness_test2 = fitnessOutcome(pop.parameters, pop.networks[1], pop.networks[pop.shuffled_indices[1]], pop.temp_arrays)
-    # fitnessOutcome!(pop, 1, pop.shuffled_indices[1]) 
-    # fitness_test2 = pop.temp_arrays.gamePayoffTempArray
-    # print(fitness_test2)
-    # print("\n")
-
-
-
-    ## This part does not work like you'd expect under Wright-Fisher because of how the fitness dictionary is constructed
-    ## partners in the simulation are only one way, rather than each partner calculating its fitness based on each
-    ## partner. Not sure if this is an issue or explains why the evolution of networks isn't occurring 
-    # if fitness_test2[1][2] != pop.fit_dict[[g2, g3]]
-    #     dictionary_value = pop.fit_dict[[g2,g3]]
-    #     expected_value = fitness_test1[1][2]
-    #     diff = dictionary_value - expected_value
-    #     print("\n\n G2's fitness is NOT determined by the fitness derived from the G1 vs G2 game \n")
-    #     print("Dictionary Value = $dictionary_value \n Expected Value = $expected_value \n\n Difference = $diff \n\n")
-    # end
-
-    ## Calculating the mean difference caused by this effect over the entire population
-
-    # difference_array = []
-    # for x in 1:pop.parameters.N
-    #     fitnessOutcome!(pop, pop.shuffled_indices[x], x)
-    #     expected_outcome = copy(pop.temp_arrays.gamePayoffTempArray[1][1])
-    #     fitnessOutcome!(pop, pop.shuffled_indices[pop.shuffled_indices[x]], pop.shuffled_indices[x])
-    #     realized_outcome = copy(pop.temp_arrays.gamePayoffTempArray[1][1])
-
-    #     push!(difference_array, (expected_outcome-realized_outcome))
-    # end
-
-    # mean_error = mean(difference_array)
-    # max_error = maximum(difference_array)
-    # print("This programming choice has resulted in a mean calculated fitness error of $mean_error, \n 
-    # with a maximum error of $max_error  \n\n")
 
     ## Using G1 and G2 to show the difference of payoffs over multiple rounds
 
     pop.temp_arrays.prev_out = @MVector zeros(Float64, parameters.nnet) 
-    # outcome = repeatedNetworkGame(pop.parameters, pop.networks[pop.shuffled_indices[1]], pop.networks[1], example_prev_out)
     outcome = repeatedNetworkGame(pop, pop.shuffled_indices[1], 1)
     g1_post_round = outcome[1]
     g2_post_round = outcome[2]
@@ -179,6 +125,21 @@ function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 1.0)
         print(" $x | $g1_round | $g2_round \n")
     end
 
+    all_p1 = []
+    all_p2 = []
+    
+    
+    ## Making a plot of every pair in the population
+    for n in 1:pop.parameters.N
+        push!(all_p1, repeatedNetworkGame(pop, pop.shuffled_indices[n], n)[1])
+        push!(all_p2, repeatedNetworkGame(pop, pop.shuffled_indices[n], n)[2])
+    end
+
+    out_dict["rounds"] = pop.parameters.rounds
+    out_dict["p1_rounds"] = all_p1
+    out_dict["p2_rounds"] =all_p2
+    out_dict["N"] = pop.parameters.N
+  
     print("########################################################################\n")
     print("Testing the reproduction() function on our hyper-mutated population\n")
     print("########################################################################\n\n")
@@ -280,8 +241,14 @@ function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 1.0)
     output_payoff = outputs[sample_generations, :mean_payoff]
 
     print("\n Using the main simulation() function, the mean payoff changed from $initial_payoff to $output_payoff")
-
-
+    return out_dict
 end ## end main FunctionTest.jl file
 
-main(1.0, 0.0, 2, 100.0)
+out = main(1.0, 0.5, 2, 1.0)
+
+## Quick plot of the results of each round
+plt = plot(ylabel = "Cooperation", xlabel = "Round", legend = false)
+for n in 1:out["N"]
+    plt= plot!(1:out["rounds"], out["p1_rounds"][n])
+end
+plt
