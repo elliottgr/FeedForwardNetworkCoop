@@ -5,20 +5,21 @@
 ## include necessary files
 
 include("NetworkGameFuncs.jl")
+include("ActivationFuncs.jl")
 using Plots
 
-function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 1.0)
+function main(b = 1.0, c = 0.5, activation_function = "linear", nnet = 5, activation_scale = 1.0)
 
     ## Making a dictionary for extracting data to plot
     
     out_dict = Dict()
-
+    out_dict["activation_function"] = activation_function
     ## Import dummy parameters, defining global variables used in main files
     parameters = initial_arg_parsing() ## Can also use this to quickly check new params by altering NetworkGame defaults!
 
     ## Setting the network size of the testing populations
     parameters.nnet = nnet
-
+    parameters.activation_function = getfield(Main, Symbol(activation_function))
     ## Create a demo population
 
     pop = population_construction(parameters)
@@ -244,10 +245,10 @@ function main(b = 1.0, c = 0.5, nnet = 5, activation_scale = 1.0)
     return out_dict
 end ## end main FunctionTest.jl file
 
-out = main(1.0, 0.5, 2, 1.0)
+out = main(1.0, 0.5, "lenagard_exp", 2, 1.0)
 
 ## Quick plot of the results of each round
-plt = plot(ylabel = "Cooperation", xlabel = "Round", legend = false)
+plt = plot(title = out["activation_function"], ylabel = "Cooperation", xlabel = "Round", legend = false)
 for n in 1:out["N"]
     plt= plot!(1:out["rounds"], out["p1_rounds"][n])
 end
