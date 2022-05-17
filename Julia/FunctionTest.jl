@@ -8,7 +8,7 @@ include("NetworkGameFuncs.jl")
 include("ActivationFuncs.jl")
 using Plots
 
-function main(b = 1.0, c = 0.5, activation_function = "linear", nnet = 5, activation_scale = 1.0)
+function main(b = 1.0, c = 0.5, activation_function = "linear", nnet = 5, activation_scale = 1.0, sample_generations = 1000)
 
     ## Making a dictionary for extracting data to plot
     
@@ -128,6 +128,7 @@ function main(b = 1.0, c = 0.5, activation_function = "linear", nnet = 5, activa
 
     all_p1 = []
     all_p2 = []
+
     
     
     ## Making a plot of every pair in the population
@@ -184,7 +185,7 @@ function main(b = 1.0, c = 0.5, activation_function = "linear", nnet = 5, activa
     print("Testing the main NetworkGameFuncs.jl simulation() loop on a hyper-mutated population\n")
     print("########################################################################################\n\n")
     ## Now we'll show that the reproduction function is raising the average payoff
-    sample_generations = 100
+    sample_generations = sample_generations
     pop = population_construction(pop.parameters)
     pop.parameters.b = b
     pop.parameters.c = c
@@ -242,10 +243,22 @@ function main(b = 1.0, c = 0.5, activation_function = "linear", nnet = 5, activa
     output_payoff = outputs[sample_generations, :mean_payoff]
 
     print("\n Using the main simulation() function, the mean payoff changed from $initial_payoff to $output_payoff")
+    
+    ## Generating response curve for all individuals
+
+    network_iteration_outputs = []
+    for n in 1:pop.parameters.N
+        temp = []
+        for i in 0.0:0.01:1.0
+            push!(temp, iterateNetwork(pop.parameters.activation_function, pop.parameters.activation_scale, i, pop.networks[n].Wm, pop.networks[n].Wb, pop.temp_arrays.prev_out)[2])
+        end
+        push!(network_iteration_outputs, temp)
+    end
+    out_dict["network_iteration_outputs"] = network_iteration_outputs
     return out_dict
 end ## end main FunctionTest.jl file
 
-out = main(1.0, 0.5, "lenagard_exp", 2, 1.0)
+out = main(1.0, 0.0, "linear", 2, 1.0, 10000)
 
 ## Quick plot of the results of each round
 plt = plot(title = out["activation_function"], ylabel = "Cooperation", xlabel = "Round", legend = false)
@@ -253,3 +266,9 @@ for n in 1:out["N"]
     plt= plot!(1:out["rounds"], out["p1_rounds"][n])
 end
 plt
+
+net_iter_plot = plot(title = out["activation_function"], ylabel = "Output", xlabel = "Input", legend = false)
+for n in 1:out["N"]
+    net_iter_plot = plot!(0.0:0.01:1.0, out["network_iteration_outputs"][n])
+end
+net_iter_plot
