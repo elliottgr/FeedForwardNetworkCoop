@@ -52,13 +52,13 @@ function repeatedNetworkGame(pop, mutI, resI)
     resHist = zeros(Float64, pop.parameters.rounds)
 
     # reset current offer to initial offer
-    pop.networks[mutI].CurrentOffer = minimum([1, maximum([0, pop.networks[mutI].InitialOffer])])
-    pop.networks[resI].CurrentOffer = minimum([1, maximum([0, pop.networks[resI].InitialOffer])])
+    pop.networks[mutI].CurrentOffer = pop.networks[mutI].InitialOffer
+    pop.networks[resI].CurrentOffer = pop.networks[resI].InitialOffer
 
     for i in 1:pop.parameters.rounds
         networkGameRound!(pop, mutI, resI)
-        mutHist[i] = minimum([1, maximum([0, pop.networks[mutI].CurrentOffer])])
-        resHist[i] = minimum([1, maximum([0, pop.networks[resI].CurrentOffer])])
+        mutHist[i] = 0, pop.networks[mutI].CurrentOffer
+        resHist[i] = 0, pop.networks[resI].CurrentOffer
     end
     return [mutHist, resHist]
 

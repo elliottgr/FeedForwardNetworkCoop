@@ -1,7 +1,7 @@
 ## A selection of functions passable to calcOj in the NetworkGameFuncs.jl game loop
 
 function linear(x)
-    return x
+    return minimum([1, maximum([x, 0])])
 end
 
 ##JVC's exponential
