@@ -19,7 +19,7 @@ end
 @sync [@async remotecall_fetch(Random.seed!, w, w) for w in workers()] # set seeds on all workers
 
 pars = simulation_parameters(
-    25000,         # tmax
+    50000,         # tmax
     nproc,          # nreps
     500,            # N
     0.01,           # mutation rate per individual
@@ -38,7 +38,7 @@ pars = simulation_parameters(
     2,              # network size min
     2,              # network size max
     1,              # network size step
-    2,              # network size
+    3,              # network size
     0.05,           # mut std for network weight 
     0.05,           # mut std for initial offer
     0.5,            # probability of mutating node or edge
@@ -53,7 +53,7 @@ pars_reps = [copy(pars) for i in 1:pars.nreps];
 [pars_reps[i].replicate_id = i for i in 1:pars.nreps];
 
 output = vcat(pmap((x)->simulation(population_construction(x)), pars_reps)...);
-mean_output = @chain output groupby(:generation) combine([:b, :c, :mean_payoff, :mean_cooperation, :n1, :n2, :e1_2, :mean_initial_offer] .=> mean, renamecols=false)
+mean_output = @chain output groupby(:generation) combine([:b, :c, :mean_payoff, :mean_cooperation, :n1, :n2, :n3, :e1_2, :e2_3, :mean_initial_offer] .=> mean, renamecols=false)
 
 ##
 mean_output_slice = @chain mean_output @subset(:generation .< 25e3)
@@ -64,19 +64,19 @@ draw(
     data(@chain mean_output_slice stack([:mean_payoff, :mean_cooperation])) * 
     mapping(:generation, :value, color = :variable) *
     visual(Lines); 
-    axis = (title = String(Symbol(pars.activation_function)), width = 400, height = 200)
+    axis = (title = string(String(Symbol(pars.activation_function)), ", nnet: ", pars.nnet), width = 400, height = 200)
 )
 
 draw(
-    data(@chain mean_output_slice stack([:n1, :n2, :e1_2, :mean_initial_offer])) * 
+    data(@chain mean_output_slice stack([:n1, :n2, :n3, :e1_2, :e2_3, :mean_initial_offer])) * 
     mapping(:generation, :value, color = :variable) *
     visual(Lines); 
-    axis = (title = String(Symbol(pars.activation_function)), width = 400, height = 200)
+    axis = (title = string(String(Symbol(pars.activation_function)), ", nnet: ", pars.nnet), width = 400, height = 200)
 )
 
 draw(
-    data(@chain mean_output_slice @transform(:bmc = @. :b * df_dx * :e1_2  - :c )) * 
+    data(@chain mean_output_slice @transform(:bmc = @. :b * df_dx * :e1_2 - :c )) * 
     mapping(:generation, :bmc) *
     visual(Lines); 
-    axis = (title = String(Symbol(pars.activation_function)), width = 400, height = 200)
+    axis = (title = string(String(Symbol(pars.activation_function)), ", nnet: ", pars.nnet), width = 400, height = 200)
 ) 
