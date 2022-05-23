@@ -297,8 +297,8 @@ function mutate!(pop::population)
             pop.networks[i] = network(pop.n_genotypes,
                                         (outWm),
                                         (outWb),
-                                        (pop.networks[i].InitialOffer + mutInit),
-                                        (pop.networks[i].InitialOffer + mutInit),
+                                        minimum([1, maximum([0, (pop.networks[i].InitialOffer + mutInit)])]),
+                                        minimum([1, maximum([0, (pop.networks[i].InitialOffer + mutInit)])]),
                                         )
         end
     end
