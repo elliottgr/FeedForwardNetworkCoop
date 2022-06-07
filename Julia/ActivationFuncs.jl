@@ -5,7 +5,7 @@ function linear_unbounded(x)
 end
 
 function linear(x)
-    return minimum([1, maximum([x, 0])])
+    return minimum([1, maximum([(x + 0.5), 0])])
 end
 
 ##JVC's exponential
