@@ -6,7 +6,7 @@ using DataFramesMeta
 using Chain
 using ForwardDiff
 
-nproc = 50
+nproc = 120
 addprocs(nproc)
 @everywhere begin
     include("NetworkGameFuncs.jl")
@@ -42,8 +42,8 @@ pars = simulation_parameters(
     0.05,           # mut std for network weight 
     0.05,           # mut std for initial offer
     0.5,            # probability of mutating node or edge
-    linear,         # threshold function
-    5.0,            # scale for network output into threshold function    
+    ReLU,         # threshold function
+    10.0,            # scale for network output into threshold function    
     100,            # time step for output
     0,              # replicate id
     314,            # seed
@@ -75,7 +75,7 @@ draw(
 )
 
 draw(
-    data(@chain mean_output_slice @transform(:bmc = @. :b * df_dx * :e1_2 - :c )) * 
+    data(@chain mean_output_slice @transform(:bmc = @. :b  * :e1_2 - :c )) * 
     mapping(:generation, :bmc) *
     visual(Lines); 
     axis = (title = string(String(Symbol(pars.activation_function)), ", nnet: ", pars.nnet), width = 400, height = 200)

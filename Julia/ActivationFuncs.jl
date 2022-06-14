@@ -8,6 +8,14 @@ function heaviside(x)
     end
 end
 
+function ELU(x)
+    if x > 0
+        return 1
+    elseif x <= 0
+        return exp(x) - 1
+    end
+end
+
 function ReLU(x)
     return maximum([0, x])
 end

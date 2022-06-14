@@ -22,9 +22,7 @@ end
 input_range = 0:0.01:1
 response_rule_df = DataFrame(Input = collect(input_range))
 
-for activ_func in [bounded_linear, jvc_exp, lenagard_exp, ReLU, linear, heaviside]
-
-    pars = simulation_parameters(
+pars = simulation_parameters(
         5000,         # tmax
         nproc,          # nreps
         500,            # N
@@ -32,7 +30,7 @@ for activ_func in [bounded_linear, jvc_exp, lenagard_exp, ReLU, linear, heavisid
         20,             # number of rounds
         0.2,            # payoff scale
         1.0,            # b
-        0.0,            # c
+        0.5,            # c
         0.0,            # d
         0.0,            # discount rate
         0.0,            # param_min
@@ -48,13 +46,17 @@ for activ_func in [bounded_linear, jvc_exp, lenagard_exp, ReLU, linear, heavisid
         0.05,           # mut std for network weight 
         0.05,           # mut std for initial offer
         0.5,            # probability of mutating node or edge
-        activ_func,         # threshold function
+        linear,         # threshold function
         1.0,            # scale for network output into threshold function    
         100,            # time step for output
         0,              # replicate id
         314,            # seed
         "test.jld2"     # output filename
     )
+
+for activ_func in [bounded_linear, jvc_exp, lenagard_exp, ReLU, linear, ELU, heaviside]
+
+    pars.activation_function = activ_func
     pars_reps = [copy(pars) for i in 1:pars.nreps];
     [pars_reps[i].replicate_id = i for i in 1:pars.nreps];
 
@@ -83,7 +85,7 @@ for activ_func in [bounded_linear, jvc_exp, lenagard_exp, ReLU, linear, heavisid
 end
 
 draw(
-    data(@chain response_rule_df stack([:linear, :jvc_exp, :lenagard_exp])) *
+    data(@chain response_rule_df stack([:bounded_linear, :jvc_exp, :lenagard_exp, :ReLU, :linear, :ELU, :heaviside])) *
     mapping(:Input, :value, color = :variable) *
     visual(Lines);
     axis = (title = string("b = ", string(pars.b), ", c = ", string(pars.c), ", Generations = ", string(pars.tmax)), ylabel = "Output")

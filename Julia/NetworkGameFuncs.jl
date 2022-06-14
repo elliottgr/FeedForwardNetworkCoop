@@ -9,7 +9,6 @@ include("ActivationFuncs.jl")
 
 function calcOj(activation_function::Function, activation_scale::Float64, j::Int64, prev_out, Wm::SMatrix, Wb::SVector)
 
-
     ##############################
     ## Iterates a single layer of the Feed Forward network
     ##############################
@@ -57,8 +56,8 @@ function repeatedNetworkGame(pop, mutI, resI)
 
     for i in 1:pop.parameters.rounds
         networkGameRound!(pop, mutI, resI)
-        mutHist[i] = pop.networks[mutI].CurrentOffer
-        resHist[i] = pop.networks[resI].CurrentOffer
+        mutHist[i] = minimum([1, maximum([0, pop.networks[mutI].CurrentOffer])])
+        resHist[i] = minimum([1, maximum([0, pop.networks[resI].CurrentOffer])])
     end
     return [mutHist, resHist]
 
