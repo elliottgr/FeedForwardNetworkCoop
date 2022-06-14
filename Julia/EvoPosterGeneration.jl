@@ -22,17 +22,17 @@ end
 input_range = 0:0.01:1
 response_rule_df = DataFrame(Input = collect(input_range))
 
-for activ_func in [linear, jvc_exp, lenagard_exp]
+for activ_func in [bounded_linear, jvc_exp, lenagard_exp, ReLU, linear, heaviside]
 
     pars = simulation_parameters(
-        25000,         # tmax
+        5000,         # tmax
         nproc,          # nreps
         500,            # N
         0.01,           # mutation rate per individual
         20,             # number of rounds
         0.2,            # payoff scale
         1.0,            # b
-        0.5,            # c
+        0.0,            # c
         0.0,            # d
         0.0,            # discount rate
         0.0,            # param_min
@@ -49,7 +49,7 @@ for activ_func in [linear, jvc_exp, lenagard_exp]
         0.05,           # mut std for initial offer
         0.5,            # probability of mutating node or edge
         activ_func,         # threshold function
-        50.0,            # scale for network output into threshold function    
+        1.0,            # scale for network output into threshold function    
         100,            # time step for output
         0,              # replicate id
         314,            # seed
@@ -66,6 +66,7 @@ for activ_func in [linear, jvc_exp, lenagard_exp]
     ## Recovering mean network at the end of the simulation run 
     mean_Wm = SMatrix{pars.nnet, pars.nnet, Float64}(Matrix(UpperTriangular(fill(mean_output_slice[mean_output_slice.generation .== maximum(mean_output_slice.generation), :e1_2][1], (pars.nnet, pars.nnet)))))
     mean_Wb = SVector{pars.nnet, Float64}([mean_output_slice[mean_output_slice.generation .== maximum(mean_output_slice.generation), :n1][1], mean_output_slice[mean_output_slice.generation .== maximum(mean_output_slice.generation), :n2][1]])
+    # mean_Wb = SVector{pars.nnet, Float64}([mean_output_slice[mean_output_slice.generation .== maximum(mean_output_slice.generation), :n1][1]])
     mean_init = mean_output_slice[mean_output_slice.generation .== maximum(mean_output_slice.generation), :mean_initial_offer][1] 
     mean_output_network = network(0, mean_Wm, mean_Wb, mean_init, mean_init)
 
@@ -75,8 +76,15 @@ for activ_func in [linear, jvc_exp, lenagard_exp]
     prev_out = @MVector zeros(Float64, pars.nnet) 
 
     for i in input_range
-        push!(temp, iterateNetwork(pars.activation_function, pars.activation_scale, i, mean_output_network.Wm, mean_output_network.Wb, prev_out)[2])
+        push!(temp, iterateNetwork(pars.activation_function, pars.activation_scale, i, mean_output_network.Wm, mean_output_network.Wb, prev_out)[pars.nnet])
     end 
 
     response_rule_df[!, String(Symbol(pars.activation_function))] = temp
 end
+
+draw(
+    data(@chain response_rule_df stack([:linear, :jvc_exp, :lenagard_exp])) *
+    mapping(:Input, :value, color = :variable) *
+    visual(Lines);
+    axis = (title = string("b = ", string(pars.b), ", c = ", string(pars.c), ", Generations = ", string(pars.tmax)), ylabel = "Output")
+)
