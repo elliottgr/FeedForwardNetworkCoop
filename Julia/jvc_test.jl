@@ -38,7 +38,7 @@ pars = simulation_parameters(
     2,              # network size min
     2,              # network size max
     1,              # network size step
-    3,              # network size
+    2,              # network size
     0.05,           # mut std for network weight 
     0.05,           # mut std for initial offer
     0.5,            # probability of mutating node or edge

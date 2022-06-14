@@ -13,11 +13,15 @@ function ReLU(x)
 end
 
 function linear(x)
+<<<<<<< HEAD
     return x
 end
 
 function bounded_linear(x)
     return minimum([1, maximum([x, 0])])
+=======
+    return minimum([1, maximum([(x + 0.5), 0])])
+>>>>>>> 26d081a1d726fc271b1891614c00f193c71c58df
 end
 
 ##JVC's exponential AKA Logistic
