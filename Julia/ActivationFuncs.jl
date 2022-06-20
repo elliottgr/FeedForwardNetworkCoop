@@ -10,7 +10,7 @@ end
 
 function ELU(x)
     if x > 0
-        return 1
+        return x
     elseif x <= 0
         return exp(x) - 1
     end

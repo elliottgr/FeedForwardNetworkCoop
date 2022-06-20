@@ -19,8 +19,8 @@ end
 @sync [@async remotecall_fetch(Random.seed!, w, w) for w in workers()] # set seeds on all workers
 
 pars = simulation_parameters(
-    50000,         # tmax
-    nproc,          # nreps
+    100000,         # tmax
+    500,          # nreps
     500,            # N
     0.01,           # mutation rate per individual
     20,             # number of rounds
@@ -42,7 +42,7 @@ pars = simulation_parameters(
     0.05,           # mut std for network weight 
     0.05,           # mut std for initial offer
     0.5,            # probability of mutating node or edge
-    ReLU,         # threshold function
+    linear,         # threshold function
     10.0,            # scale for network output into threshold function    
     100,            # time step for output
     0,              # replicate id
@@ -56,7 +56,7 @@ output = vcat(pmap((x)->simulation(population_construction(x)), pars_reps)...);
 mean_output = @chain output groupby(:generation) combine([:b, :c, :mean_payoff, :mean_cooperation, :n1, :n2, :n3, :e1_2, :e2_3, :mean_initial_offer] .=> mean, renamecols=false)
 
 ##
-mean_output_slice = @chain mean_output @subset(:generation .< 25e3)
+mean_output_slice = @chain mean_output @subset(:generation .< 100e3)
 ## Scalar that (if the population reaches an ESS) should represent the slope at each timepoint
 df_dx = ForwardDiff.derivative(pars.activation_function, mean_output_slice[mean_output_slice.generation .== maximum(mean_output_slice.generation), :mean_initial_offer][1]) 
 
