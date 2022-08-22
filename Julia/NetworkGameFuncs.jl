@@ -58,6 +58,8 @@ function repeatedNetworkGame(pop, mutI, resI)
         networkGameRound!(pop, mutI, resI)
         mutHist[i] = minimum([1, maximum([0, pop.networks[mutI].CurrentOffer])])
         resHist[i] = minimum([1, maximum([0, pop.networks[resI].CurrentOffer])])
+        # mutHist[i] = jvc_exp(pop.networks[mutI].CurrentOffer)
+        # resHist[i] = jvc_exp(pop.networks[resI].CurrentOffer)
     end
     return [mutHist, resHist]
 
