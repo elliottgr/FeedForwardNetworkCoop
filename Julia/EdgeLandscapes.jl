@@ -77,4 +77,19 @@ function main(activation_function = linear, b = 1.0, c = 0.5, initial_offers = 0
             xticks =  ticks, yticks = ticks)
 end
 
-main(linear, 1.0, 0.5, 0.1, 100)
+
+main(jvc_exp, 1.0, 0.5, 0.5, 100)
+
+## Gives three equally fit local optima,
+## and one global optimum, each seperated by 
+## an apparent fitness valley
+main(linear, 1.0, 0.5, 0.5, 100)
+
+## Gives a really cool assymetric plot where
+## the focal individual is incentivized to not change
+## but the opponent is
+main(gaussian, 1.0, 0.5, 0.5, 100)
+
+## Gives three distinct regions of payoff behavior,
+## with an optimum when not playing against oneself
+main(softplus, 1.0, 0.5, 0.5, 100)
