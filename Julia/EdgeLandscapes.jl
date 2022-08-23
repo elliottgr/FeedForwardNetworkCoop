@@ -35,14 +35,7 @@ function main(activation_function = linear, b = 1.0, c = 0.5, initial_offers = 0
         314,            # seed
         "test.jld2"     # output filename
     )
-    # params.nnet = 2
-    # params.b = b
-    # params.c = c
-    # params.activation_function = activation_function
-
     pop = population_construction(params)
-    print(pop.parameters.activation_function)
-
 
     ## pulling out the first network to make dummy copies
     test_net_1 = copy(pop.networks[1])
@@ -69,27 +62,51 @@ function main(activation_function = linear, b = 1.0, c = 0.5, initial_offers = 0
     end
 
     ## Plot stuff!
-    title_str = "$activation_function, b = $b, c = $c, InitOffer = $initial_offers"
-    ticks = ([1.0:samples/10:samples+1;], [string(i) for i in e_min:((e_max-e_min)/samples*10):e_max])
-    heatmap(outputs,
-            title = title_str,
-            xlabel = "Network 1 Edge Weight", ylabel = "Network 2 Edge Weight",
-            xticks =  ticks, yticks = ticks)
+    ticks = ([1.0:samples/10:samples+1;], [string(i) for i in e_min:(samples/10*(e_max-e_min)/(samples)):e_max]) #Do not ask me why the step size looks like that. I got it to work for various sample sizes and didn't feel like figuring it out further
+    
+    return heatmap(outputs,
+            title = "$activation_function",
+            # xlabel = "Net 1 Edge Weight", ylabel = "Net 2 Edge Weight",
+            xticks =  ticks, yticks = ticks,
+            # legend = :none)
+    )
 end
 
+## Params for the overall plot
+b = 1.0
+c = 0.5
+init_offer = 0.5
+samples = 500
+e_min = 0.0
+e_max = 0.3
 
-main(jvc_exp, 1.0, 0.5, 0.5, 100)
+
+####################
+## Generates a main plot combining each of the others
+####################
+
+plot(main(jvc_exp, b, c, init_offer, samples, e_min, e_max), main(linear,  b, c, init_offer, samples, e_min, e_max), main(gaussian,  b, c, init_offer, samples, e_min, e_max), main(softplus,  b, c, init_offer, samples, e_min, e_max),
+    plot_title = "b = $b, c = $c, InitOffer = $init_offer", layout = 4,
+    xlabel = "Focal e1_2", ylabel = "Partner e1_2",
+    size = (1000,1000))
+
+
+####################
+## Generates the other plots individually if you want to look at them in VSCode
+####################
+
+main(jvc_exp,  b, c, init_offer, samples, e_min, e_max)
 
 ## Gives three equally fit local optima,
 ## and one global optimum, each seperated by 
 ## an apparent fitness valley
-main(linear, 1.0, 0.5, 0.5, 100)
+main(linear, b, c, init_offer, samples, e_min, e_max)
 
 ## Gives a really cool assymetric plot where
 ## the focal individual is incentivized to not change
 ## but the opponent is
-main(gaussian, 1.0, 0.5, 0.5, 100)
+main(gaussian,  b, c, init_offer, samples, e_min, e_max)
 
 ## Gives three distinct regions of payoff behavior,
 ## with an optimum when not playing against oneself
-main(softplus, 1.0, 0.5, 0.5, 100)
+main(softplus,  b, c, init_offer, samples, e_min, e_max)
