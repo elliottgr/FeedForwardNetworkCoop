@@ -1,4 +1,10 @@
-## This should plot fitness outcomes of all possible 2 node networks (excluding biases) when played against themselves
+## This script plots fitness outcomes of possible 
+## edge weights in 2 node landscapes, where a
+## focal and partner player engage in the game
+## The diagonal of the output heatmaps corresponds
+## to playing against a clone of oneself, and so
+## the evolutionary stable strategy should like on
+## the x = y diagonal of the outputs.
 using Plots
 include("NetworkGameFuncs.jl")
 
