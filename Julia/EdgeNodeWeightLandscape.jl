@@ -73,14 +73,14 @@ function main(activation_function = linear, b = 1.0, c = 0.5, initial_offers = 0
                     xticks = x_ticks, yticks = y_ticks)
 end
 
-b = 1.0
-c = 0.5
-init_offer = 0.0
-samples = 500
-e_min = -.5
-e_max = .5
-b_min = -.5
-b_max = .5
+b::Float64 = 1.0
+c::Float64 = 0.5
+init_offer::Float64 = 0.0
+samples::Int64 = 500
+e_min::Float64 = -.5
+e_max::Float64 = .5
+b_min::Float64 = -.5
+b_max::Float64 = .5
 
 plot(main(jvc_exp, b, c, init_offer, samples, e_min, e_max, b_min, b_max), main(linear,  b, c, init_offer, samples, e_min, e_max, b_min, b_max), main(gaussian,  b, c, init_offer, samples, e_min, e_max, b_min, b_max), main(softplus,  b, c, init_offer, samples, e_min, e_max, b_min, b_max),
     plot_title = "b = $b, c = $c, InitOffer = $init_offer", layout = 4,

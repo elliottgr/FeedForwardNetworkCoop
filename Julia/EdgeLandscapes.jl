@@ -79,12 +79,14 @@ function main(activation_function = linear, b = 1.0, c = 0.5, initial_offers = 0
 end
 
 ## Params for the overall plot
-b = 1.0
-c = 0.5
-init_offer = 0.5
-samples = 500
-e_min = 0.0
-e_max = 0.3
+b::Float64 = 1.0
+c::Float64 = 0.5
+init_offer::Float64 = 0.0
+samples::Int64 = 500
+e_min::Float64 = -.5
+e_max::Float64 = .5
+b_min::Float64 = -.5
+b_max::Float64 = .5
 
 
 ####################
@@ -93,7 +95,7 @@ e_max = 0.3
 
 plot(main(jvc_exp, b, c, init_offer, samples, e_min, e_max), main(linear,  b, c, init_offer, samples, e_min, e_max), main(gaussian,  b, c, init_offer, samples, e_min, e_max), main(softplus,  b, c, init_offer, samples, e_min, e_max),
     plot_title = "b = $b, c = $c, InitOffer = $init_offer", layout = 4,
-    xlabel = "Focal e1_2", ylabel = "Partner e1_2",
+    ylabel = "Focal e1_2", xlabel = "Partner e1_2",
     size = (1000,1000))
 
 
