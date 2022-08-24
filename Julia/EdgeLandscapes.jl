@@ -81,12 +81,12 @@ end
 ## Params for the overall plot
 b::Float64 = 1.0
 c::Float64 = 0.5
-init_offer::Float64 = 0.0
+init_offer::Float64 = 0.5
 samples::Int64 = 500
-e_min::Float64 = -.5
-e_max::Float64 = .5
-b_min::Float64 = -.5
-b_max::Float64 = .5
+e_min::Float64 = -1.0
+e_max::Float64 = 1.0
+b_min::Float64 = -1.0
+b_max::Float64 = 1.0
 
 
 ####################

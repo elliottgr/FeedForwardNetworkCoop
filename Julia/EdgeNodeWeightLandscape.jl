@@ -75,14 +75,20 @@ end
 
 b::Float64 = 1.0
 c::Float64 = 0.5
-init_offer::Float64 = 0.0
+init_offer::Float64 = 0.5
 samples::Int64 = 500
-e_min::Float64 = -.5
-e_max::Float64 = .5
-b_min::Float64 = -.5
-b_max::Float64 = .5
+e_min::Float64 = -1.0
+e_max::Float64 = 1.0
+b_min::Float64 = -1.0
+b_max::Float64 = 1.0
 
 plot(main(jvc_exp, b, c, init_offer, samples, e_min, e_max, b_min, b_max), main(linear,  b, c, init_offer, samples, e_min, e_max, b_min, b_max), main(gaussian,  b, c, init_offer, samples, e_min, e_max, b_min, b_max), main(softplus,  b, c, init_offer, samples, e_min, e_max, b_min, b_max),
     plot_title = "b = $b, c = $c, InitOffer = $init_offer", layout = 4,
     xlabel = "Node Bias", ylabel = "Edge Weight",
     size = (1000,1000))
+
+## Tight zoom on the odd fitness valley/peaks off the main diagonal under a gaussian Distributions
+
+plot(main(gaussian,  1.0, .5, .5, samples, -.5, -.2, .15, .25), 
+xlabel = "Node Bias", ylabel = "Edge Weight",size = (1000,1000))
+
