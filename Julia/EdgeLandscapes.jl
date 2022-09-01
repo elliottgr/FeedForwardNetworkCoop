@@ -8,7 +8,7 @@
 using Plots
 include("NetworkGameFuncs.jl")
 
-function main(activation_function = linear, b = 1.0, c = 0.5, initial_offers = 0.5, samples = 25, e_min= -1.0, e_max = 1.0)
+function main(activation_function = linear, activation_scale = 1.0, b = 1.0, c = 0.5, initial_offers = 0.5, samples = 25, e_min= -1.0, e_max = 1.0)
     ## Constructing a dummy parameter set and population
     params = simulation_parameters(
         1,         # tmax
@@ -35,7 +35,7 @@ function main(activation_function = linear, b = 1.0, c = 0.5, initial_offers = 0
         0.05,           # mut std for initial offer
         0.5,            # probability of mutating node or edge
         activation_function,         # threshold function
-        10.0,            # scale for network output into threshold function    
+        activation_scale,            # scale for network output into threshold function    
         100,            # time step for output
         0,              # replicate id
         314,            # seed
@@ -63,7 +63,7 @@ function main(activation_function = linear, b = 1.0, c = 0.5, initial_offers = 0
             test_net_2.Wm = SMatrix{params.nnet, params.nnet, Float64}([0.0 net_2_e1_2 ; 0.0 1.0])
             pop.networks[2] = test_net_2
             interactionOutcome!(pop, 1, 2)
-            outputs[m, n] = last(pop.temp_arrays.gamePayoffTempArray[1,1])
+            outputs[m, n] = last(pop.temp_arrays.gamePayoffTempArray[1][1]) - last(pop.temp_arrays.gamePayoffTempArray[1][2])
         end
     end
 
@@ -81,10 +81,11 @@ end
 ## Params for the overall plot
 b::Float64 = 1.0
 c::Float64 = 0.5
+activation_scale::Float64 = 10.0
 init_offer::Float64 = 0.5
-samples::Int64 = 500
-e_min::Float64 = -1.0
-e_max::Float64 = 1.0
+samples::Int64 = 250
+e_min::Float64 = -10.0
+e_max::Float64 = 10.0
 b_min::Float64 = -1.0
 b_max::Float64 = 1.0
 
@@ -93,7 +94,7 @@ b_max::Float64 = 1.0
 ## Generates a main plot combining each of the others
 ####################
 
-plot(main(jvc_exp, b, c, init_offer, samples, e_min, e_max), main(linear,  b, c, init_offer, samples, e_min, e_max), main(gaussian,  b, c, init_offer, samples, e_min, e_max), main(softplus,  b, c, init_offer, samples, e_min, e_max),
+plot(main(jvc_exp, activation_scale, b, c, init_offer, samples, e_min, e_max), main(linear,  activation_scale, b, c, init_offer, samples, e_min, e_max), main(gaussian, activation_scale,  b, c, init_offer, samples, e_min, e_max), main(softplus, activation_scale,  b, c, init_offer, samples, e_min, e_max),
     plot_title = "b = $b, c = $c, InitOffer = $init_offer", layout = 4,
     ylabel = "Focal e1_2", xlabel = "Partner e1_2",
     size = (1000,1000))

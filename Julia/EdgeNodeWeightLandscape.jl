@@ -63,7 +63,7 @@ function main(activation_function = linear, b = 1.0, c = 0.5, initial_offers = 0
             test_net.Wb = SVector{params.nnet, Float64}([0.0, node_bias])
             pop.networks[1] = test_net
             interactionOutcome!(pop, 1, 1)
-            outputs[m, n] = last(pop.temp_arrays.gamePayoffTempArray[1,1])
+            outputs[m, n] = last(pop.temp_arrays.gamePayoffTempArray[1][1])
         end
     end
     y_ticks = ([1.0:samples/10:samples+1;], [string(i) for i in e_min:(samples/10*(e_max-e_min)/(samples)):e_max]) 
