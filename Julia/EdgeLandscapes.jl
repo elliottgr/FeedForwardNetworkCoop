@@ -67,6 +67,15 @@ function main(activation_function = linear, activation_scale = 1.0, b = 1.0, c =
         end
     end
 
+    ## Filtering +/- floats into a binary output matrix
+    for i in eachindex(outputs)
+        if outputs[i] >= 0
+            outputs[i] = 1
+        else
+            outputs[i] = -1
+        end
+    end
+
     ## Plot stuff!
     ticks = ([1.0:samples/10:samples+1;], [string(i) for i in e_min:(samples/10*(e_max-e_min)/(samples)):e_max]) #Do not ask me why the step size looks like that. I got it to work for various sample sizes and didn't feel like figuring it out further
 
@@ -78,17 +87,21 @@ function main(activation_function = linear, activation_scale = 1.0, b = 1.0, c =
     ## plotting y = x for comparison
     plt = plot!(ticks, ticks,
             xticks = ticks, yticks = ticks, legend = :none)
+    
+    # print(1 ./ e_min:(samples/10*(e_max-e_min)/(samples)):e_max)
+ 
+    # plt = plot!(ticks, ([1/i for i in e_min:(samples/10*(e_max-e_min)/(samples)):e_max]))
     return plt
 end
 
 ## Params for the overall plot
 b::Float64 = 1.0
 c::Float64 = 0.5
-activation_scale::Float64 = 1.0
+activation_scale::Float64 = 5.0
 init_offer::Float64 = 0.5
-samples::Int64 = 25
-e_min::Float64 = -1.0
-e_max::Float64 = 1.0
+samples::Int64 = 4000
+e_min::Float64 = -.25
+e_max::Float64 = -0.05
 b_min::Float64 = -1.0
 b_max::Float64 = 1.0
 
@@ -112,7 +125,7 @@ main(jvc_exp,  b, c, init_offer, samples, e_min, e_max)
 ## Gives three equally fit local optima,
 ## and one global optimum, each seperated by 
 ## an apparent fitness valley
-main(linear, b, c, init_offer, samples, e_min, e_max)
+main(linear,  activation_scale, b, c, init_offer, samples, e_min, e_max)
 
 ## Gives a really cool assymetric plot where
 ## the focal individual is incentivized to not change
