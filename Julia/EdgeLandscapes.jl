@@ -69,23 +69,26 @@ function main(activation_function = linear, activation_scale = 1.0, b = 1.0, c =
 
     ## Plot stuff!
     ticks = ([1.0:samples/10:samples+1;], [string(i) for i in e_min:(samples/10*(e_max-e_min)/(samples)):e_max]) #Do not ask me why the step size looks like that. I got it to work for various sample sizes and didn't feel like figuring it out further
-    
-    return heatmap(outputs,
+
+    heatmap(outputs,
             title = "$activation_function",
-            # xlabel = "Net 1 Edge Weight", ylabel = "Net 2 Edge Weight",
             xticks =  ticks, yticks = ticks,
-            # legend = :none)
     )
+
+    ## plotting y = x for comparison
+    plt = plot!(ticks, ticks,
+            xticks = ticks, yticks = ticks, legend = :none)
+    return plt
 end
 
 ## Params for the overall plot
 b::Float64 = 1.0
 c::Float64 = 0.5
-activation_scale::Float64 = 10.0
+activation_scale::Float64 = 1.0
 init_offer::Float64 = 0.5
-samples::Int64 = 250
-e_min::Float64 = -10.0
-e_max::Float64 = 10.0
+samples::Int64 = 25
+e_min::Float64 = -1.0
+e_max::Float64 = 1.0
 b_min::Float64 = -1.0
 b_max::Float64 = 1.0
 
