@@ -8,4 +8,16 @@ This directory contains two folders:
   - **Network_fig.py** : Supplemental file used to create figures
   - **selection_analysis.py** : Code to analyses the output of NetworkGame.py and show that it matches theoretical predictions
  
-* **Julia** : The Julia folder contains high-performance code that maintains the functionality of the earlier Python code. Once compiled, it is capable of producing simulation outputs at ~100x the speed of the Python implementation. It also implements Distributed.jl, allowing the code to be ran on multiple cores or HPC clusters. 
+* **Julia** : The Julia folder contains high-performance code that maintains the functionality of the earlier Python code. Once compiled, it is capable of producing simulation outputs at ~100x the speed of the Python implementation. It also implements Distributed.jl, allowing the code to be ran on multiple cores or HPC clusters. It contains files to optimize for higher performance, as well as code to generate figures:
+  - **ActivationFuncs.jl** : A file that allows easy addition and testing of new activation functions for the neural network
+  - **EdgeLandscapes.jl** : Generates figures showing the social response landscape as a function of edge weights
+  - **EdgeNodeWeightLandscapes.jl** : Similar to EdgeLandscapes.jl, but characterizing the social response as a function of network node weights
+  - **EvoPosterGeneration.jl** : Code used to generate the figures presented at Evolution 2022
+  - **FunctionTest.jl** : Debug file used to show that the Julia implementation is behaving as expected
+  - **NetworkGame.jl** : Debug file, contains the minimum necessary to instantiate a simulation run
+  - **NetworkGameCoop.jl** : Main simulation file. Calling this via command line will begin a simulation based on the keyword arguments
+  - **NetworkGameFuncs.jl** : Defines all the functions used as part of simulations
+  - **NetworkGamePopGenTests.jl** : Debug file used to test Distributed.jl and population interactions
+  - **Networks.jl** : WIP file that generalizes the network structure
+  - **jvc_test.jl** : Research notebook that calls NetworkGameCoop.jl to test the model
+  - **network_analysis.jl** : Research notebook that plots some simulation outputs
