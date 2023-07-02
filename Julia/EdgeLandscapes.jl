@@ -68,13 +68,13 @@ function main(activation_function = linear, activation_scale = 1.0, b = 1.0, c =
     end
 
     ## Filtering +/- floats into a binary output matrix
-    for i in eachindex(outputs)
-        if outputs[i] >= 0
-            outputs[i] = 1
-        else
-            outputs[i] = -1
-        end
-    end
+    # for i in eachindex(outputs)
+    #     if outputs[i] >= 0
+    #         outputs[i] = 1
+    #     else
+    #         outputs[i] = -1
+    #     end
+    # end
 
     ## Plot stuff!
     ticks = ([1.0:samples/10:samples+1;], [string(i) for i in e_min:(samples/10*(e_max-e_min)/(samples)):e_max]) #Do not ask me why the step size looks like that. I got it to work for various sample sizes and didn't feel like figuring it out further
@@ -97,11 +97,11 @@ end
 ## Params for the overall plot
 b::Float64 = 1.0
 c::Float64 = 0.5
-activation_scale::Float64 = 5.0
+activation_scale::Float64 = 1.0
 init_offer::Float64 = 0.5
-samples::Int64 = 4000
-e_min::Float64 = -.25
-e_max::Float64 = -0.05
+samples::Int64 = 400
+e_min::Float64 = -1.0
+e_max::Float64 = 1.0
 b_min::Float64 = -1.0
 b_max::Float64 = 1.0
 
