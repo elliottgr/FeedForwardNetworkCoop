@@ -7,3 +7,5 @@ This directory contains two folders:
   - **NetworkGame.py** : Basic prototyping code, contains necessary functions to initiate a population of neural networks, allow them to engage in social interaction, and subject them to evolution. It outputs a .H5 file containing simulation data
   - **Network_fig.py** : Supplemental file used to create figures
   - **selection_analysis.py** : Code to analyses the output of NetworkGame.py and show that it matches theoretical predictions
+ 
+* **Julia** : The Julia folder contains high-performance code that maintains the functionality of the earlier Python code. Once compiled, it is capable of producing simulation outputs at ~100x the speed of the Python implementation. It also implements Distributed.jl, allowing the code to be ran on multiple cores or HPC clusters. 
